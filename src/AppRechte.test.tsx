@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import App from './App';
 import { AuthKontext, type AuthWert } from './lib/auth-kontext';
 import { berechneRollen, type Ich } from './lib/rollen';
@@ -67,5 +67,15 @@ describe('Gemeinsame Verwaltung: jede der beiden Koordinationen', () => {
     expect(landetBei(TK, pfad)).toBe(pfad);
     expect(landetBei(BEIDE, pfad)).toBe(pfad);
     expect(landetBei(NORMAL, pfad)).not.toBe(pfad);
+  });
+});
+
+describe('Seiten werden erst beim Öffnen geladen', () => {
+  it('eine nachgeladene Seite erscheint (mit Platzhalter, solange sie lädt)', async () => {
+    aktuell = BEIDE;
+    window.history.pushState({}, '', '/orte');
+    const { unmount } = render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Orte' })).toBeInTheDocument();
+    unmount();
   });
 });

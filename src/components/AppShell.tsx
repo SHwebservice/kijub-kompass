@@ -1,4 +1,6 @@
 import { LOGO } from '../lib/assets';
+import { Suspense } from 'react';
+import { Spinner } from './ui';
 import { NavLink, Outlet } from 'react-router-dom';
 import { navigation, type NavEintrag } from '../lib/rollen';
 import { useAuth } from '../lib/auth-kontext';
@@ -33,7 +35,7 @@ export function AppShell() {
         </div>
       </header>
       <main id="inhalt" className="shell__main" tabIndex={-1}>
-        <Outlet />
+        <Suspense fallback={<Spinner />}><Outlet /></Suspense>
       </main>
       <div className="shell__nav-bottom"><Navigation eintraege={eintraege} beschriftung="Hauptnavigation (mobil)" /></div>
     </div>

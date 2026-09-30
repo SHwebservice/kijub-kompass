@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './lib/auth';
 import { useAuth } from './lib/auth-kontext';
@@ -6,30 +7,33 @@ import { AppShell } from './components/AppShell';
 import { Alert, Button, Card, Spinner } from './components/ui';
 import { Login } from './pages/Login';
 import { Heute } from './pages/Heute';
-import { Mehr } from './pages/Mehr';
-import { Personen } from './pages/Personen';
 import { PasswortAendern } from './pages/PasswortAendern';
-import { KijukoImportSeite } from './pages/KijukoImport';
-import { FreizeitenListe } from './pages/freizeiten/FreizeitenListe';
-import { FreizeitDetail } from './pages/freizeiten/FreizeitDetail';
-import { FreizeitForm } from './pages/freizeiten/FreizeitForm';
-import { Orte } from './pages/Orte';
-import { MappeSeite } from './pages/mappen/MappeSeite';
-import { FormularSeite } from './pages/mappen/FormularSeite';
-import { KatalogListe } from './pages/katalog/KatalogListe';
-import { AngebotDetail } from './pages/katalog/AngebotDetail';
-import { AngebotForm } from './pages/katalog/AngebotForm';
-import { Vorschlaege } from './pages/katalog/Vorschlaege';
-import { KatalogImport } from './pages/katalog/KatalogImport';
-import { QuizSeite } from './pages/quiz/QuizSeite';
-import { QuizVerwaltung } from './pages/quiz/QuizVerwaltung';
-import { TreffeListe } from './pages/treffs/TreffeListe';
-import { TreffDetail } from './pages/treffs/TreffDetail';
-import { TreffForm } from './pages/treffs/TreffForm';
-import { Bewerbungen } from './pages/Bewerbungen';
-import { MitteilungSenden } from './pages/MitteilungSenden';
 import { Impressum } from './pages/recht/Impressum';
 import { Datenschutz } from './pages/recht/Datenschutz';
+
+
+/** Seiten werden erst geladen, wenn man sie öffnet – der Start bleibt schlank. */
+const Mehr = lazy(() => import('./pages/Mehr').then((m) => ({ default: m.Mehr })));
+const Personen = lazy(() => import('./pages/Personen').then((m) => ({ default: m.Personen })));
+const KijukoImportSeite = lazy(() => import('./pages/KijukoImport').then((m) => ({ default: m.KijukoImportSeite })));
+const FreizeitenListe = lazy(() => import('./pages/freizeiten/FreizeitenListe').then((m) => ({ default: m.FreizeitenListe })));
+const FreizeitDetail = lazy(() => import('./pages/freizeiten/FreizeitDetail').then((m) => ({ default: m.FreizeitDetail })));
+const FreizeitForm = lazy(() => import('./pages/freizeiten/FreizeitForm').then((m) => ({ default: m.FreizeitForm })));
+const Orte = lazy(() => import('./pages/Orte').then((m) => ({ default: m.Orte })));
+const MappeSeite = lazy(() => import('./pages/mappen/MappeSeite').then((m) => ({ default: m.MappeSeite })));
+const FormularSeite = lazy(() => import('./pages/mappen/FormularSeite').then((m) => ({ default: m.FormularSeite })));
+const KatalogListe = lazy(() => import('./pages/katalog/KatalogListe').then((m) => ({ default: m.KatalogListe })));
+const AngebotDetail = lazy(() => import('./pages/katalog/AngebotDetail').then((m) => ({ default: m.AngebotDetail })));
+const AngebotForm = lazy(() => import('./pages/katalog/AngebotForm').then((m) => ({ default: m.AngebotForm })));
+const Vorschlaege = lazy(() => import('./pages/katalog/Vorschlaege').then((m) => ({ default: m.Vorschlaege })));
+const KatalogImport = lazy(() => import('./pages/katalog/KatalogImport').then((m) => ({ default: m.KatalogImport })));
+const QuizSeite = lazy(() => import('./pages/quiz/QuizSeite').then((m) => ({ default: m.QuizSeite })));
+const QuizVerwaltung = lazy(() => import('./pages/quiz/QuizVerwaltung').then((m) => ({ default: m.QuizVerwaltung })));
+const TreffeListe = lazy(() => import('./pages/treffs/TreffeListe').then((m) => ({ default: m.TreffeListe })));
+const TreffDetail = lazy(() => import('./pages/treffs/TreffDetail').then((m) => ({ default: m.TreffDetail })));
+const TreffForm = lazy(() => import('./pages/treffs/TreffForm').then((m) => ({ default: m.TreffForm })));
+const Bewerbungen = lazy(() => import('./pages/Bewerbungen').then((m) => ({ default: m.Bewerbungen })));
+const MitteilungSenden = lazy(() => import('./pages/MitteilungSenden').then((m) => ({ default: m.MitteilungSenden })));
 
 function Zugang() {
   const { status, fehler, mussPasswortAendern, anmelden, passwortAendern, abmelden } = useAuth();
