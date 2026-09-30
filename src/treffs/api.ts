@@ -2,6 +2,8 @@ import { supabase } from '../lib/supabase';
 import { ApiFehler } from '../lib/fehler';
 import type { Notiz } from '../freizeiten/notizen';
 import type { NotizWerte } from '../freizeiten/api';
+import type { Abwesenheit, Dienst, Feiertag, SonderEingabe, StatistikZeile, Muster, WunschStatus } from './dienstplan';
+import { musterAlsJson } from './dienstplan';
 import { oeffnungszeitenAusTagen, sortiereOeffnungszeiten, type Oeffnungszeit, type TageEingabe, type TreffMitglied, type WochenprogrammEintrag } from './logik';
 
 /** Dünne Schicht über Supabase für die Treffs. Rechte entscheidet die Datenbank (RLS), nicht diese Datei. */
@@ -143,4 +145,87 @@ export async function legeTreffAbspracheAn(treffId: string, w: NotizWerte): Prom
   pruefe(await supabase.from('notizen').insert({
     treff_id: treffId, art: 'absprache', geltung: w.geltung, datum: w.geltung === 'tag' ? w.datum : null, text: w.text.trim(),
   }));
+}
+
+/* ───── Dienstplan ───── */
+
+export async function listeDienste(treffId: string, von: string, bis: string): Promise<Dienst[]> {
+  const r = pruefe(await supabase.from('dienste')
+    .select('id, datum, von, bis, ist_sonder, bezeichnung, dienst_zuteilungen(person_id), dienst_wuensche(person_id, status)')
+    .eq('treff_id', treffId).gte('datum', von).lte('datum', bis).order('datum')) as unknown as
+    (Omit<Dienst, 'personen' | 'wuensche'> & { dienst_zuteilungen: { person_id: string }[]; dienst_wuensche: { person_id: string; status: WunschStatus }[] })[];
+  return r.map(({ dienst_zuteilungen, dienst_wuensche, ...d }) => ({
+    ...d, von: d.von?.slice(0, 5) ?? null, bis: d.bis?.slice(0, 5) ?? null,
+    personen: (dienst_zuteilungen ?? []).map((z) => z.person_id), wuensche: dienst_wuensche ?? [],
+  }));
+}
+
+export async function listeFeiertage(treffId: string, von: string, bis: string): Promise<Feiertag[]> {
+  return pruefe(await supabase.from('feiertage').select('id, treff_id, datum, bezeichnung')
+    .or(`treff_id.eq.${treffId},treff_id.is.null`).gte('datum', von).lte('datum', bis).order('datum')) as Feiertag[];
+}
+
+/** Abwesenheiten, die die angemeldete Person sehen darf (eigene; Treffleitung und Koordination die ihres Teams). */
+export async function listeAbwesenheiten(von: string, bis: string): Promise<Abwesenheit[]> {
+  return pruefe(await supabase.from('abwesenheiten').select('id, person_id, datum, typ, notiz')
+    .gte('datum', von).lte('datum', bis).order('datum')) as Abwesenheit[];
+}
+
+/** Legt den regulären Dienst eines Öffnungstags an, falls es ihn noch nicht gibt, und gibt seine ID zurück. */
+export async function dienstSicherstellen(treffId: string, datum: string): Promise<string> {
+  return pruefe(await supabase.rpc('fn_dienst_sicherstellen', { p_treff: treffId, p_datum: datum })) as string;
+}
+
+export async function setzeZuteilung(dienstId: string, hinzu: string[], weg: string[]): Promise<void> {
+  if (weg.length) pruefe(await supabase.from('dienst_zuteilungen').delete().eq('dienst_id', dienstId).in('person_id', weg));
+  if (hinzu.length) pruefe(await supabase.from('dienst_zuteilungen').insert(hinzu.map((person_id) => ({ dienst_id: dienstId, person_id }))));
+}
+
+export async function wuenscheDienst(treffId: string, datum: string): Promise<void> {
+  pruefe(await supabase.rpc('fn_dienst_wunsch', { p_treff: treffId, p_datum: datum }));
+}
+
+export async function wunschZuruecknehmen(dienstId: string, personId: string): Promise<void> {
+  pruefe(await supabase.from('dienst_wuensche').delete().eq('dienst_id', dienstId).eq('person_id', personId));
+}
+
+export async function entscheideWunsch(dienstId: string, personId: string, bestaetigen: boolean): Promise<void> {
+  pruefe(await supabase.rpc('fn_wunsch_entscheiden', { p_dienst: dienstId, p_person: personId, p_bestaetigen: bestaetigen }));
+}
+
+/** Legt einen Sonderdienst an (id = null) oder ändert ihn; `alt` sind die bisher eingeteilten Personen. */
+export async function speichereSonderdienst(treffId: string, id: string | null, w: SonderEingabe, personen: string[], alt: string[]): Promise<void> {
+  const werte = { datum: w.datum, von: w.von, bis: w.bis, bezeichnung: w.bezeichnung.trim(), ist_sonder: true };
+  let did = id;
+  if (id) pruefe(await supabase.from('dienste').update(werte).eq('id', id));
+  else did = (pruefe(await supabase.from('dienste').insert({ treff_id: treffId, ...werte }).select('id').single()) as { id: string }).id;
+  await setzeZuteilung(did!, personen.filter((p) => !alt.includes(p)), alt.filter((p) => !personen.includes(p)));
+}
+
+export async function loescheDienst(id: string): Promise<void> {
+  pruefe(await supabase.from('dienste').delete().eq('id', id));
+}
+
+export async function wendeMonatsmusterAn(treffId: string, monat: string, muster: Muster): Promise<number> {
+  return pruefe(await supabase.rpc('fn_dienste_monatsmuster', { p_treff: treffId, p_monat: monat, p_muster: musterAlsJson(muster) })) as number;
+}
+
+export async function dienstStatistik(treffId: string, monat: string): Promise<StatistikZeile[]> {
+  const r = pruefe(await supabase.rpc('fn_dienst_statistik', { p_treff: treffId, p_monat: monat })) as { person_id: string; dienste: number; stunden: number | string }[];
+  return r.map((x) => ({ person_id: x.person_id, dienste: x.dienste, stunden: Number(x.stunden) }));
+}
+
+export interface DienstplanKommentar { id: string; person_id: string; text: string; created_at: string }
+
+export async function listeDienstplanKommentare(treffId: string, wocheStart: string): Promise<DienstplanKommentar[]> {
+  return pruefe(await supabase.from('dienstplan_kommentare').select('id, person_id, text, created_at')
+    .eq('treff_id', treffId).eq('woche_start', wocheStart).order('created_at')) as DienstplanKommentar[];
+}
+
+export async function legeDienstplanKommentarAn(treffId: string, wocheStart: string, personId: string, text: string): Promise<void> {
+  pruefe(await supabase.from('dienstplan_kommentare').insert({ treff_id: treffId, woche_start: wocheStart, person_id: personId, text: text.trim() }));
+}
+
+export async function loescheDienstplanKommentar(id: string): Promise<void> {
+  pruefe(await supabase.from('dienstplan_kommentare').delete().eq('id', id));
 }

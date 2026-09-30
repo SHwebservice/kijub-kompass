@@ -7,12 +7,14 @@ import { Alert, Badge, EmptyState, Spinner } from '../../components/ui';
 import { TreffUebersicht } from './TreffUebersicht';
 import { TreffTeamTab } from './TreffTeamTab';
 import { TreffAbsprachenTab } from './TreffAbsprachenTab';
+import { DienstplanTab } from './DienstplanTab';
 
 interface TabDef { pfad: string; label: string; sichtbar: (r: RolleInTreff) => boolean }
 
 /** Welche Reiter eine Rolle in einem Treff sieht. */
 export const TREFF_TABS: TabDef[] = [
   { pfad: '', label: 'Übersicht', sichtbar: () => true },
+  { pfad: 'dienstplan', label: 'Dienstplan', sichtbar: (r) => r !== 'gast' },
   { pfad: 'absprachen', label: 'Absprachen', sichtbar: (r) => r !== 'gast' },
   { pfad: 'team', label: 'Team', sichtbar: (r) => r !== 'gast' },
 ];
@@ -57,6 +59,7 @@ export function TreffDetail() {
 
       <Routes>
         <Route index element={<TreffUebersicht treff={d} rolle={rolle} />} />
+        {tabs.some((x) => x.pfad === 'dienstplan') && <Route path="dienstplan" element={<DienstplanTab treff={d} rolle={rolle} />} />}
         {tabs.some((x) => x.pfad === 'absprachen') && <Route path="absprachen" element={<TreffAbsprachenTab treff={d} rolle={rolle} />} />}
         {tabs.some((x) => x.pfad === 'team') && <Route path="team" element={<TreffTeamTab treff={d} rolle={rolle} />} />}
         <Route path="*" element={<Navigate to={`/treffs/${id}`} replace />} />

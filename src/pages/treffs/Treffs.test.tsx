@@ -75,10 +75,10 @@ describe('Treffs: Liste', () => {
 });
 
 describe('Treff-Detail: Reiter je Rolle', () => {
-  it('BetreuerIn: Übersicht, Absprachen, Team', async () => {
+  it('BetreuerIn: Übersicht, Dienstplan, Absprachen, Team', async () => {
     zeigeDetail(betreuerin);
     await screen.findByRole('heading', { name: 'Treff Nord' });
-    expect(tabNamen()).toEqual(['Übersicht', 'Absprachen', 'Team']);
+    expect(tabNamen()).toEqual(['Übersicht', 'Dienstplan', 'Absprachen', 'Team']);
     expect(screen.queryByRole('link', { name: 'Bearbeiten' })).not.toBeInTheDocument();
   });
 

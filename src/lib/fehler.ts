@@ -15,6 +15,9 @@ export function fehlerText(e: unknown, standard = 'Das hat nicht geklappt. Bitte
   if (code === '42501' || /row-level security|permission denied/i.test(msg)) return 'Dafür fehlt die Berechtigung.';
   if (code === '23505') return 'Das gibt es schon.';
   if (code === '23503') return 'Das wird noch verwendet und kann deshalb nicht entfernt werden.';
+  // Regeln, die unsere Datenbankfunktionen selbst melden (z. B. „Du bist an diesem Tag schon eingeteilt“), sind für Menschen geschrieben.
+  // Technische Meldungen der Datenbank („violates check constraint …“) bleiben verborgen.
+  if (code === '23514' && msg && !/violates|relation|constraint|violation/i.test(msg)) return msg;
   if (code === '23514' || code === '22007' || code === '22008') return 'Die Angaben sind nicht gültig. Bitte prüfen.';
   if (/failed to fetch|network|load failed/i.test(msg)) return 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen.';
   return standard;
