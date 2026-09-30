@@ -32,6 +32,7 @@ const QuizVerwaltung = lazy(() => import('./pages/quiz/QuizVerwaltung').then((m)
 const TreffeListe = lazy(() => import('./pages/treffs/TreffeListe').then((m) => ({ default: m.TreffeListe })));
 const TreffDetail = lazy(() => import('./pages/treffs/TreffDetail').then((m) => ({ default: m.TreffDetail })));
 const TreffForm = lazy(() => import('./pages/treffs/TreffForm').then((m) => ({ default: m.TreffForm })));
+const Fehlermeldungen = lazy(() => import('./pages/Fehlermeldungen').then((m) => ({ default: m.Fehlermeldungen })));
 const Bewerbungen = lazy(() => import('./pages/Bewerbungen').then((m) => ({ default: m.Bewerbungen })));
 const MitteilungSenden = lazy(() => import('./pages/MitteilungSenden').then((m) => ({ default: m.MitteilungSenden })));
 
@@ -102,6 +103,7 @@ function Geschuetzt() {
         <Route path="mehr" element={<Mehr />} />
         <Route path="mitteilungen" element={rollen?.koordination ? <MitteilungSenden /> : <Navigate to="/" replace />} />
         <Route path="personen" element={rollen?.koordination ? <Personen /> : <Navigate to="/" replace />} />
+        <Route path="fehler" element={rollen?.koordination ? <Fehlermeldungen /> : <Navigate to="/" replace />} />
         <Route path="orte" element={rollen?.koordination ? <Orte /> : <Navigate to="/" replace />} />
         <Route path="bewerbungen" element={rollen?.freizeitkoordination ? <Bewerbungen /> : <Navigate to="/" replace />} />
         <Route path="import" element={rollen?.freizeitkoordination ? <KijukoImportSeite /> : <Navigate to="/" replace />} />

@@ -266,7 +266,7 @@ describe('Vollständigkeit der Umstellung', () => {
        where schemaname = 'public' and (coalesce(qual, '') like '%ist_koord()%' or coalesce(with_check, '') like '%ist_koord()%') order by 1, 2`);
     const tabellen = [...new Set(r.rows.map((x) => x.tablename))];
     // Nur gemeinsam verwaltete Bereiche dürfen „irgendeine Koordination“ behalten
-    expect(tabellen).toEqual(['angebot_bewertungen', 'angebot_kommentare', 'angebot_vorschlaege', 'angebote', 'einstellungen', 'inhalte',
+    expect(tabellen).toEqual(['angebot_bewertungen', 'angebot_kommentare', 'angebot_vorschlaege', 'angebote', 'einstellungen', 'fehlermeldungen', 'inhalte',
       'orte', 'personen', 'quiz_ergebnisse', 'quiz_fragen', 'tags']);
   });
 

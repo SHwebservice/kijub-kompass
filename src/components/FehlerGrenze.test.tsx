@@ -3,6 +3,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FehlerGrenze } from './FehlerGrenze';
 import { VERSION } from '../version';
+import { meldeFehler } from '../fehlermeldungen/melder';
+
+vi.mock('../fehlermeldungen/melder', () => ({ meldeFehler: vi.fn() }));
 
 function Kaputt(): never { throw new Error('Testfehler: nicht gefunden'); }
 
@@ -20,6 +23,11 @@ describe('FehlerGrenze', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Da ist etwas schiefgelaufen');
     expect(screen.getByText(/Deine Daten sind nicht verloren/)).toBeInTheDocument();
     expect(screen.queryByText('Alles gut')).not.toBeInTheDocument();
+  });
+
+  it('meldet den Fehler an die Koordination (ohne ihn zu verschlucken)', () => {
+    render(<FehlerGrenze><Kaputt /></FehlerGrenze>);
+    expect(meldeFehler).toHaveBeenCalledWith(expect.objectContaining({ message: 'Testfehler: nicht gefunden' }));
   });
 
   it('zeigt technische Angaben (Meldung und Version) zum Weitergeben', () => {

@@ -62,7 +62,7 @@ describe('Seiten der Treffkoordination', () => {
 });
 
 describe('Gemeinsame Verwaltung: jede der beiden Koordinationen', () => {
-  it.each(['/personen', '/orte', '/mitteilungen', '/katalog/import', '/katalog/neu', '/quiz/verwalten'])('%s', (pfad) => {
+  it.each(['/personen', '/orte', '/mitteilungen', '/katalog/import', '/katalog/neu', '/quiz/verwalten', '/fehler'])('%s', (pfad) => {
     expect(landetBei(FK, pfad)).toBe(pfad);
     expect(landetBei(TK, pfad)).toBe(pfad);
     expect(landetBei(BEIDE, pfad)).toBe(pfad);

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { VERSION } from '../version';
+import { meldeFehler } from '../fehlermeldungen/melder';
 
 interface Props { children: ReactNode; /** Wird beim Neuladen aufgerufen (Tests ersetzen das). */ neuLaden?: () => void }
 interface Zustand { fehler: Error | null }
@@ -15,6 +16,7 @@ export class FehlerGrenze extends Component<Props, Zustand> {
 
   componentDidCatch(fehler: Error, info: ErrorInfo) {
     console.error('Unerwarteter Fehler in der Oberfläche', fehler, info.componentStack);
+    meldeFehler(fehler);      // die Koordination sieht ihn unter „Mehr → Fehlermeldungen“ (ohne Personendaten)
   }
 
   render() {

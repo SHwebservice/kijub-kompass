@@ -41,6 +41,7 @@ export function baueMenue(r: Rollen | null): MenueGruppe[] {
       { id: 'kommunikation', titel: 'Mitteilungen & Daten', eintraege: [
         e('/mitteilungen', '📢', 'Mitteilung senden', 'An alle oder an eine Gruppe'),
         ...(fk ? [e('/import', '🔄', 'KiJuKo-Import', 'Daten aus KiJuKo übernehmen')] : []),
+        e('/fehler', '🐞', 'Fehlermeldungen', 'Was die App selbst als Fehler gemeldet hat'),
       ] },
     );
   }

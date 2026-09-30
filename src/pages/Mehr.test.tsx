@@ -27,7 +27,7 @@ describe('Menü unter „Mehr“: Inhalt je Rolle', () => {
   it('Koordination (beide Bereiche): Verwaltung in vier Gruppen, ohne „Programmpunkt vorschlagen“', () => {
     const g = baueMenue(rollenVon({ ...BEIDE, kategorie: 'Hauptamtliche*r' }));
     expect(ids(g)).toEqual(['wissen', 'personen', 'planung', 'inhalte', 'kommunikation']);
-    expect(pfade(g)).toEqual(expect.arrayContaining(['/bewerbungen', '/personen', '/freizeiten/neu', '/treffs/neu', '/orte', '/katalog/vorschlaege', '/katalog/import', '/quiz/verwalten', '/mitteilungen', '/import']));
+    expect(pfade(g)).toEqual(expect.arrayContaining(['/bewerbungen', '/personen', '/freizeiten/neu', '/treffs/neu', '/orte', '/katalog/vorschlaege', '/katalog/import', '/quiz/verwalten', '/mitteilungen', '/import', '/fehler']));
     expect(pfade(g)).not.toContain('/katalog/vorschlagen');
     expect(pfade(g)).toContain('/treffmappe');
   });
