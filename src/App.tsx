@@ -5,7 +5,7 @@ import { konfiguriert } from './lib/supabase';
 import { AppShell } from './components/AppShell';
 import { Alert, Button, Card, Spinner } from './components/ui';
 import { Login } from './pages/Login';
-import { Heute, Platzhalter } from './pages/Heute';
+import { Heute } from './pages/Heute';
 import { Mehr } from './pages/Mehr';
 import { Personen } from './pages/Personen';
 import { PasswortAendern } from './pages/PasswortAendern';
@@ -16,6 +16,8 @@ import { FreizeitForm } from './pages/freizeiten/FreizeitForm';
 import { Orte } from './pages/Orte';
 import { MappeSeite } from './pages/mappen/MappeSeite';
 import { FormularSeite } from './pages/mappen/FormularSeite';
+import { KatalogListe } from './pages/katalog/KatalogListe';
+import { AngebotDetail } from './pages/katalog/AngebotDetail';
 import { QuizSeite } from './pages/quiz/QuizSeite';
 import { QuizVerwaltung } from './pages/quiz/QuizVerwaltung';
 import { TreffeListe } from './pages/treffs/TreffeListe';
@@ -73,7 +75,8 @@ function Geschuetzt() {
         <Route path="treffs/neu" element={rollen?.koordination ? <TreffForm /> : <Navigate to="/treffs" replace />} />
         <Route path="treffs/:id/bearbeiten" element={rollen?.koordination ? <TreffForm /> : <Navigate to="/treffs" replace />} />
         <Route path="treffs/:id/*" element={<TreffDetail />} />
-        <Route path="katalog/*" element={<Platzhalter titel="Katalog" text="Programmpunkte, Favoriten und Bewertungen folgen in Phase 3." />} />
+        <Route path="katalog" element={<KatalogListe />} />
+        <Route path="katalog/:id" element={<AngebotDetail />} />
         <Route path="teamermappe" element={<MappeSeite schluessel="teamermappe" titel="Teamermappe" mitSchlagworten
           untertitel="Regeln, Abläufe und Antworten für die Arbeit in den Freizeiten." />} />
         <Route path="quiz" element={<QuizSeite />} />
