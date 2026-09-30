@@ -301,3 +301,22 @@ a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
 .aufgabe__haken--gross { min-width: 44px; min-height: 44px; }
 .aufgabe__haken--gross input { width: 26px; height: 26px; }
 .aufgabe__antwort { margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); }
+
+/* Zuordnung von Personen zu Freizeiten und Treffs (Tabelle in „Personen“, Fenster je Person, Mehrfachauswahl im Team) */
+.zuordnung-wrap { max-height: 75vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.zuordnung { min-width: max-content; }
+.zuordnung th, .zuordnung td { vertical-align: top; }
+.zuordnung td { text-align: center; }
+.zuordnung thead th { position: sticky; top: 0; background: var(--surface-2); z-index: 2; text-align: center; font-weight: 600; }
+.zuordnung thead tr:nth-child(2) th { top: 2.4rem; }
+.zuordnung__gruppe { color: var(--text-muted); font-size: var(--fs-sm); }
+.zuordnung__kopf { min-width: 9.5rem; max-width: 12rem; white-space: normal; }
+.zuordnung__klein { font-size: var(--fs-sm); color: var(--text-muted); font-weight: 400; }
+.zuordnung .zuordnung__person { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; min-width: 11rem; }
+.zuordnung thead .zuordnung__person { z-index: 3; background: var(--surface-2); }
+.zuordnung__inaktiv { opacity: 0.6; }
+.zuordnung__auswahl { width: auto; min-width: 6.5rem; min-height: 36px; padding: 0 var(--space-2); font-size: var(--fs-sm); color: var(--text-muted); }
+.zuordnung__auswahl--belegt { color: var(--text); font-weight: 600; background: var(--accent-bg); border-color: var(--accent); }
+.zuordnung__auswahl--warnung { border-color: var(--warning, #b45309); box-shadow: 0 0 0 2px var(--warning-bg, rgba(180, 83, 9, 0.25)); }
+.mehrfach__liste { max-height: 18rem; overflow: auto; margin: var(--space-3) 0; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.mehrfach__hinweis { color: var(--warning, #b45309); font-size: var(--fs-sm); }

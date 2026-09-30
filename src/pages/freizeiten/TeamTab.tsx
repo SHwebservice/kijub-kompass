@@ -3,11 +3,14 @@ import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
 import {
-  holeTeam, listePersonen, teamEntfernen, teamHinzufuegen, teamRolleAendern, type FreizeitDetailDaten, type TeamMitglied,
+  holeTeam, listeFreizeiten, listePersonen, teamEntfernen, teamRolleAendern, type FreizeitDetailDaten, type TeamMitglied,
 } from '../../freizeiten/api';
 import { ROLLEN_LABEL, sortiereTeam } from '../../freizeiten/logik';
 import type { RolleInFreizeit } from '../../lib/rollen';
-import { Alert, Badge, Button, Card, EmptyState, SelectField, Spinner } from '../../components/ui';
+import { freizeitTeamHinzufuegen, listeFreizeitTeams } from '../../zuordnung/api';
+import { FREIZEIT_ROLLEN, indexiere, kandidatenFuer, konfliktText, konflikteFuer, personName } from '../../zuordnung/logik';
+import { MehrfachZuordnung } from '../zuordnung/MehrfachZuordnung';
+import { Alert, Badge, Button, EmptyState, Spinner } from '../../components/ui';
 
 function Kontakt({ m }: { m: TeamMitglied }) {
   const teile = [
@@ -34,8 +37,6 @@ export function TeamTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDaten;
   const verwaltung = rolle === 'koordination';
   const personen = useLaden(async () => (verwaltung ? listePersonen() : []), `personen-${verwaltung}`);
   useLive(['freizeit_team'], () => team.neuLaden());
-  const [neuePerson, setNeuePerson] = useState('');
-  const [neueRolle, setNeueRolle] = useState<'teamer' | 'leitung'>('teamer');
   const [fehler, setFehler] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
 
@@ -46,7 +47,13 @@ export function TeamTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDaten;
 
   const mitglieder = sortiereTeam(team.daten ?? []);
   const imTeam = new Set(mitglieder.map((m) => m.person_id));
-  const kandidaten = (personen.daten ?? []).filter((p) => p.aktiv && !imTeam.has(p.id));
+  // Für den Hinweis „zur selben Zeit schon woanders eingeteilt“: alle Freizeiten und Teams (nur für die Koordination geladen)
+  const andere = useLaden(async () => (verwaltung ? { freizeiten: await listeFreizeiten(), teams: await listeFreizeitTeams() } : null), `team-konflikte-${verwaltung}`);
+  const zuordnungen = indexiere(andere.daten?.teams ?? [], []);
+  const kandidaten = kandidatenFuer(personen.daten ?? [], imTeam, { suche: '', kategorie: '' }).map((p) => {
+    const k = konflikteFuer(p.id, f, andere.daten?.freizeiten ?? [], zuordnungen);
+    return { id: p.id, name: personName(p), kategorie: p.kategorie, ...(k.length ? { hinweis: `zur selben Zeit: ${k.map(konfliktText).join(', ')}` } : {}) };
+  });
 
   return (
     <div className="stack">
@@ -88,30 +95,11 @@ export function TeamTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDaten;
       {rolle === 'teamer' && <p className="field__hint">Kontaktdaten der anderen sehen nur die Leitung und die Koordination.</p>}
 
       {verwaltung && (
-        <Card>
-          <h2>Person zuordnen</h2>
+        <>
           {personen.fehler && <Alert ton="error">{personen.fehler}</Alert>}
-          <div className="row" style={{ alignItems: 'flex-end' }}>
-            <div style={{ flex: '2 1 220px' }}>
-              <SelectField label="Person" value={neuePerson} onChange={(e) => setNeuePerson(e.target.value)}>
-                <option value="">– bitte wählen –</option>
-                {kandidaten.map((p) => <option key={p.id} value={p.id}>{p.nachname}, {p.vorname} ({p.kategorie})</option>)}
-              </SelectField>
-            </div>
-            <div style={{ flex: '1 1 140px' }}>
-              <SelectField label="Rolle" value={neueRolle} onChange={(e) => setNeueRolle(e.target.value as 'teamer' | 'leitung')}>
-                <option value="teamer">TeamerIn</option>
-                <option value="leitung">Leitung</option>
-              </SelectField>
-            </div>
-            <div className="field">
-              <Button variante="primary" disabled={!neuePerson || arbeitet}
-                onClick={() => void ausfuehren(async () => { await teamHinzufuegen(f.id, neuePerson, neueRolle); setNeuePerson(''); })}>
-                Zuordnen
-              </Button>
-            </div>
-          </div>
-        </Card>
+          <MehrfachZuordnung titel="Personen zuordnen" kandidaten={kandidaten} rollen={FREIZEIT_ROLLEN}
+            zuordnen={async (ids, r) => { await freizeitTeamHinzufuegen(f.id, ids, r); team.neuLaden(); andere.neuLaden(); }} />
+        </>
       )}
     </div>
   );

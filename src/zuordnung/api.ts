@@ -1,0 +1,58 @@
+import { supabase } from '../lib/supabase';
+import { ApiFehler } from '../lib/fehler';
+import type { Kategorie } from '../lib/rollen';
+import type { FreizeitRolle, FreizeitTeamZeile, TreffRolle, TreffTeamZeile } from './logik';
+
+/** Dünne Schicht über Supabase für die Zuordnung von Personen zu Freizeiten und Treffs. Rechte entscheidet die Datenbank (RLS). */
+
+function pruefe<T>(r: { data: T | null; error: { code?: string; message: string } | null }): T {
+  if (r.error) throw new ApiFehler(r.error);
+  return r.data as T;
+}
+
+export interface PersonZeile {
+  id: string;
+  vorname: string;
+  nachname: string;
+  mail: string;
+  kategorie: Kategorie;
+  aktiv: boolean;
+  auth_user_id: string | null;
+  eingeladen_am: string | null;
+}
+
+export async function listePersonenVoll(): Promise<PersonZeile[]> {
+  return pruefe(await supabase.from('personen')
+    .select('id, vorname, nachname, mail, kategorie, aktiv, auth_user_id, eingeladen_am')
+    .order('nachname').order('vorname')) as PersonZeile[];
+}
+
+export async function listeFreizeitTeams(): Promise<FreizeitTeamZeile[]> {
+  return pruefe(await supabase.from('freizeit_team').select('freizeit_id, person_id, rolle').limit(20000)) as FreizeitTeamZeile[];
+}
+
+export async function listeTreffTeams(): Promise<TreffTeamZeile[]> {
+  return pruefe(await supabase.from('treff_team').select('treff_id, person_id, rolle').limit(20000)) as TreffTeamZeile[];
+}
+
+/** Setzt die Rolle einer Person in einer Freizeit; null nimmt sie heraus. */
+export async function setzeFreizeitRolle(freizeitId: string, personId: string, rolle: FreizeitRolle | null): Promise<void> {
+  if (rolle === null) pruefe(await supabase.from('freizeit_team').delete().eq('freizeit_id', freizeitId).eq('person_id', personId));
+  else pruefe(await supabase.from('freizeit_team').upsert({ freizeit_id: freizeitId, person_id: personId, rolle }, { onConflict: 'freizeit_id,person_id' }));
+}
+
+export async function setzeTreffRolle(treffId: string, personId: string, rolle: TreffRolle | null): Promise<void> {
+  if (rolle === null) pruefe(await supabase.from('treff_team').delete().eq('treff_id', treffId).eq('person_id', personId));
+  else pruefe(await supabase.from('treff_team').upsert({ treff_id: treffId, person_id: personId, rolle }, { onConflict: 'treff_id,person_id' }));
+}
+
+/** Ordnet mehrere Personen auf einmal mit derselben Rolle zu (alle oder keine). */
+export async function freizeitTeamHinzufuegen(freizeitId: string, personIds: string[], rolle: FreizeitRolle): Promise<void> {
+  if (!personIds.length) return;
+  pruefe(await supabase.from('freizeit_team').insert(personIds.map((p) => ({ freizeit_id: freizeitId, person_id: p, rolle }))));
+}
+
+export async function treffTeamHinzufuegenViele(treffId: string, personIds: string[], rolle: TreffRolle): Promise<void> {
+  if (!personIds.length) return;
+  pruefe(await supabase.from('treff_team').insert(personIds.map((p) => ({ treff_id: treffId, person_id: p, rolle }))));
+}

@@ -3,6 +3,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
 import * as fzApi from '../../freizeiten/api';
+import * as zuordnungApi from '../../zuordnung/api';
 import { sendePush } from '../../mitteilungen/senden';
 import { TreffeListe } from './TreffeListe';
 import { TreffDetail } from './TreffDetail';
@@ -13,6 +14,7 @@ import type { Notiz } from '../../freizeiten/notizen';
 
 vi.mock('../../treffs/api');
 vi.mock('../../freizeiten/api');
+vi.mock('../../zuordnung/api');
 
 const nord = treff({
   id: 't1', name: 'Treff Nord', ort_id: 'o1', ort_name: 'Jugendhaus', ort_adresse: 'Hauptstr. 1, Frankenthal',
@@ -178,16 +180,16 @@ describe('Treff-Team', () => {
       { id: 'p3', vorname: 'Ina', nachname: 'Inaktiv', kategorie: 'TZK', aktiv: false },
       { id: 'b', vorname: 'Ben', nachname: 'Baum', kategorie: 'TZK', aktiv: true },
     ]);
-    vi.mocked(api.treffTeamHinzufuegen).mockResolvedValue(undefined);
+    vi.mocked(zuordnungApi.treffTeamHinzufuegenViele).mockResolvedValue(undefined);
     zeigeDetail(koord, '/treffs/t1/team');
-    await screen.findByRole('option', { name: /Fsj, Fia/ });
-    expect(screen.queryByRole('option', { name: /Teamer, Tim/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: /Inaktiv/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: /Baum, Ben/ })).not.toBeInTheDocument();
-    await userEvent.selectOptions(screen.getByLabelText('Person'), 'p2');
-    await userEvent.selectOptions(screen.getByLabelText('Rolle'), 'treffleitung');
-    await userEvent.click(screen.getByRole('button', { name: 'Zuordnen' }));
-    expect(api.treffTeamHinzufuegen).toHaveBeenCalledWith('t1', 'p2', 'treffleitung');
+    await screen.findByRole('checkbox', { name: /Fia Fsj/ });
+    expect(screen.queryByRole('checkbox', { name: /Tim Teamer/ })).not.toBeInTheDocument();       // Kategorie darf nicht in einen Treff
+    expect(screen.queryByRole('checkbox', { name: /Inaktiv/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /Ben Baum/ })).not.toBeInTheDocument();         // schon im Team
+    await userEvent.click(screen.getByRole('checkbox', { name: /Fia Fsj/ }));
+    await userEvent.selectOptions(screen.getByLabelText('Rolle für alle Ausgewählten'), 'treffleitung');
+    await userEvent.click(screen.getByRole('button', { name: '1 Person zuordnen' }));
+    expect(zuordnungApi.treffTeamHinzufuegenViele).toHaveBeenCalledWith('t1', ['p2'], 'treffleitung');
   });
 
   it('Koordination ändert die Rolle und entfernt', async () => {

@@ -3,10 +3,13 @@ import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
 import { listePersonen } from '../../freizeiten/api';
-import { holeTreffTeam, treffTeamEntfernen, treffTeamHinzufuegen, treffTeamRolleAendern, type TreffDetailDaten, type TreffTeamMitglied } from '../../treffs/api';
+import { holeTreffTeam, treffTeamEntfernen, treffTeamRolleAendern, type TreffDetailDaten, type TreffTeamMitglied } from '../../treffs/api';
 import { darfInTreff, sortiereTreffTeam, TREFF_ROLLEN_LABEL } from '../../treffs/logik';
 import type { RolleInTreff } from '../../lib/rollen';
-import { Alert, Badge, Button, Card, EmptyState, SelectField, Spinner } from '../../components/ui';
+import { treffTeamHinzufuegenViele } from '../../zuordnung/api';
+import { kandidatenFuer, personName, TREFF_ROLLEN } from '../../zuordnung/logik';
+import { MehrfachZuordnung } from '../zuordnung/MehrfachZuordnung';
+import { Alert, Badge, Button, EmptyState, Spinner } from '../../components/ui';
 
 function Kontakt({ m }: { m: TreffTeamMitglied }) {
   const teile = [
@@ -31,8 +34,6 @@ export function TreffTeamTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
   const verwaltung = rolle === 'koordination';
   const personen = useLaden(async () => (verwaltung ? listePersonen() : []), `treff-personen-${verwaltung}`);
   useLive(['treff_team'], () => team.neuLaden());
-  const [neuePerson, setNeuePerson] = useState('');
-  const [neueRolle, setNeueRolle] = useState<'betreuerin' | 'treffleitung'>('betreuerin');
   const [fehler, setFehler] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
 
@@ -43,7 +44,8 @@ export function TreffTeamTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
 
   const mitglieder = sortiereTreffTeam(team.daten ?? []);
   const imTeam = new Set(mitglieder.map((m) => m.person_id));
-  const kandidaten = (personen.daten ?? []).filter((p) => p.aktiv && !imTeam.has(p.id) && darfInTreff(p.kategorie));
+  const kandidaten = kandidatenFuer((personen.daten ?? []).filter((p) => darfInTreff(p.kategorie)), imTeam, { suche: '', kategorie: '' })
+    .map((p) => ({ id: p.id, name: personName(p), kategorie: p.kategorie }));
 
   return (
     <div className="stack">
@@ -85,31 +87,12 @@ export function TreffTeamTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
       {rolle === 'betreuerin' && <p className="field__hint">Kontaktdaten der anderen sehen nur die Treffleitung und die Koordination.</p>}
 
       {verwaltung && (
-        <Card>
-          <h2>Person zuordnen</h2>
-          <p className="field__hint">Treffs sind für TZK, FSJ, Praktikum unbezahlt und Hauptamtliche offen.</p>
+        <>
           {personen.fehler && <Alert ton="error">{personen.fehler}</Alert>}
-          <div className="row" style={{ alignItems: 'flex-end' }}>
-            <div style={{ flex: '2 1 220px' }}>
-              <SelectField label="Person" value={neuePerson} onChange={(e) => setNeuePerson(e.target.value)}>
-                <option value="">– bitte wählen –</option>
-                {kandidaten.map((p) => <option key={p.id} value={p.id}>{p.nachname}, {p.vorname} ({p.kategorie})</option>)}
-              </SelectField>
-            </div>
-            <div style={{ flex: '1 1 140px' }}>
-              <SelectField label="Rolle" value={neueRolle} onChange={(e) => setNeueRolle(e.target.value as 'betreuerin' | 'treffleitung')}>
-                <option value="betreuerin">BetreuerIn</option>
-                <option value="treffleitung">Treffleitung</option>
-              </SelectField>
-            </div>
-            <div className="field">
-              <Button variante="primary" disabled={!neuePerson || arbeitet}
-                onClick={() => void ausfuehren(async () => { await treffTeamHinzufuegen(t.id, neuePerson, neueRolle); setNeuePerson(''); })}>
-                Zuordnen
-              </Button>
-            </div>
-          </div>
-        </Card>
+          <MehrfachZuordnung titel="Personen zuordnen" kandidaten={kandidaten} rollen={TREFF_ROLLEN}
+            hinweis="Treffs sind für TZK, FSJ, Praktikum unbezahlt und Hauptamtliche offen."
+            zuordnen={async (ids, r) => { await treffTeamHinzufuegenViele(t.id, ids, r); team.neuLaden(); }} />
+        </>
       )}
     </div>
   );

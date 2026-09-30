@@ -317,3 +317,17 @@ H3 (Einschalten, Testen und Ausschalten je Gerät unter „Mehr“; Hinweis für
 
 **Noch offen:** Erinnerung auch an Personen, die einen Dienst getauscht haben (derzeit: laut Dienstplan Eingeteilte), Protokoll-Vorlagen je Wochentag, Auswertung über mehrere Treffs zugleich.
 
+
+## Stand der Umsetzung: Zuordnung von Personen zu Freizeiten und Treffs (Phase 8, 2026-09-30)
+
+**Umgesetzt und getestet** (keine Datenbankänderung; nur die Koordination ordnet zu, wie bisher):
+- **Tabelle in „Personen“:** Umschalter *Liste | Zuordnungen*. In der Ansicht *Zuordnungen* ist es dieselbe Personenseite mit derselben Suche, dazu ein Filter nach Kategorie und eine Spalte je Freizeit und je Treff.
+  Jede Zelle ist eine Auswahl („–“, TeamerIn, Leitung bzw. BetreuerIn, Treffleitung): ordnet zu, ändert die Rolle oder entfernt. Der Name der Person bleibt beim Querscrollen stehen, die Kopfzeile auch.
+  Zeitraum: standardmäßig laufende und kommende Freizeiten, wählbar „Alle aus <Jahr>“. Deaktivierte Personen erscheinen nur auf Wunsch. Abgesagte Freizeiten gibt es nicht als Spalte.
+- **Planungshilfen in der Tabelle:** Kopf je Freizeit mit Zeitraum, Zahl Leitung/Team und Warnung „Keine Leitung“; **Überschneidungen** (dieselbe Person in zwei Freizeiten zur selben Zeit) werden an der Person und an den Zellen markiert, beim Zuordnen erscheint ein Hinweis.
+  Kategorien, die keinem Treff zugeordnet werden dürfen, sind in den Treff-Spalten gesperrt.
+- **Fenster je Person** („Zuordnungen“ in der Liste, Klick auf den Namen in der Tabelle): alle Freizeiten und Treffs der Person als Liste mit Auswahl – gedacht fürs Handy, wo die Tabelle zu breit ist; vergangene Freizeiten auf Wunsch.
+- **Mehrere Personen auf einmal im Reiter „Team“** (Freizeit und Treff): durchsuchbare Liste mit Kategorie-Filter und Häkchen, eine Rolle für alle Ausgewählten, „N Personen zuordnen“ (alle oder keine). In der Freizeit steht bei jeder Person, ob sie zur selben Zeit schon woanders eingeteilt ist.
+- Änderungen erscheinen sofort und bei anderen live (Realtime), Fehler werden angezeigt, ohne dass die Anzeige falsch wird.
+
+**Noch offen:** Zuordnung durch die Leitung der eigenen Freizeit (bewusst nicht: nur Koordination), Rolle beim Annehmen einer Bewerbung wählen, Warnung beim Entfernen aus einem Treff, wenn noch Dienste eingeteilt sind.
