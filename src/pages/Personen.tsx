@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useLaden } from '../lib/laden';
 import { fehlerText } from '../lib/fehler';
@@ -14,41 +14,15 @@ import {
 } from '../zuordnung/logik';
 import { ZuordnungsTabelle } from './zuordnung/ZuordnungsTabelle';
 import { ZuordnungSheet } from './zuordnung/ZuordnungSheet';
-import { KATEGORIEN, type Kategorie } from '../lib/rollen';
 import { useAuth } from '../lib/auth-kontext';
 import { PersonEntfernen, type Modus, type Uebersicht } from './PersonEntfernen';
-import { Alert, Badge, Button, Card, EmptyState, PageHeader, SelectField, Spinner, TextField } from '../components/ui';
+import { Alert, EmptyState, PageHeader, Spinner } from '../components/ui';
+import { Filterleiste, type Ansicht } from './personen/Filterleiste';
+import { PersonAnlegen, type NeuePerson } from './personen/PersonAnlegen';
+import { PersonenListe } from './personen/PersonenListe';
+import { StartpasswortAnzeige, type Startpasswort } from './personen/Startpasswort';
 
-interface Startpasswort { name: string; mail: string; passwort: string; neu: boolean }
-
-/** Zugangsstatus einer Person (rein aus den Daten abgeleitet). */
-export function zugangsStatus(p: Pick<PersonZeile, 'auth_user_id'>) {
-  return p.auth_user_id
-    ? { text: 'Zugang eingerichtet', ton: 'success' as const }
-    : { text: 'Noch kein Zugang', ton: 'neutral' as const };
-}
-
-function StartpasswortAnzeige({ s, schliessen }: { s: Startpasswort; schliessen: () => void }) {
-  const [kopiert, setKopiert] = useState(false);
-  async function kopieren() {
-    try { await navigator.clipboard.writeText(s.passwort); setKopiert(true); } catch { /* Zwischenablage nicht verfügbar */ }
-  }
-  return (
-    <Card className="startpasswort">
-      <h2>{s.neu ? 'Zugang eingerichtet' : 'Neues Startpasswort'} für {s.name}</h2>
-      <p>Gib der Person Mail-Adresse und Passwort persönlich weiter (z. B. mündlich oder per Messenger).
-        Sie legt beim ersten Anmelden ein eigenes Passwort fest.</p>
-      <p><strong>Mail-Adresse:</strong> {s.mail}</p>
-      <p style={{ fontSize: '1.5rem', fontFamily: 'monospace', letterSpacing: '1px', margin: 'var(--space-3) 0' }}
-        aria-label="Startpasswort" data-testid="startpasswort">{s.passwort}</p>
-      <Alert ton="info">Dieses Passwort wird nur jetzt angezeigt und nirgends gespeichert. Danach lässt sich nur ein neues erzeugen.</Alert>
-      <div className="row">
-        <Button onClick={() => void kopieren()}>{kopiert ? 'Kopiert ✓' : 'Passwort kopieren'}</Button>
-        <Button variante="primary" onClick={schliessen}>Fertig</Button>
-      </div>
-    </Card>
-  );
-}
+export { zugangsStatus } from './personen/Startpasswort';
 
 /** Koordination: Personen anlegen, Zugang einrichten, Passwort zurücksetzen.
  *  Die volle Personalverwaltung folgt in Phase 3. */
@@ -61,12 +35,11 @@ export function Personen() {
   const [suche, setSuche] = useState('');
   const [arbeitet, setArbeitet] = useState<string | null>(null);
   const [startpasswort, setStartpasswort] = useState<Startpasswort | null>(null);
-  const [neu, setNeu] = useState({ vorname: '', nachname: '', mail: '', kategorie: 'TeamerIn' as Kategorie });
   const [version, setVersion] = useState(0);
   const neuLaden = () => setVersion((v) => v + 1);
 
   // Zuordnung zu Freizeiten und Treffs (Tabellenansicht und Fenster je Person)
-  const [ansicht, setAnsicht] = useState<'liste' | 'zuordnung'>('liste');
+  const [ansicht, setAnsicht] = useState<Ansicht>('liste');
   const [zeitraum, setZeitraum] = useState<Zeitraum>('aktuell');
   const [kategorie, setKategorie] = useState('');
   const [mitDeaktivierten, setMitDeaktivierten] = useState(false);
@@ -114,19 +87,19 @@ export function Personen() {
     return () => { aktuell = false; };
   }, [version]);
 
-  async function anlegen(e: FormEvent) {
-    e.preventDefault();
+  /** Legt die Person an; true = geklappt (das Formular leert sich). */
+  async function anlegen(neu: NeuePerson): Promise<boolean> {
     setFehler(null); setMeldung(null);
     const { error } = await supabase.from('personen').insert({
       vorname: neu.vorname.trim(), nachname: neu.nachname.trim(), mail: neu.mail.trim(), kategorie: neu.kategorie,
     });
     if (error) {
       setFehler(error.code === '23505' ? 'Diese Mail-Adresse gibt es schon.' : 'Person konnte nicht angelegt werden.');
-      return;
+      return false;
     }
-    setNeu({ vorname: '', nachname: '', mail: '', kategorie: 'TeamerIn' });
     setMeldung('Person angelegt. Als Nächstes kannst du den Zugang einrichten.');
     neuLaden();
+    return true;
   }
 
   async function zugangEinrichten(p: PersonZeile) {
@@ -194,55 +167,11 @@ export function Personen() {
       )}
       {startpasswort && <StartpasswortAnzeige s={startpasswort} schliessen={() => setStartpasswort(null)} />}
 
-      <Card>
-        <form onSubmit={anlegen}>
-          <h2>Neue Person</h2>
-          <div className="row" style={{ alignItems: 'flex-start' }}>
-            <div style={{ flex: '1 1 160px' }}>
-              <TextField label="Vorname" value={neu.vorname} onChange={(e) => setNeu({ ...neu, vorname: e.target.value })} required />
-            </div>
-            <div style={{ flex: '1 1 160px' }}>
-              <TextField label="Nachname" value={neu.nachname} onChange={(e) => setNeu({ ...neu, nachname: e.target.value })} required />
-            </div>
-          </div>
-          <TextField label="Mail-Adresse" type="email" value={neu.mail} onChange={(e) => setNeu({ ...neu, mail: e.target.value })} required />
-          <SelectField label="Kategorie" value={neu.kategorie} onChange={(e) => setNeu({ ...neu, kategorie: e.target.value as Kategorie })}>
-            {KATEGORIEN.map((k) => <option key={k}>{k}</option>)}
-          </SelectField>
-          <Button variante="primary" type="submit" disabled={!neu.vorname.trim() || !neu.nachname.trim() || !neu.mail.includes('@')}>
-            Person anlegen
-          </Button>
-        </form>
-      </Card>
+      <PersonAnlegen anlegen={anlegen} />
 
       <div style={{ marginTop: 'var(--space-5)' }}>
-        <div className="row" role="group" aria-label="Ansicht" style={{ marginBottom: 'var(--space-3)' }}>
-          <Button klein variante={ansicht === 'liste' ? 'primary' : 'standard'} aria-pressed={ansicht === 'liste'} onClick={() => setAnsicht('liste')}>Liste</Button>
-          <Button klein variante={ansicht === 'zuordnung' ? 'primary' : 'standard'} aria-pressed={ansicht === 'zuordnung'} onClick={() => setAnsicht('zuordnung')}>Zuordnungen</Button>
-        </div>
-        <div className="row" style={{ alignItems: 'flex-end' }}>
-          <div style={{ flex: '2 1 200px' }}><TextField label="Suchen" type="search" value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Name oder Mail" /></div>
-          <div style={{ flex: '1 1 160px' }}>
-            <SelectField label="Nach Kategorie filtern" value={kategorie} onChange={(e) => setKategorie(e.target.value)}>
-              <option value="">Alle</option>
-              {KATEGORIEN.map((k) => <option key={k}>{k}</option>)}
-            </SelectField>
-          </div>
-          {ansicht === 'zuordnung' && (
-            <div style={{ flex: '1 1 200px' }}>
-              <SelectField label="Freizeiten" value={String(zeitraum)} onChange={(e) => setZeitraum(e.target.value === 'aktuell' ? 'aktuell' : Number(e.target.value))}>
-                <option value="aktuell">Laufende und kommende</option>
-                {jahre.map((j) => <option key={j} value={j}>Alle aus {j}</option>)}
-              </SelectField>
-            </div>
-          )}
-        </div>
-        {ansicht === 'zuordnung' && (
-          <label className="option">
-            <input type="checkbox" checked={mitDeaktivierten} onChange={(e) => setMitDeaktivierten(e.target.checked)} />
-            <span>Auch deaktivierte Personen zeigen</span>
-          </label>
-        )}
+        <Filterleiste ansicht={ansicht} setzeAnsicht={setAnsicht} suche={suche} setzeSuche={setSuche} kategorie={kategorie} setzeKategorie={setKategorie}
+          zeitraum={zeitraum} setzeZeitraum={setZeitraum} jahre={jahre} mitDeaktivierten={mitDeaktivierten} setzeMitDeaktivierten={setMitDeaktivierten} />
         {(zuordnungFehler ?? zd.fehler ?? freizeitenL.fehler ?? treffsL.fehler) && <Alert ton="error">{zuordnungFehler ?? zd.fehler ?? freizeitenL.fehler ?? treffsL.fehler}</Alert>}
         {zuordnungHinweis && <Alert ton="warning">{zuordnungHinweis}</Alert>}
         {zeilen === null && !fehler && <Spinner />}
@@ -252,40 +181,11 @@ export function Personen() {
             ? <p>Für diesen Zeitraum gibt es keine Freizeiten und noch keine Treffs.</p>
             : <ZuordnungsTabelle personen={gefiltert} {...ansichtDaten} oeffne={setZuordnungPerson} />
         )}
-        {ansicht === 'liste' && <ul className="list">
-          {gefiltert.map((p) => {
-            const s = zugangsStatus(p);
-            return (
-              <li key={p.id} className="list__item">
-                <div className="list__main">
-                  <div className="list__title">{p.vorname} {p.nachname}</div>
-                  <div className="list__meta">
-                    <span>{p.mail}</span>
-                    <Badge>{p.kategorie}</Badge>
-                    <Badge ton={s.ton}>{s.text}</Badge>
-                    {!p.aktiv && <Badge ton="danger">Deaktiviert</Badge>}
-                    {p.ist_freizeitkoordination && <Badge ton="accent">Freizeitenkoordination</Badge>}
-                    {p.ist_treffkoordination && <Badge ton="accent">Treffkoordination</Badge>}
-                    {zusammenfassung(p.id, freizeiten, z, heute) && <span>{zusammenfassung(p.id, freizeiten, z, heute)}</span>}
-                  </div>
-                </div>
-                <div className="row" style={{ gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-                  <Button klein onClick={() => setZuordnungPerson(p)} aria-label={`Zuordnungen von ${personName(p)}`}>Zuordnungen</Button>
-                  {p.aktiv ? (
-                    <Button klein laedt={arbeitet === p.id} onClick={() => void zugangEinrichten(p)}>
-                      {p.auth_user_id ? 'Passwort zurücksetzen' : 'Zugang einrichten'}
-                    </Button>
-                  ) : (
-                    <Button klein onClick={() => void aktivieren(p)}>Aktivieren</Button>
-                  )}
-                  {p.id !== ich?.id && (
-                    <Button klein variante="danger" onClick={() => { setStartpasswort(null); setEntfernen(p); }}>Entfernen …</Button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>}
+        {ansicht === 'liste' && (
+          <PersonenListe personen={gefiltert} zusammenfassung={(p) => zusammenfassung(p.id, freizeiten, z, heute)} ichId={ich?.id} arbeitet={arbeitet}
+            oeffneZuordnung={setZuordnungPerson} zugangEinrichten={(p) => void zugangEinrichten(p)} aktivieren={(p) => void aktivieren(p)}
+            entfernen={(p) => { setStartpasswort(null); setEntfernen(p); }} />
+        )}
       </div>
       {zuordnungPerson && (
         <ZuordnungSheet person={zeilen?.find((x) => x.id === zuordnungPerson.id) ?? zuordnungPerson} freizeiten={freizeiten} heute={heute}
