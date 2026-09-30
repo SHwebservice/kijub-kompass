@@ -1,16 +1,14 @@
 import { Link } from 'react-router-dom';
-import { useLaden } from '../../lib/laden';
-import { offeneBewerbungen, type FreizeitZeile } from '../../freizeiten/api';
-import { listeVorschlaege } from '../../katalog/api';
+import { useLaden, type Geladen } from '../../lib/laden';
+import type { FreizeitZeile, OffeneBewerbung } from '../../freizeiten/api';
+import type { Vorschlag } from '../../katalog/api';
 import { ferienText, gruppiereNachFerien, zeitraumText } from '../../freizeiten/logik';
 import { listeTeamZeilen } from '../../heute/api';
 import { ohneLeitung, personenText } from '../../heute/logik';
 import { Alert, Badge, Card } from '../../components/ui';
 
 /** Koordination: offene Bewerbungen und Vorschläge, Freizeiten ohne Leitung und der Überblick über die aktuelle Saison. */
-export function KoordSicht({ aktuelle }: { aktuelle: FreizeitZeile[] }) {
-  const bewerbungen = useLaden(offeneBewerbungen, 'heute-bewerbungen');
-  const vorschlaege = useLaden(listeVorschlaege, 'heute-vorschlaege');
+export function KoordSicht({ aktuelle, bewerbungen, vorschlaege }: { aktuelle: FreizeitZeile[]; bewerbungen: Geladen<OffeneBewerbung[]>; vorschlaege: Geladen<Vorschlag[]> }) {
   const ids = aktuelle.map((f) => f.id);
   const team = useLaden(() => listeTeamZeilen(ids), `heute-koord-team-${ids.join(',')}`);
 

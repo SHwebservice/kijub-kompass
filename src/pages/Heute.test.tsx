@@ -94,7 +94,8 @@ describe('Heute: TeamerIn', () => {
   it('ohne Programm für heute: Hinweis mit Link zum Wochenplan', async () => {
     zeige(teamer);
     expect(await screen.findByText(/Für heute steht noch nichts im/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Wochenplan' })).toHaveAttribute('href', '/freizeiten/f1/plan');
+    const laufend = screen.getByRole('list', { name: 'Laufende Freizeiten' });
+    expect(within(laufend).getByRole('link', { name: 'Wochenplan' })).toHaveAttribute('href', '/freizeiten/f1/plan');
   });
 
   it('„Das wartet auf dich“: unbestätigte Hinweise je Freizeit; Erledigtes und Fremdes fehlen', async () => {

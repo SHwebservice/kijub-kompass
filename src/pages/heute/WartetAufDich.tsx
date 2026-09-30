@@ -1,16 +1,14 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../lib/auth-kontext';
-import { useLaden } from '../../lib/laden';
-import { listeNotizenFuerHeute } from '../../heute/api';
-import { gruppiereOffene, offeneFuerMich, personenText } from '../../heute/logik';
+import type { Geladen } from '../../lib/laden';
+import { gruppiereOffene, offeneFuerMich, personenText, type OffeneNotiz } from '../../heute/logik';
 import { Alert, Badge, Card } from '../../components/ui';
 
-interface Props { heute: string; freizeitIds: string[]; treffIds: string[] }
+interface Props { heute: string; notizen: Geladen<OffeneNotiz[]> }
 
 /** „Das wartet auf dich“: Hinweise zum Bestätigen („gesehen“) und Absprachen, die noch nicht bestätigt sind – je Freizeit bzw. Treff. */
-export function WartetAufDich({ heute, freizeitIds, treffIds }: Props) {
+export function WartetAufDich({ heute, notizen }: Props) {
   const { ich, rollen } = useAuth();
-  const notizen = useLaden(() => listeNotizenFuerHeute(freizeitIds, treffIds), `heute-notizen-${freizeitIds.join(',')}-${treffIds.join(',')}`);
   if (!ich || !rollen) return null;
 
   const offen = offeneFuerMich(notizen.daten ?? [], ich.id, rollen, heute);

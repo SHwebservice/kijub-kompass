@@ -264,3 +264,24 @@ mark { background: var(--warning-bg); color: inherit; padding: 0 2px; border-rad
 .recht h2 { font-size: var(--fs-lg); margin-top: var(--space-5); }
 .recht address { font-style: normal; margin-bottom: var(--space-3); }
 .recht__fuss { margin-top: var(--space-6); color: var(--text-hint); font-size: var(--fs-sm); }
+
+/* Schnellzugriff (Startseite) */
+.kacheln__titel { font-size: var(--fs-base); text-transform: none; color: var(--text-muted); margin: 0 0 var(--space-2); }
+.kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--space-3); list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+.kachel { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); min-height: 88px; height: 100%;
+  padding: var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-soft);
+  color: inherit; text-decoration: none; text-align: center; }
+a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
+.kachel:focus-visible, .kachel--auswahl summary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.kachel__icon { font-size: 1.6rem; line-height: 1; }
+.kachel__name { font-size: var(--fs-sm); font-weight: 600; line-height: 1.25; }
+.kachel__badge { position: absolute; top: 6px; right: 8px; }
+.kachel--auswahl { padding: 0; display: block; }
+.kachel--auswahl summary { list-style: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); min-height: 88px; padding: var(--space-3); cursor: pointer; }
+.kachel--auswahl summary::-webkit-details-marker { display: none; }
+.kachel__ziele { list-style: none; margin: 0; padding: 0 var(--space-2) var(--space-2); text-align: left; }
+.kachel__ziele a { display: block; padding: var(--space-2); border-radius: var(--radius-sm); min-height: 36px; font-size: var(--fs-sm); }
+.kachel__ziele a:hover { background: var(--accent-bg); }
+.kachel__alle { color: var(--text-muted); }
+.kacheln__gruppe > summary { cursor: pointer; margin-bottom: var(--space-2); }
+.kacheln > li:has(> details[open]) { grid-column: span 2; }

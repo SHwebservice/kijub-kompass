@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { useLaden } from '../../lib/laden';
+import { useLaden, type Geladen } from '../../lib/laden';
 import { formatMenge } from '../../freizeiten/lebensmittel';
-import { listeKnappeLebensmittel, listeNotizenFuerHeute, listeOffeneWuensche, listeOrtNamen, listeTeamZeilen, listeTreffNamen } from '../../heute/api';
-import { knappeJeOrt, nichtGeseheneImTeam, personenText, wuenscheJeTreff } from '../../heute/logik';
+import { listeOrtNamen, listeTeamZeilen, listeTreffNamen } from '../../heute/api';
+import { knappeJeOrt, nichtGeseheneImTeam, personenText, wuenscheJeTreff, type BestandZeile, type OffeneNotiz, type WunschZeile } from '../../heute/logik';
 import { formatKurz } from '../../freizeiten/logik';
 import { Alert, Badge, Card } from '../../components/ui';
 
@@ -12,11 +12,9 @@ interface FreizeitOrt { id: string; name: string; ort_id: string | null }
  * Für Leitungen (und die Koordination): knappe Lebensmittel an den Orten der aktuellen Freizeiten und Hinweise,
  * die noch nicht alle TeamerInnen gesehen haben.
  */
-export function LeitungSicht({ heute, freizeiten }: { heute: string; freizeiten: FreizeitOrt[] }) {
+export function LeitungSicht({ heute, freizeiten, bestand, notizen }: { heute: string; freizeiten: FreizeitOrt[]; bestand: Geladen<BestandZeile[]>; notizen: Geladen<OffeneNotiz[]> }) {
   const ids = freizeiten.map((f) => f.id);
-  const bestand = useLaden(listeKnappeLebensmittel, 'heute-bestand');
   const orte = useLaden(listeOrtNamen, 'heute-orte');
-  const notizen = useLaden(() => listeNotizenFuerHeute(ids, []), `heute-leitung-notizen-${ids.join(',')}`);
   const team = useLaden(() => listeTeamZeilen(ids), `heute-leitung-team-${ids.join(',')}`);
 
   const ortIds = new Set(freizeiten.map((f) => f.ort_id).filter((o): o is string => !!o));
@@ -76,8 +74,7 @@ export function LeitungSicht({ heute, freizeiten }: { heute: string; freizeiten:
 }
 
 /** Für Treffleitungen (und die Koordination): offene Dienstwünsche der nächsten Wochen. */
-export function TreffleitungSicht({ heute, treffIds }: { heute: string; treffIds: string[] | null }) {
-  const wuensche = useLaden(() => listeOffeneWuensche(treffIds, heute), `heute-wuensche-${treffIds?.join(',') ?? 'alle'}-${heute}`);
+export function TreffleitungSicht({ wuensche }: { wuensche: Geladen<WunschZeile[]> }) {
   const namen = useLaden(listeTreffNamen, 'heute-treffnamen');
   const jeTreff = wuenscheJeTreff(wuensche.daten ?? []);
 

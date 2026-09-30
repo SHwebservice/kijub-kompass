@@ -280,6 +280,7 @@ H3 (Einschalten, Testen und Ausschalten je Gerät unter „Mehr“; Hinweis für
 ## Stand der Umsetzung: Startseite „Heute“ (Phase 6, 2026-09-30)
 
 **Umgesetzt und getestet** (ersetzt die Dashboards C8, C12 und D5):
+- **Schnellzugriff ganz oben:** Kacheln für alle Funktionen der eigenen Rollen, gruppiert nach „Freizeiten“, „Treffs“, „Wissen & Konto“ und – für die Koordination – „Verwaltung“ (eingeklappt, aufgeklappt sobald etwas offen ist). Kacheln führen direkt in den Reiter (z. B. Wochenplan, Hinweise, Dienstplan); bei mehreren Freizeiten bzw. Treffs klappt eine Auswahl auf. Zahlen an den Kacheln zeigen Offenes (Hinweise, Absprachen, knappe Lebensmittel, Dienstwünsche, Nachweise, Bewerbungen, Vorschläge, Dienste heute). Die Zuordnung Rolle → Kachel steht in `src/heute/kacheln.ts`.
 - **Alle:** „Heute“ mit den laufenden Freizeiten samt dem Tagesprogramm aus dem Wochenplan und den Diensten des Tages; „Das wartet auf dich“ mit den Hinweisen (TeamerInnen: „gesehen“) und Absprachen (Leitung, Koordination, Treff-Team), die noch nicht bestätigt sind, je Freizeit bzw. Treff mit Link;
   „Meine Freizeiten“, „Meine Treffs“ und „Meine nächsten Dienste“ (14 Tage); Einladung, Mitteilungen einzuschalten (auf dem iPhone: die App zum Home-Bildschirm hinzufügen), wegklickbar.
 - **Leitung:** knappe und leere Lebensmittel an den Orten der aktuellen Freizeiten (mit Link zum Lebensmittel-Reiter) und Hinweise, die noch nicht alle TeamerInnen gesehen haben.

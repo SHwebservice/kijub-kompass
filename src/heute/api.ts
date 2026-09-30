@@ -70,3 +70,10 @@ export async function listeOrtNamen(): Promise<Record<string, string>> {
   const r = pruefe(await supabase.from('orte').select('id, name')) as { id: string; name: string }[];
   return Object.fromEntries(r.map((o) => [o.id, o.name]));
 }
+
+/** Wie viele Nachweise der Teilzeitkräfte warten auf Prüfung? (Treffleitung: die des eigenen Treffs, Koordination: alle) */
+export async function zaehleEingereichteNachweise(): Promise<number> {
+  const { count, error } = await supabase.from('zeitnachweise').select('id', { count: 'exact', head: true }).eq('status', 'eingereicht');
+  if (error) throw new ApiFehler(error);
+  return count ?? 0;
+}
