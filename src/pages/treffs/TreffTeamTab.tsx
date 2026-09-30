@@ -8,6 +8,8 @@ import { darfInTreff, sortiereTreffTeam, TREFF_ROLLEN_LABEL } from '../../treffs
 import type { RolleInTreff } from '../../lib/rollen';
 import { treffTeamHinzufuegenViele } from '../../zuordnung/api';
 import { kandidatenFuer, personName, TREFF_ROLLEN } from '../../zuordnung/logik';
+import { bestaetigeTreffEntfernen } from '../../zuordnung/entfernen';
+import { heuteIso } from '../../freizeiten/logik';
 import { MehrfachZuordnung } from '../zuordnung/MehrfachZuordnung';
 import { Alert, Badge, Button, EmptyState, Spinner } from '../../components/ui';
 
@@ -74,7 +76,9 @@ export function TreffTeamTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
                     <option value="treffleitung">Treffleitung</option>
                   </select>
                   <Button klein variante="danger" disabled={arbeitet}
-                    onClick={() => { if (window.confirm(`${m.vorname} ${m.nachname} aus dem Team von „${t.name}“ entfernen?`)) void ausfuehren(() => treffTeamEntfernen(t.id, m.person_id)); }}>
+                    onClick={() => void ausfuehren(async () => {
+                      if (await bestaetigeTreffEntfernen(t.id, t.name, m.person_id, `${m.vorname} ${m.nachname}`, heuteIso())) await treffTeamEntfernen(t.id, m.person_id);
+                    })}>
                     Entfernen
                   </Button>
                 </div>

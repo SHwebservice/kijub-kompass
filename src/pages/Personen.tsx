@@ -5,6 +5,7 @@ import { fehlerText } from '../lib/fehler';
 import { heuteIso } from '../freizeiten/logik';
 import { listeFreizeiten } from '../freizeiten/api';
 import { listeTreffs } from '../treffs/api';
+import { bestaetigeTreffEntfernen } from '../zuordnung/entfernen';
 import { listePersonenVoll, setzeKoordination, type Bereich, type PersonZeile } from '../zuordnung/api';
 import { useZuordnungsdaten } from '../zuordnung/daten';
 import {
@@ -94,7 +95,11 @@ export function Personen() {
       return k.length ? `Achtung: ${personName(p)} ist zur selben Zeit auch eingeteilt in ${k.map(konfliktText).join(', ')}.` : null;
     });
   const aendereKoordination = (p: PersonZeile, bereich: Bereich, an: boolean) => void zuordnungAendern(async () => { await setzeKoordination(p.id, bereich, an); neuLaden(); });
-  const aendereTreff = (p: PersonZeile, t: TreffSpalte, rolle: TreffRolle | null) => void zuordnungAendern(() => zd.setzeTreff(t.id, p.id, rolle));
+  const aendereTreff = (p: PersonZeile, t: TreffSpalte, rolle: TreffRolle | null) => void zuordnungAendern(async () => {
+    // Beim Entfernen aus einem Treff vorher warnen, wenn die Person noch in künftigen Diensten steht
+    if (rolle === null && z.treffRolle(t.id, p.id) !== null && !(await bestaetigeTreffEntfernen(t.id, t.name, p.id, personName(p), heute))) return;
+    await zd.setzeTreff(t.id, p.id, rolle);
+  });
 
   useEffect(() => {
     let aktuell = true;

@@ -224,8 +224,8 @@ export async function offeneBewerbungen(): Promise<OffeneBewerbung[]> {
     .eq('status', 'offen').order('created_at')) as unknown as OffeneBewerbung[];
 }
 
-export async function bewerbungAnnehmen(id: string): Promise<void> {
-  pruefe(await supabase.rpc('fn_bewerbung_annehmen', { p_id: id }));
+export async function bewerbungAnnehmen(id: string, rolle: 'teamer' | 'leitung' = 'teamer'): Promise<void> {
+  pruefe(await supabase.rpc('fn_bewerbung_annehmen', { p_id: id, p_rolle: rolle }));
 }
 
 export async function bewerbungAblehnen(id: string): Promise<void> {

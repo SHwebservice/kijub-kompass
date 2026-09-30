@@ -139,3 +139,13 @@ export function zusammenfassung(personId: string, freizeiten: FreizeitSpalte[], 
   const teile = [f > 0 && `${f} ${f === 1 ? 'Freizeit' : 'Freizeiten'}`, t > 0 && `${t} ${t === 1 ? 'Treff' : 'Treffs'}`].filter(Boolean);
   return teile.join(' · ');
 }
+
+/** Rückfrage beim Entfernen aus einem Treff; nennt, wie viele künftige Dienste dabei wegfallen. */
+export function entfernenFrage(name: string, treffName: string, kuenftigeDienste: number): string {
+  const grund = `${name} aus dem Team von „${treffName}“ entfernen?`;
+  if (kuenftigeDienste <= 0) return grund;
+  const dienste = kuenftigeDienste === 1 ? 'einem künftigen Dienst' : `${kuenftigeDienste} künftigen Diensten`;
+  return `Achtung: ${name} ist noch in ${dienste} eingeteilt. Beim Entfernen fallen diese Dienste und offene Dienstwünsche weg (vergangene Dienste bleiben).
+
+${grund}`;
+}

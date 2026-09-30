@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   anzahlen, darfInTreff, filterePersonen, indexiere, kandidatenFuer, kollidierende, konfliktText, konflikteFuer, mitFreizeitRolle, mitTreffRolle, ohneLeitungIds,
-  ueberschneiden, verfuegbareJahre, waehleFreizeiten, zusammenfassung, type FreizeitSpalte, type FreizeitTeamZeile, type PersonMini, type TreffTeamZeile,
+  ueberschneiden, entfernenFrage, verfuegbareJahre, waehleFreizeiten, zusammenfassung, type FreizeitSpalte, type FreizeitTeamZeile, type PersonMini, type TreffTeamZeile,
 } from './logik';
 
 const f = (id: string, start: string, ende: string, o: Partial<FreizeitSpalte> = {}): FreizeitSpalte => ({ id, name: `Freizeit ${id}`, start_datum: start, ende_datum: ende, status: 'geplant', ...o });
@@ -124,5 +124,17 @@ describe('Zusammenfassung', () => {
   it('Einzahl', () => {
     const nur = indexiere([{ freizeit_id: 'bald', person_id: 'x', rolle: 'leitung' }], []);
     expect(zusammenfassung('x', [bald], nur, HEUTE)).toBe('1 Freizeit');
+  });
+});
+
+describe('Rückfrage beim Entfernen aus einem Treff', () => {
+  it('ohne künftige Dienste: schlichte Frage', () => {
+    expect(entfernenFrage('Ben Baum', 'Treff Nord', 0)).toBe('Ben Baum aus dem Team von „Treff Nord“ entfernen?');
+  });
+  it('mit Diensten: Warnung mit Zahl (Einzahl und Mehrzahl), Frage bleibt am Ende', () => {
+    expect(entfernenFrage('Ben Baum', 'Treff Nord', 1)).toMatch(/^Achtung: Ben Baum ist noch in einem künftigen Dienst eingeteilt\./);
+    expect(entfernenFrage('Ben Baum', 'Treff Nord', 4)).toMatch(/noch in 4 künftigen Diensten eingeteilt/);
+    expect(entfernenFrage('Ben Baum', 'Treff Nord', 4).endsWith('Ben Baum aus dem Team von „Treff Nord“ entfernen?')).toBe(true);
+    expect(entfernenFrage('Ben Baum', 'Treff Nord', 4)).toContain('vergangene Dienste bleiben');
   });
 });

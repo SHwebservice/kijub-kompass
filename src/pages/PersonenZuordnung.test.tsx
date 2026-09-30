@@ -253,3 +253,37 @@ describe('Personen: Koordination je Bereich', () => {
     expect(within(dialog).getByRole('checkbox', { name: /Treffkoordination/ })).toBeDisabled();
   });
 });
+
+describe('Personen: Entfernen aus einem Treff mit Warnung', () => {
+  const zurTreffZelle = async () => {
+    const u = userEvent.setup();
+    zeige();
+    await screen.findByText('Ben Baum');
+    await u.click(screen.getByRole('button', { name: 'Zuordnungen' }));
+    await screen.findByRole('table');
+    return u;
+  };
+
+  it('vor dem Entfernen wird gefragt und die Zahl künftiger Dienste genannt; bei „Abbrechen“ bleibt alles', async () => {
+    vi.mocked(treffApi.zaehleZukuenftigeDienste).mockResolvedValue(2);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const u = await zurTreffZelle();
+    const zelle = () => screen.getByRole('combobox', { name: 'Ben Baum: Treff Nord' }) as HTMLSelectElement;
+    await u.selectOptions(zelle(), '');
+    expect(confirm.mock.calls[0]![0]).toMatch(/noch in 2 künftigen Diensten/);
+    expect(zApi.setzeTreffRolle).not.toHaveBeenCalled();
+    expect(zelle().value).toBe('betreuerin');
+    await u.selectOptions(zelle(), '');
+    expect(zApi.setzeTreffRolle).toHaveBeenCalledWith('t1', 'ben', null);
+    confirm.mockRestore();
+  });
+
+  it('eine andere Rolle zu wählen fragt nicht nach', async () => {
+    const confirm = vi.spyOn(window, 'confirm');
+    const u = await zurTreffZelle();
+    await u.selectOptions(screen.getByRole('combobox', { name: 'Ben Baum: Treff Nord' }), 'treffleitung');
+    expect(confirm).not.toHaveBeenCalled();
+    expect(zApi.setzeTreffRolle).toHaveBeenCalledWith('t1', 'ben', 'treffleitung');
+    confirm.mockRestore();
+  });
+});

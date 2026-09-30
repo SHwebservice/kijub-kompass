@@ -91,9 +91,22 @@ describe('Bewerbungen', () => {
     vi.mocked(api.bewerbungAnnehmen).mockResolvedValue(undefined);
     renderMitAuth(<Bewerbungen />, koord);
     await userEvent.click(await screen.findByRole('button', { name: 'Annehmen' }));
-    expect(api.bewerbungAnnehmen).toHaveBeenCalledWith('b1');
+    expect(api.bewerbungAnnehmen).toHaveBeenCalledWith('b1', 'teamer');
     expect(await screen.findByText('Ida Neu ist jetzt im Team.')).toBeInTheDocument();
     expect(sendePush).toHaveBeenCalledWith('bewerbung_angenommen', 'b1');           // die Person erfährt es
+  });
+
+  it('nimmt mit der gewählten Rolle an: als Leitung', async () => {
+    vi.mocked(api.offeneBewerbungen).mockResolvedValue(offen);
+    vi.mocked(api.bewerbungAnnehmen).mockResolvedValue(undefined);
+    renderMitAuth(<Bewerbungen />, koord);
+    const rolle = await screen.findByLabelText('Rolle für Ida Neu');
+    expect((rolle as HTMLSelectElement).value).toBe('teamer');
+    await userEvent.selectOptions(rolle, 'leitung');
+    await userEvent.click(screen.getByRole('button', { name: 'Annehmen' }));
+    expect(api.bewerbungAnnehmen).toHaveBeenCalledWith('b1', 'leitung');
+    expect(await screen.findByText('Ida Neu ist jetzt Leitung.')).toBeInTheDocument();
+    expect(sendePush).toHaveBeenCalledWith('bewerbung_angenommen', 'b1');
   });
 
   it('lehnt ab', async () => {

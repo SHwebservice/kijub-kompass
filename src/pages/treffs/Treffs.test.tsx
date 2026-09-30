@@ -305,3 +305,41 @@ describe('Treff-Formular', () => {
     expect(api.loescheTreff).toHaveBeenCalledWith('t1');
   });
 });
+
+describe('Treff-Team: Entfernen mit Warnung vor künftigen Diensten', () => {
+  it('nennt die Zahl künftiger Dienste in der Rückfrage; bei „Abbrechen“ bleibt die Person', async () => {
+    vi.mocked(api.zaehleZukuenftigeDienste).mockResolvedValue(3);
+    vi.mocked(api.treffTeamEntfernen).mockResolvedValue(undefined);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    zeigeDetail(koord, '/treffs/t1/team');
+    const knopf = (await screen.findAllByRole('button', { name: 'Entfernen' }))[1]!;
+    await userEvent.click(knopf);
+    expect(confirm.mock.calls[0]![0]).toMatch(/noch in 3 künftigen Diensten eingeteilt/);
+    expect(confirm.mock.calls[0]![0]).toMatch(/Ben Baum aus dem Team von „Treff Nord“ entfernen\?/);
+    expect(api.treffTeamEntfernen).not.toHaveBeenCalled();
+    await userEvent.click(knopf);
+    expect(api.treffTeamEntfernen).toHaveBeenCalledWith('t1', 'b');
+    confirm.mockRestore();
+  });
+
+  it('ohne künftige Dienste: die schlichte Rückfrage', async () => {
+    vi.mocked(api.zaehleZukuenftigeDienste).mockResolvedValue(0);
+    vi.mocked(api.treffTeamEntfernen).mockResolvedValue(undefined);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    zeigeDetail(koord, '/treffs/t1/team');
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Entfernen' }))[1]!);
+    expect(confirm.mock.calls[0]![0]).toBe('Ben Baum aus dem Team von „Treff Nord“ entfernen?');
+    confirm.mockRestore();
+  });
+
+  it('lässt sich die Zahl nicht ermitteln, wird trotzdem gefragt', async () => {
+    vi.mocked(api.zaehleZukuenftigeDienste).mockRejectedValue(new Error('x'));
+    vi.mocked(api.treffTeamEntfernen).mockResolvedValue(undefined);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    zeigeDetail(koord, '/treffs/t1/team');
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Entfernen' }))[1]!);
+    expect(confirm).toHaveBeenCalled();
+    expect(api.treffTeamEntfernen).toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+});

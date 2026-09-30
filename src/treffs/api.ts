@@ -321,3 +321,11 @@ export async function listeMeineDienste(personId: string, von: string, bis: stri
   return r.map(({ dienste: { treffs, ...d } }) => ({ ...d, von: d.von?.slice(0, 5) ?? null, bis: d.bis?.slice(0, 5) ?? null, treff_name: treffs?.name ?? '' }))
     .sort((a, b) => a.datum.localeCompare(b.datum) || (a.von ?? '').localeCompare(b.von ?? ''));
 }
+
+/** Wie oft ist die Person ab dem Tag noch im Dienstplan des Treffs eingeteilt? (Für die Warnung beim Entfernen aus dem Treff.) */
+export async function zaehleZukuenftigeDienste(treffId: string, personId: string, ab: string): Promise<number> {
+  const { count, error } = await supabase.from('dienst_zuteilungen').select('dienst_id, dienste!inner(treff_id, datum)', { count: 'exact', head: true })
+    .eq('person_id', personId).eq('dienste.treff_id', treffId).gte('dienste.datum', ab);
+  if (error) throw new ApiFehler(error);
+  return count ?? 0;
+}
