@@ -60,7 +60,7 @@ describe('Tagesprotokoll: schreiben', () => {
     await u.type(within(dialog).getByLabelText(/Was war los/), 'Basteln');
     await u.type(within(dialog).getByLabelText('Besondere Vorkommnisse'), 'Streit um den Kicker');
     await u.click(within(dialog).getByRole('button', { name: 'Speichern' }));
-    expect(api.speichereProtokoll).toHaveBeenCalledWith('t1', heute, { anz_m: 2, anz_w: 1, anz_d: 0, verlauf: 'Basteln', vorkommnisse: 'Streit um den Kicker' });
+    expect(api.speichereProtokoll).toHaveBeenCalledWith('t1', heute, { anz_m: 2, anz_w: 1, anz_d: 0, verlauf: 'Basteln', vorkommnisse: 'Streit um den Kicker' }, { erwartet: null });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(api.listeProtokolle).toHaveBeenCalledTimes(2);      // Liste wird neu geladen
   });
@@ -104,7 +104,7 @@ describe('Tagesprotokoll: schreiben', () => {
     expect(werte).toContain(addTage(heute, -2));
     await u.selectOptions(auswahl, addTage(heute, -2));
     await u.click(within(dialog).getByRole('button', { name: 'Speichern' }));
-    expect(api.speichereProtokoll).toHaveBeenCalledWith('t1', addTage(heute, -2), expect.any(Object));
+    expect(api.speichereProtokoll).toHaveBeenCalledWith('t1', addTage(heute, -2), expect.any(Object), { erwartet: null });
   });
 
   it('Nebenbei eine Notiz anlegen: wird mit dem Tag des Protokolls gespeichert', async () => {
@@ -159,7 +159,7 @@ describe('Tagesprotokoll: Liste, Bearbeiten, Fehlendes', () => {
     expect(within(dialog).queryByLabelText('Tag')).not.toBeInTheDocument();
     await u.click(within(dialog).getByRole('button', { name: 'weiblich erhöhen' }));
     await u.click(within(dialog).getByRole('button', { name: 'Speichern' }));
-    expect(api.speichereProtokoll).toHaveBeenCalledWith('t1', heute, expect.objectContaining({ anz_m: 3, anz_w: 3, anz_d: 0, verlauf: 'Basteln und Kicker' }));
+    expect(api.speichereProtokoll).toHaveBeenCalledWith('t1', heute, expect.objectContaining({ anz_m: 3, anz_w: 3, anz_d: 0, verlauf: 'Basteln und Kicker' }), { erwartet: `${heute}T17:30:00Z` });
   });
 
   it('ein Protokoll aus der Liste öffnen', async () => {

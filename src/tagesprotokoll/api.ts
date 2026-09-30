@@ -31,11 +31,38 @@ export async function listeProtokolleImZeitraum(treffId: string, von: string, bi
     .eq('treff_id', treffId).gte('datum', von).lte('datum', bis).order('datum').limit(1000)) as Protokoll[];
 }
 
-/** Legt das Protokoll eines Tages an oder überschreibt es (je Treff und Tag gibt es nur eines). */
-export async function speichereProtokoll(treffId: string, datum: string, e: ProtokollEingabe): Promise<void> {
-  pruefe(await supabase.from('treff_protokolle').upsert(
-    { treff_id: treffId, datum, anz_m: e.anz_m, anz_w: e.anz_w, anz_d: e.anz_d, verlauf: e.verlauf.trim(), vorkommnisse: e.vorkommnisse.trim() },
-    { onConflict: 'treff_id,datum' }));
+/** Das Protokoll wurde inzwischen von jemand anderem geändert (oder angelegt bzw. gelöscht). `aktuell` ist der jetzige Stand, null = gelöscht. */
+export class ProtokollKonflikt extends Error {
+  aktuell: Protokoll | null;
+  constructor(aktuell: Protokoll | null) { super('Das Protokoll wurde inzwischen geändert'); this.name = 'ProtokollKonflikt'; this.aktuell = aktuell; }
+}
+
+export async function holeProtokollDesTages(treffId: string, datum: string): Promise<Protokoll | null> {
+  return pruefe(await supabase.from('treff_protokolle').select(PROTOKOLL).eq('treff_id', treffId).eq('datum', datum).maybeSingle()) as Protokoll | null;
+}
+
+/** Prüfung gegen gleichzeitiges Bearbeiten: `erwartet` ist der Änderungszeitpunkt, den man beim Öffnen gesehen hat (null = es gab noch kein Protokoll). */
+export interface Pruefung { erwartet: string | null }
+
+/**
+ * Legt das Protokoll eines Tages an oder ändert es (je Treff und Tag gibt es nur eines).
+ * Mit `pruefung`: nur, wenn niemand es inzwischen geändert hat – sonst ProtokollKonflikt mit dem jetzigen Stand.
+ * Ohne `pruefung`: überschreibt (z. B. nach „Trotzdem speichern“).
+ */
+export async function speichereProtokoll(treffId: string, datum: string, e: ProtokollEingabe, pruefung?: Pruefung): Promise<void> {
+  const werte = { anz_m: e.anz_m, anz_w: e.anz_w, anz_d: e.anz_d, verlauf: e.verlauf.trim(), vorkommnisse: e.vorkommnisse.trim() };
+  if (!pruefung) {
+    pruefe(await supabase.from('treff_protokolle').upsert({ treff_id: treffId, datum, ...werte }, { onConflict: 'treff_id,datum' }));
+    return;
+  }
+  if (pruefung.erwartet === null) {
+    const r = await supabase.from('treff_protokolle').insert({ treff_id: treffId, datum, ...werte });
+    if (r.error?.code === '23505') throw new ProtokollKonflikt(await holeProtokollDesTages(treffId, datum));
+    if (r.error) throw new ApiFehler(r.error);
+    return;
+  }
+  const r = pruefe(await supabase.from('treff_protokolle').update(werte).eq('treff_id', treffId).eq('datum', datum).eq('updated_at', pruefung.erwartet).select('id')) as { id: string }[];
+  if (r.length === 0) throw new ProtokollKonflikt(await holeProtokollDesTages(treffId, datum));
 }
 
 export async function loescheProtokoll(id: string): Promise<void> {

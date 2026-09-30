@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { fehlerText } from '../../lib/fehler';
 import { formatDatum, wochentagLang } from '../../freizeiten/logik';
-import { legeAufgabeAn, loescheProtokoll, speichereProtokoll } from '../../tagesprotokoll/api';
+import { legeAufgabeAn, loescheProtokoll, ProtokollKonflikt, speichereProtokoll } from '../../tagesprotokoll/api';
 import {
-  aendereAnzahl, ARTEN, eingabeAus, gesamt, leeresProtokoll, liesAnzahl, MAX_TEXT, validiereAufgabe, validiereProtokoll, waehlbareTage, leereAufgabe,
+  aendereAnzahl, ARTEN, eingabeAus, gesamt, leeresProtokoll, liesAnzahl, MAX_TEXT, ortszeit, validiereAufgabe, validiereProtokoll, waehlbareTage, leereAufgabe,
   type AufgabeArt, type Protokoll, type ProtokollEingabe,
 } from '../../tagesprotokoll/logik';
 import { Sheet } from '../../components/Sheet';
@@ -39,10 +39,11 @@ interface Props {
   /** Vorgewählter Tag; leer = auswählen lassen (nur bei neuen Protokollen). */
   datum: string | null;
   vorhanden: Protokoll | null;
-  /** Protokolle, die es schon gibt (für die Tagesauswahl). */
-  belegt: Pick<Protokoll, 'datum'>[];
+  /** Die aktuelle Liste der Protokolle (für die Tagesauswahl und um zu erkennen, dass jemand anderes inzwischen etwas geändert hat). */
+  belegt: Protokoll[];
   heute: string;
-  zuletztVon: string | null;
+  /** Namen der Personen (Kennung → Name), soweit bekannt. */
+  namen: Record<string, string>;
   darfLoeschen: boolean;
   schliessen: () => void;
   gespeichert: () => void;
@@ -51,10 +52,13 @@ interface Props {
 const tagText = (d: string, heute: string) => `${wochentagLang(d)}, ${formatDatum(d)}${d === heute ? ' (heute)' : ''}`;
 
 /** Protokoll eines Tages anlegen oder bearbeiten – alle im Team dürfen jederzeit. */
-export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, zuletztVon, darfLoeschen, schliessen, gespeichert }: Props) {
+export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, namen, darfLoeschen, schliessen, gespeichert }: Props) {
   const wahl = waehlbareTage(belegt, heute);
   const [tag, setTag] = useState(vorhanden?.datum ?? datum ?? wahl[0] ?? heute);
   const [e, setE] = useState<ProtokollEingabe>(vorhanden ? eingabeAus(vorhanden) : leeresProtokoll());
+  // Der Stand, auf dem die eigene Bearbeitung beruht (Änderungszeitpunkt); null = es gab noch kein Protokoll
+  const [basis, setBasis] = useState<Protokoll | null>(vorhanden);
+  const [konflikt, setKonflikt] = useState<{ aktuell: Protokoll | null } | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [fehlerFelder, setFehlerFelder] = useState<ReturnType<typeof validiereProtokoll>>({});
   const [arbeitet, setArbeitet] = useState(false);
@@ -64,22 +68,39 @@ export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, zulet
   const [notizFehler, setNotizFehler] = useState<string | null>(null);
   const [angelegt, setAngelegt] = useState<string[]>([]);
 
-  const auswahlTage = vorhanden ? [] : [...new Set([tag, ...wahl])].sort((a, b) => b.localeCompare(a));
+  // Hat jemand anderes das Protokoll inzwischen geändert oder angelegt? (Live-Liste oder Ergebnis des Speicherns)
+  const imTag = belegt.find((x) => x.datum === (basis?.datum ?? tag)) ?? null;
+  const abweichung: { aktuell: Protokoll | null } | null = konflikt
+    ?? (basis && imTag && new Date(imTag.updated_at) > new Date(basis.updated_at) ? { aktuell: imTag } : !basis && imTag ? { aktuell: imTag } : null);
+  const vonWem = (x: Protokoll | null) => (x?.bearbeitet_von ? (namen[x.bearbeitet_von] ?? null) : null);
 
-  async function speichern(ev: FormEvent) {
-    ev.preventDefault();
+  function aktuelleFassungLaden(aktuell: Protokoll) {
+    setE(eingabeAus(aktuell)); setBasis(aktuell); setTag(aktuell.datum); setKonflikt(null); setFehlerFelder({}); setFehler(null);
+  }
+
+  const auswahlTage = basis ? [] : [...new Set([tag, ...wahl])].sort((a, b) => b.localeCompare(a));
+
+  /** Speichert; `erzwingen` überschreibt auch, wenn jemand anderes inzwischen etwas geändert hat. */
+  async function sichern(erzwingen: boolean) {
     const f = validiereProtokoll(e);
     setFehlerFelder(f);
     if (Object.keys(f).length) return;
     setArbeitet(true); setFehler(null);
-    try { await speichereProtokoll(treffId, tag, e); gespeichert(); schliessen(); }
-    catch (x) { setFehler(fehlerText(x, 'Das Protokoll konnte nicht gespeichert werden.')); setArbeitet(false); }
+    try {
+      await speichereProtokoll(treffId, basis?.datum ?? tag, e, ...(erzwingen ? [] : [{ erwartet: basis?.updated_at ?? null }]));
+      gespeichert(); schliessen();
+    } catch (x) {
+      if (x instanceof ProtokollKonflikt) setKonflikt({ aktuell: x.aktuell });
+      else setFehler(fehlerText(x, 'Das Protokoll konnte nicht gespeichert werden.'));
+      setArbeitet(false);
+    }
   }
+  const speichern = (ev: FormEvent) => { ev.preventDefault(); void sichern(false); };
 
   async function loeschen() {
-    if (!vorhanden || !window.confirm(`Das Protokoll vom ${formatDatum(vorhanden.datum)} wirklich löschen?`)) return;
+    if (!basis || !window.confirm(`Das Protokoll vom ${formatDatum(basis.datum)} wirklich löschen?`)) return;
     setArbeitet(true); setFehler(null);
-    try { await loescheProtokoll(vorhanden.id); gespeichert(); schliessen(); }
+    try { await loescheProtokoll(basis.id); gespeichert(); schliessen(); }
     catch (x) { setFehler(fehlerText(x, 'Das Protokoll konnte nicht gelöscht werden.')); setArbeitet(false); }
   }
 
@@ -93,15 +114,31 @@ export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, zulet
   }
 
   return (
-    <Sheet titel={vorhanden ? `Protokoll · ${tagText(vorhanden.datum, heute)}` : 'Neues Tagesprotokoll'} schliessen={schliessen}>
-      <form onSubmit={(ev) => void speichern(ev)} noValidate>
+    <Sheet titel={basis ? `Protokoll · ${tagText(basis.datum, heute)}` : 'Neues Tagesprotokoll'} schliessen={schliessen}>
+      <form onSubmit={speichern} noValidate>
         {fehler && <Alert ton="error">{fehler}</Alert>}
-        {!vorhanden && (
+        {abweichung && (
+          <Alert ton="warning">
+            {abweichung.aktuell ? (
+              <>
+                <strong>{basis ? 'Dieses Protokoll wurde inzwischen geändert' : 'Für diesen Tag gibt es inzwischen ein Protokoll'}</strong>
+                {vonWem(abweichung.aktuell) ? ` von ${vonWem(abweichung.aktuell)}` : ''} ({ortszeit(abweichung.aktuell.updated_at)}). Wenn du dein Protokoll jetzt speicherst, gehen diese Änderungen verloren.
+              </>
+            ) : (
+              <><strong>Dieses Protokoll wurde inzwischen gelöscht.</strong> Du kannst deine Fassung als neues Protokoll speichern.</>
+            )}
+            <div className="row" style={{ marginTop: 'var(--space-2)' }}>
+              {abweichung.aktuell && <Button klein onClick={() => aktuelleFassungLaden(abweichung.aktuell!)}>Aktuelle Fassung laden (meine Änderungen verwerfen)</Button>}
+              <Button klein onClick={() => void sichern(true)} disabled={arbeitet}>{abweichung.aktuell ? 'Meine Fassung trotzdem speichern' : 'Als neues Protokoll speichern'}</Button>
+            </div>
+          </Alert>
+        )}
+        {!basis && (
           <SelectField label="Tag" value={tag} onChange={(ev) => setTag(ev.target.value)}>
             {auswahlTage.map((d) => <option key={d} value={d}>{tagText(d, heute)}</option>)}
           </SelectField>
         )}
-        {vorhanden && zuletztVon && <p className="field__hint">Zuletzt bearbeitet von {zuletztVon} am {formatDatum(vorhanden.updated_at.slice(0, 10))} um {vorhanden.updated_at.slice(11, 16)} Uhr.</p>}
+        {basis && vonWem(basis) && <p className="field__hint">Zuletzt bearbeitet von {vonWem(basis)} am {ortszeit(basis.updated_at)}.</p>}
 
         <fieldset className="zaehler-gruppe">
           <legend className="field__label">Wie viele Kinder waren da?</legend>
@@ -129,7 +166,7 @@ export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, zulet
         <div className="row">
           <Button variante="primary" type="submit" laedt={arbeitet}>Speichern</Button>
           <Button onClick={schliessen}>Abbrechen</Button>
-          {vorhanden && darfLoeschen && <Button variante="danger" onClick={() => void loeschen()} disabled={arbeitet}>Löschen</Button>}
+          {basis && darfLoeschen && <Button variante="danger" onClick={() => void loeschen()} disabled={arbeitet}>Löschen</Button>}
         </div>
       </form>
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   aendereAnzahl, anteil, auswertungNachMonat, csvFeld, csvProtokolle, eingabeAus, fehlendeTage, protokollFaellig, fuerMich, gesamt, hatFaelligkeit, hatZustaendig, imArchiv, istLeer,
   istUeberfaellig, leeresProtokoll, liesAnzahl, oeffnungstage, sortiereAufgaben, summeAuswertung, validiereAufgabe, validiereProtokoll, waehlbareTage, zaehleJeArt,
-  type Aufgabe, type Protokoll,
+  ortszeit, type Aufgabe, type Protokoll,
 } from './logik';
 
 // 2027-03-01 ist ein Montag
@@ -167,5 +167,12 @@ describe('Notizen und Listen', () => {
     expect(imArchiv(aufgabe({ id: 'a', erledigt: true, erledigt_am: '2027-01-01T10:00:00Z' }), '2027-03-01')).toBe(true);
     expect(imArchiv(aufgabe({ id: 'a', erledigt: true, erledigt_am: '2027-02-20T10:00:00Z' }), '2027-03-01')).toBe(false);
     expect(imArchiv(aufgabe({ id: 'a' }), '2027-03-01')).toBe(false);
+  });
+});
+
+describe('ortszeit', () => {
+  it('Datum und Uhrzeit in Ortszeit, zweistellig', () => {
+    const d = new Date(2027, 2, 2, 9, 5);      // 2. März 2027, 09:05 Ortszeit
+    expect(ortszeit(d.toISOString())).toBe('02.03.2027 um 09:05 Uhr');
   });
 });

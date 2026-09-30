@@ -145,7 +145,7 @@ export function ProtokollTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
         <ProtokollSheet
           key={offen.vorhanden?.id ?? offen.datum ?? 'neu'}
           treffId={t.id} datum={offen.datum} vorhanden={offen.vorhanden} belegt={liste} heute={heute}
-          zuletztVon={offen.vorhanden?.bearbeitet_von ? (namen.daten?.[offen.vorhanden.bearbeitet_von] ?? null) : null}
+          namen={namen.daten ?? {}}
           darfLoeschen={leitung}
           schliessen={() => setOffen(null)} gespeichert={() => protokolle.neuLaden()} />
       )}

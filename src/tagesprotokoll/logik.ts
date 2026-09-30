@@ -199,3 +199,10 @@ export const fuerMich = (l: Aufgabe[], ichId: string, heute: string) => l.filter
 export function imArchiv(a: Pick<Aufgabe, 'erledigt' | 'erledigt_am'>, heute: string, tage = 30): boolean {
   return a.erledigt && !!a.erledigt_am && a.erledigt_am.slice(0, 10) < addTage(heute, -tage);
 }
+
+/** Zeitpunkt in Ortszeit für Anzeigen: „02.03.2027 um 11:30 Uhr“. */
+export function ortszeit(iso: string): string {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} um ${p(d.getHours())}:${p(d.getMinutes())} Uhr`;
+}
