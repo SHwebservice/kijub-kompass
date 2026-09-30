@@ -1,7 +1,7 @@
 -- KiJuB-Kompass · alle Migrationen in einer Datei (GENERIERT – nicht von Hand ändern)
 -- Erzeugt mit: npm run sql:bundle
 -- Nur für ein LEERES Projekt gedacht: einmal komplett im SQL Editor ausführen.
--- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql
+-- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql
 
 -- ════════ 0001_stammdaten.sql ════════
 -- KiJuB-Kompass · 0001 Stammdaten
@@ -1746,3 +1746,21 @@ revoke execute on function fn_import_sauber(jsonb), fn_import_norm(text, text, j
   from public, anon, authenticated;
 revoke execute on function fn_kijuko_import(jsonb, boolean, jsonb, jsonb) from public, anon;
 grant  execute on function fn_kijuko_import(jsonb, boolean, jsonb, jsonb) to authenticated;
+
+-- ════════ 0011_realtime.sql ════════
+-- KiJuB-Kompass · 0011 Live-Aktualisierung (Supabase Realtime)
+-- Die Tabellen der Freizeiten melden Änderungen an angemeldete Geräte, damit Wochenplan, Hinweise, Team und
+-- Lebensmittel bei allen sofort aktuell sind. Es werden nur Zeilen geliefert, die die jeweilige Person laut
+-- Zugriffsregeln (RLS) auch lesen darf. In Umgebungen ohne Realtime (z. B. den lokalen Tests) passiert nichts.
+do $$
+declare t text;
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    foreach t in array array['plan_eintraege', 'freizeit_slots', 'notizen', 'notiz_bestaetigungen', 'notiz_kommentare',
+                             'freizeit_team', 'lebensmittel_eingang', 'lebensmittel_verbrauch'] loop
+      if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+        execute format('alter publication supabase_realtime add table public.%I', t);
+      end if;
+    end loop;
+  end if;
+end $$;

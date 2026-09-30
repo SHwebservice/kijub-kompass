@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
+import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
 import {
   aendereNotiz, bestaetige, bestaetigungZurueck, holeNamen, holeTeam, kommentiere, legeNotizAn, listeNotizen, loescheKommentar, loescheNotiz,
@@ -58,6 +59,7 @@ export function HinweiseTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDa
     ...(notizen.daten ?? []).flatMap((n) => [n.erstellt_von, ...n.bestaetigungen.map((b) => b.person_id), ...n.kommentare.map((k) => k.person_id)]),
   ].filter((x): x is string => !!x))].sort();
   const namenL = useLaden(() => holeNamen(ids), `notiz-namen-${f.id}-${ids.join(',')}`);
+  useLive(['notizen', 'notiz_bestaetigungen', 'notiz_kommentare', 'freizeit_team'], () => { notizen.neuLaden(); team.neuLaden(); });
   const [fehler, setFehler] = useState<string | null>(null);
   if (!ich) return null;
 

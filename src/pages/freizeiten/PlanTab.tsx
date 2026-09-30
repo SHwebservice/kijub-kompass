@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
+import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
 import {
   holeNamen, listeEintraege, listeSlots, slotHinzufuegen, slotPositionen, type FreizeitDetailDaten,
@@ -22,6 +23,7 @@ export function PlanTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDaten;
   const eintraegeL = useLaden(() => listeEintraege(f.id), `eintraege-${f.id}`);
   const verfasserIds = [...new Set((eintraegeL.daten ?? []).map((e) => e.erstellt_von).filter((x): x is string => !!x))].sort();
   const namenL = useLaden(() => holeNamen(verfasserIds), `namen-${f.id}-${verfasserIds.join(',')}`);
+  useLive(['plan_eintraege', 'freizeit_slots'], () => { slotsL.neuLaden(); eintraegeL.neuLaden(); });
   const [ziel, setZiel] = useState<SheetZiel | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);

@@ -209,3 +209,11 @@ button.plan__eintrag { cursor: pointer; }
 .plan__eintrag small { display: block; color: var(--text-muted); }
 .kat--kennenlernen { --kat: #1d9e75; } .kat--bewegung { --kat: #378add; } .kat--wasser { --kat: #185fa5; }
 .kat--planb { --kat: #ba7517; } .kat--kreativ { --kat: #d4537e; } .kat--highlight { --kat: #7f77dd; }
+
+/* ===== Bestandsbalken ===== */
+.balken { height: 8px; border-radius: 999px; background: var(--surface-2); margin: var(--space-2) 0; overflow: hidden; }
+.balken__fuell { height: 100%; border-radius: 999px; background: var(--accent); }
+.balken__fuell--knapp { background: var(--warning); }
+.balken__fuell--leer { background: var(--danger); }
+.hinweis-warnung { color: var(--danger); font-weight: 600; }
+.alert--warning { background: var(--warning-bg); color: var(--warning); }

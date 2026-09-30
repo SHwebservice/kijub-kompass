@@ -36,7 +36,7 @@ Variante B – ohne CLI: Im Dashboard unter **SQL Editor** den Inhalt von `supab
 
 **Projekt läuft schon und es kommen neue Migrationen dazu?** Dann nur die neue Datei aus `supabase/migrations/` (z. B. `0009_person_entfernen.sql`)
 im SQL Editor ausführen – nicht die Sammeldatei, die ist nur für leere Projekte.
-Aktueller Stand der Migrationen: `0001` bis `0010` (`0010` = KiJuKo-Import).
+Aktueller Stand der Migrationen: `0001` bis `0011` (`0010` = KiJuKo-Import, `0011` = Live-Aktualisierung).
 
 ### Erste Koordination anlegen **[du]**
 
@@ -120,3 +120,12 @@ stellt `auth.users`/`auth.uid()` nach und spielt alle Migrationen ein.
   Leitung, Koordination).
 - Edge Functions sind lokal nur in Teilen getestet (Passwort-Generator, Aufbau); der Ablauf gegen ein echtes Projekt
   wird beim ersten Einsatz geprüft.
+
+## Live-Aktualisierung (Realtime)
+
+Die Migration `0011` meldet die Tabellen der Freizeiten (Wochenplan, Zeitabschnitte, Hinweise, Bestätigungen, Kommentare, Team, Lebensmittel)
+bei Supabase Realtime an. Die Seiten laden dann von selbst nach, wenn jemand anderes etwas ändert. Es werden nur Zeilen geliefert, die die Person
+laut Zugriffsregeln sehen darf. Hinweis zu Supabase: Bei **Löschungen** erfährt jede angemeldete Person der Tabelle nur, dass etwas gelöscht wurde
+(mit der technischen ID, ohne Inhalt) – die Seite lädt dann neu und zeigt wie immer nur erlaubte Daten. Geprüft wird das in der Praxis: Zwei Geräte
+öffnen denselben Wochenplan; ein Eintrag auf Gerät A erscheint kurz darauf auf Gerät B. Personenbezogene Tabellen (Personen, Bewerbungen, Nachweise,
+Abwesenheiten) sind bewusst **nicht** angemeldet.

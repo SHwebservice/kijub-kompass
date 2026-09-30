@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLaden } from '../../lib/laden';
+import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
 import {
   holeTeam, listePersonen, teamEntfernen, teamHinzufuegen, teamRolleAendern, type FreizeitDetailDaten, type TeamMitglied,
@@ -32,6 +33,7 @@ export function TeamTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDaten;
   const team = useLaden(() => holeTeam(f.id), `team-${f.id}`);
   const verwaltung = rolle === 'koordination';
   const personen = useLaden(async () => (verwaltung ? listePersonen() : []), `personen-${verwaltung}`);
+  useLive(['freizeit_team'], () => team.neuLaden());
   const [neuePerson, setNeuePerson] = useState('');
   const [neueRolle, setNeueRolle] = useState<'teamer' | 'leitung'>('teamer');
   const [fehler, setFehler] = useState<string | null>(null);

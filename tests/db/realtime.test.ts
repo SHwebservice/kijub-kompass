@@ -1,0 +1,26 @@
+import { describe, it, expect } from 'vitest';
+import { neueDb } from './harness';
+
+const TABELLEN = ['freizeit_slots', 'freizeit_team', 'lebensmittel_eingang', 'lebensmittel_verbrauch', 'notiz_bestaetigungen', 'notiz_kommentare', 'notizen', 'plan_eintraege'];
+
+describe('Live-Aktualisierung (Migration 0011)', () => {
+  it('läuft ohne Realtime-Veröffentlichung folgenlos durch', async () => {
+    const db = await neueDb();
+    const r = await db.query<{ n: number }>(`select count(*)::int as n from pg_publication`);
+    expect(r.rows[0]!.n).toBe(0);
+  });
+
+  it('meldet genau die Tabellen der Freizeiten an, wenn Realtime vorhanden ist', async () => {
+    const db = await neueDb({ realtime: true });
+    const r = await db.query<{ tablename: string }>(`select tablename from pg_publication_tables where pubname = 'supabase_realtime' order by 1`);
+    expect(r.rows.map((x) => x.tablename)).toEqual(TABELLEN);
+  });
+
+  it('personenbezogene Tabellen sind NICHT dabei (Personen, Bewerbungen, Nachweise …)', async () => {
+    const db = await neueDb({ realtime: true });
+    const r = await db.query<{ tablename: string }>(`select tablename from pg_publication_tables where pubname = 'supabase_realtime'`);
+    for (const t of ['personen', 'bewerbungen', 'zeitnachweise', 'abwesenheiten', 'push_abos', 'import_laeufe']) {
+      expect(r.rows.map((x) => x.tablename)).not.toContain(t);
+    }
+  });
+});

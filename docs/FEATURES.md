@@ -168,3 +168,21 @@ Eine rollenabhängige Startseite statt fünf getrennter Dashboard-Fragmente:
 | ID | Was | Entscheidung |
 |---|---|---|
 | B11 | Die Koordination kann Personen **deaktivieren** (sofort gesperrt, Daten bleiben, umkehrbar), ihnen den **Zugang entziehen** (Login weg, Person bleibt) oder sie **endgültig löschen** (Person, Login und alle zugehörigen Daten; verfasste Hinweise/Absprachen bleiben ohne Namen). Vor dem Löschen zeigt die App, was mitgeht, und verlangt den Nachnamen zur Bestätigung. | **Neu, umgesetzt.** Schutz: nicht sich selbst, nie die letzte aktive Koordination (auch nicht per Dashboard/SQL). Hinweis: Zeitnachweise können aufbewahrungspflichtig sein – im Zweifel deaktivieren statt löschen. |
+
+---
+
+## Stand der Umsetzung: Freizeiten (Phase 3b, 2026-09-30)
+
+**Umgesetzt und getestet:** C1 (Stammdaten, Formular für die Koordination), C2 (Schlagworte), C3 (Orte verwalten, nicht löschbar solange verwendet),
+C4/C5 (Wochenplan: Tage × Zeitabschnitte, mehrere Einträge je Zelle, Katalog-Punkt oder Freitext der Leitung, Notiz, Abend-Zeitabschnitt, Reihenfolge),
+C6/C7 (Hinweise mit „gesehen"-Bestätigung und Stand für die Leitung; Absprachen mit Bestätigung und Kommentaren; je Tag oder für die ganze Freizeit),
+C9 (vergangene Freizeiten im eigenen Reiter), C11 (Lebensmittel am Ort mit Ampel und Hochrechnung), C13 (Gruppierung nach Ferienzeit), C14 (Löschen mit Kaskade und Namensbestätigung),
+C15 (Live-Aktualisierung über Supabase Realtime), B7/B8 (Team-Ansicht mit rollenabhängigen Kontaktdaten, Zuordnung und Rollen durch die Koordination),
+B9 (Bewerbung und Zurückziehen, Entscheidung durch die Koordination), Startseite „Meine Freizeiten", Verpflegung und Material aus KiJuKo (nur lesbar).
+
+**Noch offen (bewusst später):**
+- C8/C12 vollständige Startseite „Heute" mit offenen Hinweisen, knappen Lebensmitteln, Koordinations-Überblick (heute nur „Meine Freizeiten").
+- C10 Farbe je Freizeit (Logik vorhanden, noch nicht eingebunden).
+- „Neu seit letztem Besuch" (D4 bei Treffs) und Hinweis „gelesen" für die Koordination.
+- Der **Katalog ist noch leer** (Phase 3, Bereich Katalog): Bis dahin tragen Leitungen im Wochenplan Freitext ein, TeamerInnen sehen einen Hinweis.
+- Push-Benachrichtigungen bei neuen Hinweisen/Absprachen (Bereich Mitteilungen).

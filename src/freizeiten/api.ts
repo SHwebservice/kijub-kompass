@@ -3,6 +3,7 @@ import { ApiFehler } from '../lib/fehler';
 import type { Ferienzeitraum } from './logik';
 import type { AngebotKurz, PlanEintrag, Slot } from './plan';
 import type { Geltung, Notiz, NotizArt } from './notizen';
+import type { Eingang, Verbrauch } from './lebensmittel';
 
 /** Dünne Schicht über Supabase für die Freizeiten. Rechte entscheidet die Datenbank (RLS), nicht diese Datei. */
 
@@ -332,4 +333,41 @@ export async function kommentiere(notizId: string, personId: string, text: strin
 
 export async function loescheKommentar(id: string): Promise<void> {
   pruefe(await supabase.from('notiz_kommentare').delete().eq('id', id));
+}
+
+/* ───── Lebensmittel (Bestand je Ort) ───── */
+
+
+const zahlen = <T extends { menge: unknown }>(r: T[]): (T & { menge: number })[] => r.map((x) => ({ ...x, menge: Number(x.menge) }));
+
+export async function listeEingaenge(ortId: string): Promise<Eingang[]> {
+  return zahlen(pruefe(await supabase.from('lebensmittel_eingang').select('id, name, menge, einheit, datum, freizeit_id').eq('ort_id', ortId).order('datum')) as Eingang[]);
+}
+
+export async function listeVerbrauch(ortId: string): Promise<Verbrauch[]> {
+  return zahlen(pruefe(await supabase.from('lebensmittel_verbrauch').select('id, name, menge, datum, freizeit_id').eq('ort_id', ortId).order('datum')) as Verbrauch[]);
+}
+
+export async function trageEingangEin(ortId: string, freizeitId: string, w: { name: string; menge: number; einheit: string; datum: string }): Promise<void> {
+  pruefe(await supabase.from('lebensmittel_eingang').insert({ ort_id: ortId, freizeit_id: freizeitId, name: w.name.trim(), menge: w.menge, einheit: leer(w.einheit), datum: w.datum }));
+}
+
+export async function aendereEingang(id: string, menge: number): Promise<void> {
+  pruefe(await supabase.from('lebensmittel_eingang').update({ menge }).eq('id', id));
+}
+
+export async function loescheEingang(id: string): Promise<void> {
+  pruefe(await supabase.from('lebensmittel_eingang').delete().eq('id', id));
+}
+
+export async function trageVerbrauchEin(ortId: string, freizeitId: string, w: { name: string; menge: number; datum: string }): Promise<void> {
+  pruefe(await supabase.from('lebensmittel_verbrauch').insert({ ort_id: ortId, freizeit_id: freizeitId, name: w.name.trim(), menge: w.menge, datum: w.datum }));
+}
+
+export async function aendereVerbrauch(id: string, w: { menge: number; datum: string }): Promise<void> {
+  pruefe(await supabase.from('lebensmittel_verbrauch').update(w).eq('id', id));
+}
+
+export async function loescheVerbrauch(id: string): Promise<void> {
+  pruefe(await supabase.from('lebensmittel_verbrauch').delete().eq('id', id));
 }

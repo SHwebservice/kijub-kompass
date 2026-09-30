@@ -40,7 +40,7 @@ export function Spinner({ beschriftung = 'Lädt …' }: { beschriftung?: string 
   );
 }
 
-export function Alert({ ton = 'info', children }: { ton?: 'info' | 'error' | 'success'; children: ReactNode }) {
+export function Alert({ ton = 'info', children }: { ton?: 'info' | 'error' | 'success' | 'warning'; children: ReactNode }) {
   return <div className={`alert alert--${ton}`} role={ton === 'error' ? 'alert' : 'status'}>{children}</div>;
 }
 
