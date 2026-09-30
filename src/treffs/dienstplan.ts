@@ -166,3 +166,38 @@ export const musterAlsJson = (m: Muster): Record<string, string[]> => Object.fro
 export interface StatistikZeile { person_id: string; dienste: number; stunden: number }
 
 export const stundenText = (h: number) => `${h.toLocaleString('de-DE', { maximumFractionDigits: 2 })} h`;
+
+/* ───── Abwesenheiten und Feiertage ───── */
+
+export const MAX_ABWESENHEIT_TAGE = 366;
+
+export interface AbwesenheitEingabe { person_id: string; von: string; bis: string }
+
+/** Alle Tage von „von“ bis „bis“ einschließlich; leer bei umgekehrtem Zeitraum. */
+export function tageImZeitraum(von: string, bis: string): string[] {
+  if (!von || !bis || bis < von) return [];
+  const n = Math.round((utc(bis) - utc(von)) / MS_TAG);
+  return Array.from({ length: n + 1 }, (_, i) => addTage(von, i));
+}
+
+export function validiereAbwesenheit(e: AbwesenheitEingabe): { person?: string; zeitraum?: string } {
+  const f: { person?: string; zeitraum?: string } = {};
+  if (!e.person_id) f.person = 'Bitte eine Person wählen.';
+  if (!e.von || !e.bis) f.zeitraum = 'Bitte Beginn und Ende angeben.';
+  else if (e.bis < e.von) f.zeitraum = 'Das Ende darf nicht vor dem Beginn liegen.';
+  else if (tageImZeitraum(e.von, e.bis).length > MAX_ABWESENHEIT_TAGE) f.zeitraum = `Höchstens ${MAX_ABWESENHEIT_TAGE} Tage auf einmal.`;
+  return f;
+}
+
+/** Zusammenhängende Abwesenheiten einer Person und Art werden zu einem Zeitraum gefasst: "05.07.–09.07.". */
+export function abwesenheitsBloecke(liste: Abwesenheit[]): { person_id: string; typ: Abwesenheit['typ']; von: string; bis: string; ids: string[] }[] {
+  const sortiert = [...liste].sort((a, b) => a.person_id.localeCompare(b.person_id) || a.typ.localeCompare(b.typ) || a.datum.localeCompare(b.datum));
+  const out: { person_id: string; typ: Abwesenheit['typ']; von: string; bis: string; ids: string[] }[] = [];
+  for (const a of sortiert) {
+    const letzter = out[out.length - 1];
+    if (letzter && letzter.person_id === a.person_id && letzter.typ === a.typ && addTage(letzter.bis, 1) === a.datum) {
+      letzter.bis = a.datum; letzter.ids.push(a.id);
+    } else out.push({ person_id: a.person_id, typ: a.typ, von: a.datum, bis: a.datum, ids: [a.id] });
+  }
+  return out.sort((a, b) => a.von.localeCompare(b.von) || a.person_id.localeCompare(b.person_id));
+}

@@ -75,10 +75,10 @@ describe('Treffs: Liste', () => {
 });
 
 describe('Treff-Detail: Reiter je Rolle', () => {
-  it('BetreuerIn: Übersicht, Dienstplan, Absprachen, Team', async () => {
+  it('BetreuerIn: Übersicht, Dienstplan, Monat, Absprachen, Team', async () => {
     zeigeDetail(betreuerin);
     await screen.findByRole('heading', { name: 'Treff Nord' });
-    expect(tabNamen()).toEqual(['Übersicht', 'Dienstplan', 'Absprachen', 'Team']);
+    expect(tabNamen()).toEqual(['Übersicht', 'Dienstplan', 'Monat', 'Absprachen', 'Team']);
     expect(screen.queryByRole('link', { name: 'Bearbeiten' })).not.toBeInTheDocument();
   });
 
@@ -86,6 +86,12 @@ describe('Treff-Detail: Reiter je Rolle', () => {
     zeigeDetail({ ich: { kategorie: 'TZK' } });
     await screen.findByRole('heading', { name: 'Treff Nord' });
     expect(tabNamen()).toEqual([]);
+  });
+
+  it('Treffleitung sieht zusätzlich „Abwesenheit & Feiertage“', async () => {
+    zeigeDetail(leitung);
+    await screen.findByRole('heading', { name: 'Treff Nord' });
+    expect(tabNamen()).toEqual(['Übersicht', 'Dienstplan', 'Monat', 'Absprachen', 'Team', 'Abwesenheit & Feiertage']);
   });
 
   it('Koordination sieht „Bearbeiten“', async () => {
@@ -210,7 +216,7 @@ describe('Treff-Absprachen', () => {
     zeigeDetail(betreuerin, '/treffs/t1/absprachen');
     expect(await screen.findByText('Schlüssel bitte zurückgeben')).toBeInTheDocument();
     expect(screen.getByText('Für 06.07.2027')).toBeInTheDocument();
-    expect(screen.getByText('Bestätigt von Lea Leitner')).toBeInTheDocument();
+    expect(await screen.findByText('Bestätigt von Lea Leitner')).toBeInTheDocument();
     expect(screen.queryByLabelText('Neue Absprache')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Bestätigen/ }));

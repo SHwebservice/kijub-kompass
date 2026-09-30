@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  abwesendeAm, addTage, darfWuenschen, dienstStunden, dienstZeit, eigenerWunsch, feiertagAm, isoWochentag, kalenderwoche, monatErster, monatTage, monatText,
-  monatVersatz, montagVon, musterAlsJson, musterTage, offeneWuensche, tageskarten, validiereSonderdienst, wochenTage, wochenText, zuteilungsAenderung,
+  abwesendeAm, abwesenheitsBloecke, addTage, darfWuenschen, dienstStunden, dienstZeit, eigenerWunsch, feiertagAm, isoWochentag, kalenderwoche, monatErster, monatTage, monatText,
+  monatVersatz, montagVon, musterAlsJson, musterTage, offeneWuensche, tageImZeitraum, tageskarten, validiereAbwesenheit, validiereSonderdienst, wochenTage, wochenText, zuteilungsAenderung,
   type Dienst, type Tageskarte,
 } from './dienstplan';
 
@@ -151,5 +151,37 @@ describe('Monatsmuster', () => {
   });
   it('wandelt in das JSON der Datenbankfunktion', () => {
     expect(musterAlsJson({ 1: ['a', 'b'], 3: [] })).toEqual({ '1': ['a', 'b'], '3': [] });
+  });
+});
+
+describe('Abwesenheiten', () => {
+  it('zählt Tage im Zeitraum', () => {
+    expect(tageImZeitraum('2027-07-05', '2027-07-07')).toEqual(['2027-07-05', '2027-07-06', '2027-07-07']);
+    expect(tageImZeitraum('2027-07-05', '2027-07-05')).toEqual(['2027-07-05']);
+    expect(tageImZeitraum('2027-07-07', '2027-07-05')).toEqual([]);
+    expect(tageImZeitraum('2027-02-27', '2027-03-01')).toHaveLength(3);
+  });
+  it('prüft die Eingabe', () => {
+    const ok = { person_id: 'p', von: '2027-07-05', bis: '2027-07-09' };
+    expect(validiereAbwesenheit(ok)).toEqual({});
+    expect(validiereAbwesenheit({ ...ok, person_id: '' }).person).toBeDefined();
+    expect(validiereAbwesenheit({ ...ok, von: '' }).zeitraum).toBeDefined();
+    expect(validiereAbwesenheit({ ...ok, bis: '2027-07-01' }).zeitraum).toMatch(/nicht vor/);
+    expect(validiereAbwesenheit({ ...ok, bis: '2029-01-01' }).zeitraum).toMatch(/Höchstens/);
+  });
+  it('fasst zusammenhängende Tage zu Blöcken zusammen', () => {
+    const a = (id: string, person_id: string, datum: string, typ: 'urlaub' | 'krank' = 'urlaub') => ({ id, person_id, datum, typ, notiz: null });
+    const b = abwesenheitsBloecke([
+      a('1', 'p', '2027-07-06'), a('2', 'p', '2027-07-05'), a('3', 'p', '2027-07-07'),
+      a('4', 'p', '2027-07-09'),                               // Lücke → neuer Block
+      a('5', 'q', '2027-07-05'),
+      a('6', 'p', '2027-07-08', 'krank'),                      // andere Art → eigener Block
+    ]);
+    expect(b.map((x) => [x.person_id, x.typ, x.von, x.bis, x.ids.length])).toEqual([
+      ['p', 'urlaub', '2027-07-05', '2027-07-07', 3],
+      ['q', 'urlaub', '2027-07-05', '2027-07-05', 1],
+      ['p', 'krank', '2027-07-08', '2027-07-08', 1],
+      ['p', 'urlaub', '2027-07-09', '2027-07-09', 1],
+    ]);
   });
 });

@@ -229,3 +229,22 @@ export async function legeDienstplanKommentarAn(treffId: string, wocheStart: str
 export async function loescheDienstplanKommentar(id: string): Promise<void> {
   pruefe(await supabase.from('dienstplan_kommentare').delete().eq('id', id));
 }
+
+/* ───── Abwesenheiten und Feiertage ───── */
+
+/** Trägt Urlaub/Krank für alle genannten Tage ein; vorhandene Einträge derselben Person und Tage werden überschrieben. */
+export async function speichereAbwesenheit(personId: string, tage: string[], typ: Abwesenheit['typ'], notiz: string): Promise<void> {
+  pruefe(await supabase.from('abwesenheiten').upsert(tage.map((datum) => ({ person_id: personId, datum, typ, notiz: leer(notiz) })), { onConflict: 'person_id,datum' }));
+}
+
+export async function loescheAbwesenheiten(ids: string[]): Promise<void> {
+  pruefe(await supabase.from('abwesenheiten').delete().in('id', ids));
+}
+
+export async function speichereFeiertag(treffId: string | null, datum: string, bezeichnung: string): Promise<void> {
+  pruefe(await supabase.from('feiertage').insert({ treff_id: treffId, datum, bezeichnung: bezeichnung.trim() }));
+}
+
+export async function loescheFeiertag(id: string): Promise<void> {
+  pruefe(await supabase.from('feiertage').delete().eq('id', id));
+}

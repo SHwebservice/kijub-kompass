@@ -8,6 +8,8 @@ import { TreffUebersicht } from './TreffUebersicht';
 import { TreffTeamTab } from './TreffTeamTab';
 import { TreffAbsprachenTab } from './TreffAbsprachenTab';
 import { DienstplanTab } from './DienstplanTab';
+import { MonatTab } from './MonatTab';
+import { VerwaltungTab } from './VerwaltungTab';
 
 interface TabDef { pfad: string; label: string; sichtbar: (r: RolleInTreff) => boolean }
 
@@ -15,8 +17,10 @@ interface TabDef { pfad: string; label: string; sichtbar: (r: RolleInTreff) => b
 export const TREFF_TABS: TabDef[] = [
   { pfad: '', label: 'Übersicht', sichtbar: () => true },
   { pfad: 'dienstplan', label: 'Dienstplan', sichtbar: (r) => r !== 'gast' },
+  { pfad: 'monat', label: 'Monat', sichtbar: (r) => r !== 'gast' },
   { pfad: 'absprachen', label: 'Absprachen', sichtbar: (r) => r !== 'gast' },
   { pfad: 'team', label: 'Team', sichtbar: (r) => r !== 'gast' },
+  { pfad: 'verwaltung', label: 'Abwesenheit & Feiertage', sichtbar: (r) => r === 'treffleitung' || r === 'koordination' },
 ];
 
 export function TreffDetail() {
@@ -60,8 +64,10 @@ export function TreffDetail() {
       <Routes>
         <Route index element={<TreffUebersicht treff={d} rolle={rolle} />} />
         {tabs.some((x) => x.pfad === 'dienstplan') && <Route path="dienstplan" element={<DienstplanTab treff={d} rolle={rolle} />} />}
+        {tabs.some((x) => x.pfad === 'monat') && <Route path="monat" element={<MonatTab treff={d} rolle={rolle} />} />}
         {tabs.some((x) => x.pfad === 'absprachen') && <Route path="absprachen" element={<TreffAbsprachenTab treff={d} rolle={rolle} />} />}
         {tabs.some((x) => x.pfad === 'team') && <Route path="team" element={<TreffTeamTab treff={d} rolle={rolle} />} />}
+        {tabs.some((x) => x.pfad === 'verwaltung') && <Route path="verwaltung" element={<VerwaltungTab treff={d} rolle={rolle} />} />}
         <Route path="*" element={<Navigate to={`/treffs/${id}`} replace />} />
       </Routes>
     </>
