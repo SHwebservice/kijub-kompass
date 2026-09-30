@@ -243,3 +243,14 @@ button.plan__eintrag { cursor: pointer; }
 .mappe__kachel--gedaempft { opacity: 0.6; }
 .mappe__kodex { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 mark { background: var(--warning-bg); color: inherit; padding: 0 2px; border-radius: 3px; }
+
+/* Quiz */
+.quiz__fortschritt { width: 100%; height: 10px; accent-color: var(--accent); margin-bottom: var(--space-3); }
+.quiz__antwort { display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left; min-height: var(--tap); padding: var(--space-3); margin-bottom: var(--space-2); background: var(--surface); border: 2px solid var(--border-strong); border-radius: var(--radius-sm); font: inherit; color: inherit; cursor: pointer; }
+.quiz__antwort:disabled { cursor: default; }
+.quiz__antwort--gewaehlt { border-color: var(--accent); background: var(--accent-bg); }
+.quiz__antwort--richtig { border-color: var(--success); background: var(--success-bg); }
+.quiz__antwort--falsch { border-color: var(--danger); background: var(--danger-bg); }
+.quiz__antwort--verpasst { border-color: var(--success); border-style: dashed; }
+.quiz__symbol { width: 1.2em; font-weight: 700; }
+.quiz__erklaerung { margin-top: var(--space-3); padding: var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); }

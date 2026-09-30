@@ -16,6 +16,8 @@ import { FreizeitForm } from './pages/freizeiten/FreizeitForm';
 import { Orte } from './pages/Orte';
 import { MappeSeite } from './pages/mappen/MappeSeite';
 import { FormularSeite } from './pages/mappen/FormularSeite';
+import { QuizSeite } from './pages/quiz/QuizSeite';
+import { QuizVerwaltung } from './pages/quiz/QuizVerwaltung';
 import { TreffeListe } from './pages/treffs/TreffeListe';
 import { TreffDetail } from './pages/treffs/TreffDetail';
 import { TreffForm } from './pages/treffs/TreffForm';
@@ -74,6 +76,8 @@ function Geschuetzt() {
         <Route path="katalog/*" element={<Platzhalter titel="Katalog" text="Programmpunkte, Favoriten und Bewertungen folgen in Phase 3." />} />
         <Route path="teamermappe" element={<MappeSeite schluessel="teamermappe" titel="Teamermappe" mitSchlagworten
           untertitel="Regeln, Abläufe und Antworten für die Arbeit in den Freizeiten." />} />
+        <Route path="quiz" element={<QuizSeite />} />
+        <Route path="quiz/verwalten" element={rollen?.koordination ? <QuizVerwaltung /> : <Navigate to="/quiz" replace />} />
         <Route path="formulare" element={<FormularSeite />} />
         <Route path="treffmappe" element={rollen?.darfTreffmappe ? <MappeSeite schluessel="treffmappe" titel="Treffmappe" mitSchlagworten={false}
           untertitel="Regeln, Abläufe und Antworten für die Arbeit in den Treffs." /> : <Navigate to="/" replace />} />

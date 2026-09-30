@@ -208,3 +208,21 @@ Entwurf → eingereicht → freigegeben, PDF über den Druckdialog des Browsers 
 **Noch offen (bewusst später):**
 - Kalenderansicht des Monats (heute: Liste), „Neu seit letztem Besuch“ (D4), Push bei Dienständerungen, neuen Wünschen und Kommentaren (Bereich Mitteilungen).
 - Wochenprogramm kann laut Datenbank jede Person des Treffs ändern; die Oberfläche beschränkt es auf Treffleitung und Koordination (bei Bedarf lockern).
+
+## Stand der Umsetzung: Mappen, Formulare und Quiz (Phase 3d, 2026-09-30)
+
+**Umgesetzt und getestet:** F1 (Teamermappe: Themenkacheln mit Symbol, Beschreibung und Punkten, Qualitäts-Kodex, FAQ, Notfall-Box, Volltextsuche mit Hervorhebung,
+einklappbare Kacheln, Zurückstufen von Kacheln nach Schlagworten der eigenen Freizeiten, Bearbeiten durch die Koordination mit Reihenfolge, Hinzufügen und Entfernen, höchstens 10 Kacheln),
+F2 (Treffmappe: wie die Teamermappe ohne Schlagworte; sichtbar für Koordination, Treffleitung und TZK im Treff – Regel der Datenbank, Seite leitet sonst zur Startseite),
+F3 (fünf Formulare: Eingabe, Beispiel mit Musternamen, „Beispiel wiederherstellen“, „Vordruck leeren“, Original-PDF zum Download, Druck als A4-PDF über den Browser;
+Entwürfe werden automatisch in der Datenbank gespeichert und sind nur für die Person sichtbar – **außer der Anwesenheitsliste**, die Namen von Kindern enthält und nie gespeichert wird;
+die Koordination pflegt die Beispiele für alle), F4 (Quiz zu sechs Themen: Einzel- und Mehrfachauswahl, Erklärung, Fortschritt, Ergebnistext, **Bestwert je Person in der Datenbank**;
+Koordination: Fragen anlegen, ändern, löschen, Standardfragen übernehmen, Bestwerte aller Personen ansehen).
+
+**Bewusste Entscheidungen:**
+- Die Standardtexte der Mappen und die 35 Standardfragen des alten Quiz liegen im Programm und gelten, solange nichts gespeichert ist; beim ersten Speichern werden sie in die Datenbank übernommen.
+- Der Quiz-Bestwert zählt nach Anteil (nicht nach Anzahl), damit eine geänderte Fragenzahl den Vergleich nicht verfälscht.
+- Eine geänderte Standardfrage (vor der Übernahme) wird als neue Frage angelegt; Standardfragen lassen sich erst nach der Übernahme löschen.
+- Eine Datenbank-Änderung war dafür nicht nötig.
+
+**Hinweis:** Bearbeiten mehrere Personen gleichzeitig Mappe oder Beispiele, gewinnt der zuletzt gespeicherte Stand.
