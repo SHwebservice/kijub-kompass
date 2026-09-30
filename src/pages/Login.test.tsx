@@ -5,53 +5,51 @@ import type { ComponentProps } from 'react';
 import { Login } from './Login';
 
 function aufbau(over: Partial<ComponentProps<typeof Login>> = {}) {
-  const codeSenden = vi.fn().mockResolvedValue(null);
-  const codePruefen = vi.fn().mockResolvedValue(null);
-  render(<Login codeSenden={codeSenden} codePruefen={codePruefen} konfiguriert {...over} />);
-  return { codeSenden, codePruefen };
+  const anmelden = vi.fn().mockResolvedValue(null);
+  render(<Login anmelden={anmelden} konfiguriert {...over} />);
+  return { anmelden };
 }
 
 describe('Login', () => {
-  it('Senden ist erst mit gültiger Mail möglich', async () => {
+  it('Anmelden ist erst mit Mail und Passwort möglich', async () => {
     aufbau();
-    const knopf = screen.getByRole('button', { name: 'Code senden' });
+    const knopf = screen.getByRole('button', { name: 'Anmelden' });
     expect(knopf).toBeDisabled();
     await userEvent.type(screen.getByLabelText('Mail-Adresse'), 'anna@kijub.example');
+    expect(knopf).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Passwort'), 'geheim');
     expect(knopf).toBeEnabled();
   });
 
-  it('führt von der Mail zur Code-Eingabe und meldet mit dem Code an', async () => {
-    const { codeSenden, codePruefen } = aufbau();
+  it('meldet mit den eingegebenen Daten an', async () => {
+    const { anmelden } = aufbau();
     await userEvent.type(screen.getByLabelText('Mail-Adresse'), 'anna@kijub.example');
-    await userEvent.click(screen.getByRole('button', { name: 'Code senden' }));
-    expect(codeSenden).toHaveBeenCalledWith('anna@kijub.example');
-
-    await userEvent.type(await screen.findByLabelText('Code'), '123456');
+    await userEvent.type(screen.getByLabelText('Passwort'), 'geheim');
     await userEvent.click(screen.getByRole('button', { name: 'Anmelden' }));
-    expect(codePruefen).toHaveBeenCalledWith('anna@kijub.example', '123456');
+    expect(anmelden).toHaveBeenCalledWith('anna@kijub.example', 'geheim');
   });
 
-  it('zeigt Fehler beim Senden und bleibt auf dem Mail-Schritt', async () => {
-    aufbau({ codeSenden: vi.fn().mockResolvedValue('Für diese Mail-Adresse gibt es keinen Zugang.') });
-    await userEvent.type(screen.getByLabelText('Mail-Adresse'), 'fremd@example.org');
-    await userEvent.click(screen.getByRole('button', { name: 'Code senden' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('keinen Zugang');
-    expect(screen.getByLabelText('Mail-Adresse')).toBeInTheDocument();
+  it('das Passwortfeld ist verdeckt und als aktuelles Passwort ausgezeichnet', () => {
+    aufbau();
+    const feld = screen.getByLabelText('Passwort');
+    expect(feld).toHaveAttribute('type', 'password');
+    expect(feld).toHaveAttribute('autocomplete', 'current-password');
   });
 
-  it('zeigt Fehler bei falschem Code', async () => {
-    aufbau({ codePruefen: vi.fn().mockResolvedValue('Der Code ist ungültig oder abgelaufen. Bitte neu anfordern.') });
+  it('zeigt einen Fehler und behält die Mail-Adresse', async () => {
+    aufbau({ anmelden: vi.fn().mockResolvedValue('Mail-Adresse oder Passwort stimmt nicht.') });
     await userEvent.type(screen.getByLabelText('Mail-Adresse'), 'anna@kijub.example');
-    await userEvent.click(screen.getByRole('button', { name: 'Code senden' }));
-    await userEvent.type(await screen.findByLabelText('Code'), '000000');
+    await userEvent.type(screen.getByLabelText('Passwort'), 'falsch');
     await userEvent.click(screen.getByRole('button', { name: 'Anmelden' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('ungültig');
+    expect(await screen.findByRole('alert')).toHaveTextContent('stimmt nicht');
+    expect(screen.getByLabelText('Mail-Adresse')).toHaveValue('anna@kijub.example');
   });
 
   it('ohne Supabase-Konfiguration: Hinweis und gesperrter Button', async () => {
     aufbau({ konfiguriert: false });
     expect(screen.getByRole('alert')).toHaveTextContent('noch nicht mit Supabase verbunden');
     await userEvent.type(screen.getByLabelText('Mail-Adresse'), 'anna@kijub.example');
-    expect(screen.getByRole('button', { name: 'Code senden' })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Passwort'), 'geheim');
+    expect(screen.getByRole('button', { name: 'Anmelden' })).toBeDisabled();
   });
 });

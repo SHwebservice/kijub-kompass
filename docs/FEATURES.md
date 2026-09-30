@@ -23,14 +23,14 @@ Quellen-Kürzel: `mt` = mitarbeitende.js, `fz` = freizeiten-zugaenge.js, `tf` = 
 
 | ID | Was der Altcode tut | Quelle | Entscheidung |
 |---|---|---|---|
-| A1 | Mitarbeitende bekommen einen 8-stelligen Code (Alphabet ohne 0/O/1/I) und einen Link `?zugang=CODE`; der Code wird im `localStorage` gemerkt (mehrere Codes pro Gerät möglich). Kein Passwort. | `fz` | **Neu** → Einladung per E-Mail, Anmeldung per Einmalcode/Magic-Link. Keine Codes im Browser. |
+| A1 | Mitarbeitende bekommen einen 8-stelligen Code (Alphabet ohne 0/O/1/I) und einen Link `?zugang=CODE`; der Code wird im `localStorage` gemerkt (mehrere Codes pro Gerät möglich). Kein Passwort. | `fz` | **Neu** → Anmeldung mit Mail + Passwort. Die Koordination richtet den Zugang in der App ein und gibt das Startpasswort persönlich weiter; Pflicht zur Änderung beim ersten Anmelden (Entscheidung 2026-09-30: kein Mail-Versand, da Supabase Free nur an Teammitglieder sendet). Keine Codes im Browser. |
 | A2 | Koordination meldet sich mit Firebase-Mail+Passwort an. | `auth-overlays` | **Behalten** (Rolle `koordination`). |
 | A3 | Hauptamtliche können zusätzlich ein Mail+Passwort-Login „einrichten" (zweite Firebase-App-Instanz, Verknüpfung `mitarbeitendeAuth/{uid}`; Reset nur manuell in der Console). | `mt` | **Streichen** – ersetzt durch A1 für alle. |
 | A4 | Legacy-Zugänge (`zugaenge`, befristet, Label statt Person) für bereits verschickte Links. | `mt`, `fz`, `rules` | **Streichen** (keine Altlasten, Neustart). |
 | A5 | „Mein Bereich": Code eingeben, Code entfernen, Info-Tooltip. | `fz` | **Streichen** (Login statt Code). |
 | A6 | Zuletzt geöffnete Ansicht wird gemerkt und beim Start wiederhergestellt. | `helpers-planner` | **Behalten** (Komfort, nur lokal). |
 | A7 | Export der Zugangscodes als JSON für die Offline-Software „KiJuKo2.1" (Platzhalter `{Code}`/`{Zugangslink}` in Mail-Vorlagen). | `mt` | **Streichen** (Entscheidung 2026-09-30: Codes entfallen). Folge: KiJuKo-Mailvorlagen mit `{Code}`/`{Zugangslink}` müssen auf den App-Link umgestellt werden (Änderung in KiJuKo, nicht im Kompass). |
-| A8 | Mail an einzelne Person bzw. **Serienmail** per `mailto:`-Warteschlange (ein Fenster pro Person), filterbar nach Ferienzeitraum (Ostern/Sommer/Herbst). | `mt` | **Neu** → Einladung/Erinnerung aus der App (Supabase-Auth-Mail bzw. Edge Function). Serienmail-Text bleibt Vorlage. |
+| A8 | Mail an einzelne Person bzw. **Serienmail** per `mailto:`-Warteschlange (ein Fenster pro Person), filterbar nach Ferienzeitraum (Ostern/Sommer/Herbst). | `mt` | **Neu** → Die Serienmail-Warteschlange entfällt vorerst (Zugänge werden persönlich übergeben); ein mailto-Text mit App-Adresse und Mail-Adresse (ohne Passwort) kann später ergänzt werden. |
 
 ## B. Personal
 

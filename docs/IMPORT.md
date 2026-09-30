@@ -91,10 +91,10 @@ Mailvorlagen/Platzhalter, Briefkopf, Bescheinigungen, `partners`, Schulungstermi
 
 ## 5. Erste Anmeldung der importierten Personen
 
-Importierte Personen haben zunächst **kein Konto**. Nach dem Import kann die Koordination pro Person oder für eine Auswahl
-(z. B. „alle Sommer-TeamerInnen, noch nicht eingeladen") **Einladungen** versenden (Supabase-Auth-Einladung per Mail).
-Der Status „eingeladen / angemeldet" steht in der Personenliste. Damit ersetzen Einladungen die bisherigen Codes,
-und KiJuKos `{Code}`/`{Zugangslink}`-Platzhalter werden hinfällig.
+Importierte Personen haben zunächst **kein Konto**. Nach dem Import richtet die Koordination pro Person den **Zugang** ein
+(Mehr → Personen & Zugänge) und gibt das angezeigte Startpasswort persönlich weiter; die Person legt beim ersten Anmelden ein
+eigenes fest. Der Status „Zugang eingerichtet / noch kein Zugang" steht in der Personenliste. Damit ersetzen Zugänge die bisherigen
+Codes, und KiJuKos `{Code}`/`{Zugangslink}`-Platzhalter werden hinfällig (Mail-Vorlagen dort auf die App-Adresse umstellen).
 
 ## 6. Datenmodell-Ergänzungen (für DATENMODELL.md)
 

@@ -18,6 +18,14 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: 'functions',
+          environment: 'node',
+          include: ['tests/functions/**/*.test.ts'],
+        },
+      },
+      {
+        extends: true,
+        test: {
           name: 'unit',
           environment: 'jsdom',
           include: ['src/**/*.test.{ts,tsx}'],

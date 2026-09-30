@@ -1,14 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { einladungsStatus } from './Personen';
+import { zugangsStatus } from './Personen';
 
-describe('einladungsStatus', () => {
-  it('angemeldet, wenn ein Konto verknüpft ist', () => {
-    expect(einladungsStatus({ auth_user_id: 'u', eingeladen_am: null }).text).toBe('Angemeldet');
+describe('zugangsStatus', () => {
+  it('Zugang eingerichtet, wenn ein Konto verknüpft ist', () => {
+    expect(zugangsStatus({ auth_user_id: 'u' }).text).toBe('Zugang eingerichtet');
   });
-  it('eingeladen, wenn nur eine Einladung raus ist', () => {
-    expect(einladungsStatus({ auth_user_id: null, eingeladen_am: '2026-01-01' }).text).toBe('Eingeladen');
-  });
-  it('sonst noch nicht eingeladen', () => {
-    expect(einladungsStatus({ auth_user_id: null, eingeladen_am: null }).text).toBe('Noch nicht eingeladen');
+  it('sonst noch kein Zugang', () => {
+    expect(zugangsStatus({ auth_user_id: null }).text).toBe('Noch kein Zugang');
   });
 });

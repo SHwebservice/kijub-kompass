@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Button, Card, PageHeader } from '../components/ui';
 import { useAuth } from '../lib/auth-kontext';
+import { PasswortAendern } from './PasswortAendern';
 
 export function Mehr() {
-  const { ich, rollen, abmelden } = useAuth();
+  const { ich, rollen, abmelden, passwortAendern } = useAuth();
   return (
     <>
       <PageHeader titel="Mehr" />
@@ -16,10 +17,11 @@ export function Mehr() {
           <Card>
             <h2>Koordination</h2>
             <ul className="list">
-              <li><Link className="list__item" to="/personen">Personen &amp; Einladungen</Link></li>
+              <li><Link className="list__item" to="/personen">Personen &amp; Zugänge</Link></li>
             </ul>
           </Card>
         )}
+        <PasswortAendern speichern={passwortAendern} />
         <Button block onClick={() => void abmelden()}>Abmelden</Button>
       </div>
     </>

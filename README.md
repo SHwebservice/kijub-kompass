@@ -16,7 +16,7 @@ React + TypeScript + Vite (PWA), Backend: Supabase (Postgres mit Row Level Secur
 
 ```bash
 npm install
-npm test            # 97 Tests: Datenbank-Regeln + Oberfläche
+npm test            # Datenbank-Regeln, Funktionen, Oberfläche
 npm run dev
 ```
 
@@ -24,7 +24,7 @@ npm run dev
 
 ```
 supabase/migrations/   SQL: Schema, Hilfsfunktionen, Rechte (RLS), Sichten, RPC
-supabase/functions/    Edge Functions (person-einladen)
+supabase/functions/    Edge Functions (konto-passwort: Zugang einrichten, Passwort zurücksetzen)
 src/lib/               Auth, Rollenlogik, Supabase-Client
 src/components/        Design-System (ui.tsx), App-Hülle
 src/pages/             Seiten

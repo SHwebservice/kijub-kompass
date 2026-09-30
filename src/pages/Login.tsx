@@ -1,33 +1,23 @@
-import { LOGO } from '../lib/assets';
 import { useState, type FormEvent } from 'react';
+import { LOGO } from '../lib/assets';
 import { Alert, Button, Card, TextField } from '../components/ui';
 
 interface Props {
-  codeSenden: (mail: string) => Promise<string | null>;
-  codePruefen: (mail: string, code: string) => Promise<string | null>;
+  anmelden: (mail: string, passwort: string) => Promise<string | null>;
   konfiguriert: boolean;
 }
 
-/** Anmeldung per Einmalcode: Mail eingeben → Code aus der Mail eintippen. Kein Passwort. */
-export function Login({ codeSenden, codePruefen, konfiguriert }: Props) {
-  const [schritt, setSchritt] = useState<'mail' | 'code'>('mail');
+/** Anmeldung mit Mail-Adresse und Passwort. Zugänge richtet die Koordination ein. */
+export function Login({ anmelden, konfiguriert }: Props) {
   const [mail, setMail] = useState('');
-  const [code, setCode] = useState('');
+  const [passwort, setPasswort] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
   const [laedt, setLaedt] = useState(false);
 
-  async function mailAbsenden(e: FormEvent) {
+  async function absenden(e: FormEvent) {
     e.preventDefault();
     setLaedt(true); setFehler(null);
-    const f = await codeSenden(mail);
-    setLaedt(false);
-    if (f) setFehler(f); else setSchritt('code');
-  }
-
-  async function codeAbsenden(e: FormEvent) {
-    e.preventDefault();
-    setLaedt(true); setFehler(null);
-    const f = await codePruefen(mail, code);
+    const f = await anmelden(mail, passwort);
     setLaedt(false);
     if (f) setFehler(f);
     // Bei Erfolg wechselt die App über den Auth-Zustand von selbst in den angemeldeten Bereich.
@@ -47,39 +37,22 @@ export function Login({ codeSenden, codePruefen, konfiguriert }: Props) {
         )}
 
         <Card>
-          {schritt === 'mail' ? (
-            <form onSubmit={mailAbsenden} noValidate>
-              <h2>Anmelden</h2>
-              <p>Wir schicken dir einen Code an deine Mail-Adresse. Ein Passwort brauchst du nicht.</p>
-              {fehler && <Alert ton="error">{fehler}</Alert>}
-              <TextField label="Mail-Adresse" type="email" autoComplete="email" inputMode="email"
-                value={mail} onChange={(e) => setMail(e.target.value)} required />
-              <Button variante="primary" block type="submit" laedt={laedt} disabled={!mail.includes('@') || !konfiguriert}>
-                Code senden
-              </Button>
-            </form>
-          ) : (
-            <form onSubmit={codeAbsenden} noValidate>
-              <h2>Code eingeben</h2>
-              <p>Wir haben einen Code an <strong>{mail}</strong> geschickt. Er ist kurze Zeit gültig.</p>
-              {fehler && <Alert ton="error">{fehler}</Alert>}
-              <TextField label="Code" autoComplete="one-time-code" inputMode="numeric"
-                value={code} onChange={(e) => setCode(e.target.value.replace(/\s/g, ''))}
-                hinweis="Sechs bis acht Ziffern aus der Mail" required />
-              <Button variante="primary" block type="submit" laedt={laedt} disabled={code.length < 6}>
-                Anmelden
-              </Button>
-              <p className="center" style={{ marginTop: 'var(--space-3)' }}>
-                <Button variante="ghost" klein onClick={() => { setSchritt('mail'); setCode(''); setFehler(null); }}>
-                  Andere Mail-Adresse verwenden
-                </Button>
-              </p>
-            </form>
-          )}
+          <form onSubmit={absenden} noValidate>
+            <h2>Anmelden</h2>
+            {fehler && <Alert ton="error">{fehler}</Alert>}
+            <TextField label="Mail-Adresse" type="email" autoComplete="username" inputMode="email"
+              value={mail} onChange={(e) => setMail(e.target.value)} required />
+            <TextField label="Passwort" type="password" autoComplete="current-password"
+              value={passwort} onChange={(e) => setPasswort(e.target.value)} required />
+            <Button variante="primary" block type="submit" laedt={laedt}
+              disabled={!mail.includes('@') || passwort.length === 0 || !konfiguriert}>
+              Anmelden
+            </Button>
+          </form>
         </Card>
 
         <p className="center" style={{ color: 'var(--text-hint)', fontSize: 'var(--fs-sm)', marginTop: 'var(--space-4)' }}>
-          Noch keinen Zugang? Die Koordination lädt dich per Mail ein.
+          Noch keinen Zugang oder Passwort vergessen? Bitte bei der Koordination melden.
         </p>
       </div>
     </div>

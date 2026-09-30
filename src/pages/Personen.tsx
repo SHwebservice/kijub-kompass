@@ -14,22 +14,47 @@ interface PersonZeile {
   eingeladen_am: string | null;
 }
 
-/** Einladungsstatus einer Person (rein aus den Daten abgeleitet). */
-export function einladungsStatus(p: Pick<PersonZeile, 'auth_user_id' | 'eingeladen_am'>) {
-  if (p.auth_user_id) return { text: 'Angemeldet', ton: 'success' as const };
-  if (p.eingeladen_am) return { text: 'Eingeladen', ton: 'warning' as const };
-  return { text: 'Noch nicht eingeladen', ton: 'neutral' as const };
+interface Startpasswort { name: string; mail: string; passwort: string; neu: boolean }
+
+/** Zugangsstatus einer Person (rein aus den Daten abgeleitet). */
+export function zugangsStatus(p: Pick<PersonZeile, 'auth_user_id'>) {
+  return p.auth_user_id
+    ? { text: 'Zugang eingerichtet', ton: 'success' as const }
+    : { text: 'Noch kein Zugang', ton: 'neutral' as const };
 }
 
-/** Koordination: Personen anlegen und per Mail einladen. Die volle Personalverwaltung folgt in Phase 3. */
+function StartpasswortAnzeige({ s, schliessen }: { s: Startpasswort; schliessen: () => void }) {
+  const [kopiert, setKopiert] = useState(false);
+  async function kopieren() {
+    try { await navigator.clipboard.writeText(s.passwort); setKopiert(true); } catch { /* Zwischenablage nicht verfügbar */ }
+  }
+  return (
+    <Card className="startpasswort">
+      <h2>{s.neu ? 'Zugang eingerichtet' : 'Neues Startpasswort'} für {s.name}</h2>
+      <p>Gib der Person Mail-Adresse und Passwort persönlich weiter (z. B. mündlich oder per Messenger).
+        Sie legt beim ersten Anmelden ein eigenes Passwort fest.</p>
+      <p><strong>Mail-Adresse:</strong> {s.mail}</p>
+      <p style={{ fontSize: '1.5rem', fontFamily: 'monospace', letterSpacing: '1px', margin: 'var(--space-3) 0' }}
+        aria-label="Startpasswort" data-testid="startpasswort">{s.passwort}</p>
+      <Alert ton="info">Dieses Passwort wird nur jetzt angezeigt und nirgends gespeichert. Danach lässt sich nur ein neues erzeugen.</Alert>
+      <div className="row">
+        <Button onClick={() => void kopieren()}>{kopiert ? 'Kopiert ✓' : 'Passwort kopieren'}</Button>
+        <Button variante="primary" onClick={schliessen}>Fertig</Button>
+      </div>
+    </Card>
+  );
+}
+
+/** Koordination: Personen anlegen, Zugang einrichten, Passwort zurücksetzen.
+ *  Die volle Personalverwaltung folgt in Phase 3. */
 export function Personen() {
   const [zeilen, setZeilen] = useState<PersonZeile[] | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
   const [suche, setSuche] = useState('');
   const [arbeitet, setArbeitet] = useState<string | null>(null);
+  const [startpasswort, setStartpasswort] = useState<Startpasswort | null>(null);
   const [neu, setNeu] = useState({ vorname: '', nachname: '', mail: '', kategorie: 'TeamerIn' as Kategorie });
-
   const [version, setVersion] = useState(0);
   const neuLaden = () => setVersion((v) => v + 1);
 
@@ -56,16 +81,21 @@ export function Personen() {
       return;
     }
     setNeu({ vorname: '', nachname: '', mail: '', kategorie: 'TeamerIn' });
-    setMeldung('Person angelegt.');
+    setMeldung('Person angelegt. Als Nächstes kannst du den Zugang einrichten.');
     neuLaden();
   }
 
-  async function einladen(p: PersonZeile) {
-    setArbeitet(p.id); setFehler(null); setMeldung(null);
-    const { data, error } = await supabase.functions.invoke('person-einladen', { body: { person_id: p.id } });
+  async function zugangEinrichten(p: PersonZeile) {
+    const hatZugang = Boolean(p.auth_user_id);
+    if (hatZugang && !window.confirm(`Neues Startpasswort für ${p.vorname} ${p.nachname} erzeugen? Das bisherige Passwort wird ungültig.`)) return;
+    setArbeitet(p.id); setFehler(null); setMeldung(null); setStartpasswort(null);
+    const { data, error } = await supabase.functions.invoke('konto-passwort', { body: { person_id: p.id } });
     setArbeitet(null);
-    if (error || data?.fehler) { setFehler(data?.fehler ?? 'Einladung konnte nicht versendet werden.'); return; }
-    setMeldung(`Einladung an ${p.mail} gesendet.`);
+    if (error || !data?.passwort) {
+      setFehler(data?.fehler ?? 'Zugang konnte nicht eingerichtet werden. Ist die Funktion „konto-passwort" bereitgestellt?');
+      return;
+    }
+    setStartpasswort({ name: `${p.vorname} ${p.nachname}`, mail: p.mail, passwort: data.passwort, neu: Boolean(data.neu) });
     neuLaden();
   }
 
@@ -77,6 +107,7 @@ export function Personen() {
       <PageHeader titel="Personen" />
       {fehler && <Alert ton="error">{fehler}</Alert>}
       {meldung && <Alert ton="success">{meldung}</Alert>}
+      {startpasswort && <StartpasswortAnzeige s={startpasswort} schliessen={() => setStartpasswort(null)} />}
 
       <Card>
         <form onSubmit={anlegen}>
@@ -105,7 +136,7 @@ export function Personen() {
         {zeilen !== null && gefiltert.length === 0 && <EmptyState titel="Keine Personen gefunden" />}
         <ul className="list">
           {gefiltert.map((p) => {
-            const s = einladungsStatus(p);
+            const s = zugangsStatus(p);
             return (
               <li key={p.id} className="list__item">
                 <div className="list__main">
@@ -117,9 +148,9 @@ export function Personen() {
                     {!p.aktiv && <Badge ton="danger">Deaktiviert</Badge>}
                   </div>
                 </div>
-                {!p.auth_user_id && p.aktiv && (
-                  <Button klein laedt={arbeitet === p.id} onClick={() => void einladen(p)}>
-                    {p.eingeladen_am ? 'Erneut einladen' : 'Einladen'}
+                {p.aktiv && (
+                  <Button klein laedt={arbeitet === p.id} onClick={() => void zugangEinrichten(p)}>
+                    {p.auth_user_id ? 'Passwort zurücksetzen' : 'Zugang einrichten'}
                   </Button>
                 )}
               </li>

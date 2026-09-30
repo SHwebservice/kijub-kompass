@@ -3,18 +3,22 @@
 Alles unten ist kostenlos. Die Schritte mit **[du]** kann nur Sebastian ausführen (Konto, Zugangsdaten);
 die Migrationen, Tests und die App selbst sind im Repository fertig.
 
+**Anmeldung:** Mail-Adresse + Passwort. Es werden **keine Mails versendet** – Supabase verschickt im kostenlosen
+Tarif ohnehin nur an Teammitglieder (2 Mails pro Stunde). Zugänge richtet die Koordination in der App ein und gibt das
+Startpasswort persönlich weiter; die Person legt beim ersten Anmelden ein eigenes fest.
+
 ## 1. Supabase-Projekt anlegen **[du]**
 
 1. Auf <https://supabase.com> ein Konto anlegen und ein Projekt erstellen.
    - **Region: Frankfurt (eu-central-1)** – wegen DSGVO.
    - Starkes Datenbank-Passwort vergeben und im Passwortmanager ablegen.
-2. **Authentication → Providers → Email:** „Confirm email" an lassen, **„Allow new users to sign up" ausschalten**
-   (Konten entstehen ausschließlich per Einladung der Koordination).
-3. **Authentication → Email Templates:** In den Vorlagen „Magic Link" und „Invite user" den Code ausgeben, damit die App ihn abfragen kann:
-   - Magic Link: Text z. B. `Dein Anmeldecode: {{ .Token }}`
-   - Invite user: Link `{{ .ConfirmationURL }}` belassen (öffnet die App) und zusätzlich den Hinweis, dass spätere Anmeldungen per Code funktionieren.
-4. **Authentication → URL Configuration:** *Site URL* = Adresse der App (siehe Abschnitt 4); lokal zusätzlich `http://localhost:5173` als *Redirect URL*.
-5. **Project Settings → API:** *Project URL* und *anon public key* notieren.
+2. **Authentication → Sign In / Providers:**
+   - **„Allow new users to sign up" ausschalten.** Konten entstehen ausschließlich über die Koordination.
+   - Provider **Email** eingeschaltet lassen (wird für Mail+Passwort gebraucht). **„Confirm email" an lassen** (zweite Sperre
+     gegen fremde Registrierungen; die App legt Konten bereits bestätigt an).
+   - **Minimum password length: 10** (entspricht `MIN_PASSWORT` in `src/lib/auth-fehler.ts`).
+3. **Authentication → URL Configuration:** *Site URL* = Adresse der App (Abschnitt 4); lokal zusätzlich `http://localhost:5173`.
+4. **Project Settings → API:** *Project URL* und *anon public key* notieren (für `.env`, siehe Abschnitt 5).
 
 ## 2. Datenbank einrichten
 
@@ -27,8 +31,8 @@ npx supabase link --project-ref <PROJEKT-REF>
 npx supabase db push          # spielt supabase/migrations/*.sql der Reihe nach ein
 ```
 
-Variante B – ohne CLI: Im Dashboard unter **SQL Editor** die Dateien `supabase/migrations/0001_…sql` bis `0007_…sql`
-**in dieser Reihenfolge** einfügen und ausführen.
+Variante B – ohne CLI: Im Dashboard unter **SQL Editor** den Inhalt von `supabase/alle-migrationen.sql` einfügen und
+**einmal** ausführen (nur für ein leeres Projekt; die Datei entsteht mit `npm run sql:bundle`).
 
 ### Erste Koordination anlegen **[du]**
 
@@ -39,22 +43,26 @@ insert into personen (vorname, nachname, mail, kategorie, ist_koordination)
 values ('Vorname', 'Nachname', 'deine@mail.example', 'Hauptamtliche*r', true);
 ```
 
-Danach unter **Authentication → Users → Add user → Send invitation** dieselbe Mail-Adresse einladen
-(oder „Create new user" mit „Auto confirm"). Der Datenbank-Trigger verknüpft das Konto über die Mail-Adresse
-mit der Person. Ab dann lädt die Koordination alle weiteren Personen in der App ein (**Mehr → Personen & Einladungen**).
+Danach unter **Authentication → Users → Add user → Create new user** dieselbe Mail-Adresse mit einem **Passwort** anlegen und
+**„Auto Confirm User"** ankreuzen. Der Datenbank-Trigger verknüpft das Konto über die Mail-Adresse mit der Person.
+Ab dann richtet die Koordination alle weiteren Zugänge in der App ein (**Mehr → Personen & Zugänge**).
 
-## 3. Einladungs-Funktion bereitstellen
+> Schon angemeldet, aber ohne Passwort (z. B. über einen früheren Einladungslink)? Die Sitzung bleibt bestehen –
+> unter **Mehr → Passwort ändern** ein Passwort festlegen, **bevor** du dich abmeldest.
 
-```bash
-npx supabase functions deploy person-einladen
-npx supabase secrets set APP_URL=https://kompass.example.org   # Adresse der App (Abschnitt 4)
-```
+## 3. Funktion „konto-passwort" bereitstellen **[du]**
 
-`SUPABASE_URL`, `SUPABASE_ANON_KEY` und `SUPABASE_SERVICE_ROLE_KEY` setzt Supabase automatisch. Der Service-Schlüssel
-bleibt ausschließlich in der Funktion und gelangt nie in die App.
+Sie richtet Zugänge ein und setzt Passwörter zurück (braucht den Service-Schlüssel, den die App nie sieht).
 
-> Die Funktion wurde noch **nicht gegen ein echtes Supabase-Projekt getestet** (lokal ohne Docker/Deno nicht möglich).
-> Erster Test nach dem Deploy: in der App eine Testperson anlegen und einladen.
+Ohne CLI: Dashboard → **Edge Functions → Deploy a new function → „Via Editor"**, Name **`konto-passwort`**,
+Inhalt von `supabase/functions/konto-passwort/index.ts` einfügen und bereitstellen. Die Datei ist in sich geschlossen.
+Mit CLI: `npx supabase functions deploy konto-passwort`.
+
+Secrets sind nicht nötig: `SUPABASE_URL`, `SUPABASE_ANON_KEY` und `SUPABASE_SERVICE_ROLE_KEY` setzt Supabase automatisch.
+Die Option **„Verify JWT"** bleibt an.
+
+> Erster Test nach dem Bereitstellen: in der App eine Testperson anlegen, „Zugang einrichten" wählen, mit dem
+> angezeigten Startpasswort in einem zweiten Browser anmelden und ein eigenes Passwort festlegen.
 
 ## 4. App veröffentlichen
 
@@ -64,6 +72,7 @@ bleibt ausschließlich in der Funktion und gelangt nie in die App.
 2. Cloudflare Pages → „Create project" → mit GitHub verbinden.
 3. Build-Befehl `npm run build`, Ausgabeordner `dist`.
 4. Umgebungsvariablen (Production): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+5. Danach in Supabase die **Site URL** auf die neue Adresse stellen.
 
 Der anon-Schlüssel ist dafür gedacht, öffentlich zu sein; geschützt sind die Daten durch die Zugriffsregeln (RLS).
 **Niemals** den `service_role`-Schlüssel in `VITE_…`-Variablen oder ins Repository legen.
@@ -72,18 +81,32 @@ Der anon-Schlüssel ist dafür gedacht, öffentlich zu sein; geschützt sind die
 
 ```bash
 npm install
-cp .env.example .env     # Werte aus Abschnitt 1.5 eintragen
+cp .env.example .env     # Werte aus Abschnitt 1.4 eintragen
 npm run dev              # http://localhost:5173
-npm test                 # Datenbank-Regeln (PGlite) + Oberfläche
+npm test                 # Datenbank-Regeln (PGlite) + Funktionen + Oberfläche
 npm run lint && npm run typecheck && npm run build
+npm run check:live       # prüft das echte Supabase-Projekt von außen (nur lesend)
 ```
 
 Die Datenbank-Tests brauchen weder Docker noch Supabase: `tests/db/harness.ts` startet Postgres im Speicher (PGlite),
 stellt `auth.users`/`auth.uid()` nach und spielt alle Migrationen ein.
 
+## Sicherheitshinweise zum Passwort-Login
+
+- Startpasswörter entstehen serverseitig (57 Zeichen Alphabet, 12 Zeichen, ≈ 70 Bit) und werden **nie gespeichert oder
+  protokolliert**; nur die Koordination sieht sie einmal.
+- Die Person muss das Startpasswort beim ersten Anmelden ändern. Die Pflicht ist ein Flag im Konto
+  (`muss_passwort_aendern`); es zu umgehen ist nur der Person selbst möglich und schadet nur ihr.
+- Nach „Passwort zurücksetzen" bleiben bereits angemeldete Geräte der Person bis zum Ablauf ihrer Sitzung gültig.
+  Soll eine Person sofort gesperrt werden, setzt die Koordination sie auf **deaktiviert**: Dann greifen alle Datenregeln
+  sofort nicht mehr.
+- Supabase begrenzt fehlgeschlagene Anmeldungen automatisch (Ratenbegrenzung). Der Schutz vor bekannten, geleakten
+  Passwörtern ist im kostenlosen Tarif nicht verfügbar – darum die Mindestlänge 10.
+
 ## Bekannte Grenzen des Testaufbaus
 
-- PGlite ist echtes Postgres, aber **nicht** Supabase: Auth-Schema, JWT-Verarbeitung (`auth.uid()` liest dort
-  `request.jwt.claims`) und Rollen werden nachgebildet. Nach dem ersten echten `db push` sollten die Rechte einmal
-  stichprobenartig über die App geprüft werden (Anmeldung als TeamerIn, Leitung, Koordination).
-- Edge Functions, E-Mail-Versand und Push sind lokal nicht getestet.
+- PGlite ist echtes Postgres, aber **nicht** Supabase: Auth-Schema, JWT-Verarbeitung und Rollen werden nachgebildet.
+  Nach dem Einspielen sollten die Rechte einmal stichprobenartig über die App geprüft werden (Anmeldung als TeamerIn,
+  Leitung, Koordination).
+- Edge Functions sind lokal nur in Teilen getestet (Passwort-Generator, Aufbau); der Ablauf gegen ein echtes Projekt
+  wird beim ersten Einsatz geprüft.

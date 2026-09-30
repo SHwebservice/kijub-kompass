@@ -47,23 +47,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, [laden]);
 
-  const codeSenden = useCallback(async (mail: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email: mail.trim(), options: { shouldCreateUser: false },
-    });
+  const anmelden = useCallback(async (mail: string, passwort: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email: mail.trim(), password: passwort });
     return error ? authFehlerText(error.message) : null;
   }, []);
 
-  const codePruefen = useCallback(async (mail: string, code: string) => {
-    const { error } = await supabase.auth.verifyOtp({ email: mail.trim(), token: code.trim(), type: 'email' });
+  const passwortAendern = useCallback(async (neu: string) => {
+    const { error } = await supabase.auth.updateUser({ password: neu, data: { muss_passwort_aendern: false } });
     return error ? authFehlerText(error.message) : null;
   }, []);
 
   const abmelden = useCallback(async () => { await supabase.auth.signOut(); }, []);
 
+  const mussPasswortAendern = session?.user.user_metadata?.muss_passwort_aendern === true;
+
   const wert = useMemo<AuthWert>(
-    () => ({ status, session, ich, rollen, fehler, codeSenden, codePruefen, abmelden }),
-    [status, session, ich, rollen, fehler, codeSenden, codePruefen, abmelden],
+    () => ({ status, session, ich, rollen, fehler, mussPasswortAendern, anmelden, passwortAendern, abmelden }),
+    [status, session, ich, rollen, fehler, mussPasswortAendern, anmelden, passwortAendern, abmelden],
   );
   return <AuthKontext.Provider value={wert}>{children}</AuthKontext.Provider>;
 }

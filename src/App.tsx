@@ -8,15 +8,16 @@ import { Login } from './pages/Login';
 import { Heute, Platzhalter } from './pages/Heute';
 import { Mehr } from './pages/Mehr';
 import { Personen } from './pages/Personen';
+import { PasswortAendern } from './pages/PasswortAendern';
 
 function Zugang() {
-  const { status, fehler, codeSenden, codePruefen, abmelden } = useAuth();
+  const { status, fehler, mussPasswortAendern, anmelden, passwortAendern, abmelden } = useAuth();
 
   if (status === 'laedt') {
     return <div className="login"><Spinner beschriftung="App wird geladen …" /></div>;
   }
   if (status === 'abgemeldet') {
-    return <Login codeSenden={codeSenden} codePruefen={codePruefen} konfiguriert={konfiguriert} />;
+    return <Login anmelden={anmelden} konfiguriert={konfiguriert} />;
   }
   if (status === 'keine_person' || status === 'fehler') {
     return (
@@ -34,6 +35,10 @@ function Zugang() {
         </div>
       </div>
     );
+  }
+
+  if (mussPasswortAendern) {
+    return <PasswortAendern erzwungen speichern={passwortAendern} abmelden={() => void abmelden()} />;
   }
 
   return <Geschuetzt />;

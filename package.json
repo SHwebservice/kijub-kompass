@@ -11,7 +11,9 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:db": "vitest run --project db",
-    "test:unit": "vitest run --project unit"
+    "test:unit": "vitest run --project unit",
+    "sql:bundle": "node scripts/sql-bundle.mjs",
+    "check:live": "node scripts/live-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

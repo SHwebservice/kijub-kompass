@@ -24,7 +24,7 @@ Planung, Personal, Dienstpläne und Nachweise angebaut wurden. Der Katalog ist i
 
 ## 3. Domänen (Module)
 
-1. **Personal & Zugang** – Personen, Kategorien, Einladung/Login, Bewerbungen
+1. **Personal & Zugang** – Personen, Kategorien, Zugang/Login, Bewerbungen
 2. **Freizeiten** – Stammdaten, Orte, Wochenplan, Hinweise/Absprachen, Lebensmittel
 3. **Treffs** – Stammdaten, Wochenprogramm, Absprachen
 4. **Dienstplan & Nachweise** – Dienste, Wunschdienste, Sonderdienste, Abwesenheiten, Feiertage, Stunden, Nachweis der Teilzeitkräfte
@@ -37,7 +37,7 @@ Planung, Personal, Dienstpläne und Nachweise angebaut wurden. Der Katalog ist i
 
 - **Kostenlos bleiben.** Supabase Free + statisches Hosting (Cloudflare Pages / GitHub Pages). Keine Dienste, die eine Kreditkarte erzwingen.
 - **Echte Anmeldung für alle.** Der Altbestand arbeitete mit 8-stelligen Codes ohne Login, deren Gültigkeit der Browser selbst mitschickte.
-  Im Neubau hat jede Person ein Konto (E-Mail + Einladung, Magic-Link/Einmalcode). Rechte entscheidet die Datenbank (Row Level Security), nicht der Client.
+  Im Neubau hat jede Person ein Konto (Mail + Passwort; die Koordination richtet den Zugang ein, kein Mail-Versand nötig). Rechte entscheidet die Datenbank (Row Level Security), nicht der Client.
 - **Mobile first, installierbar (PWA).** Die meisten Nutzenden sind unterwegs auf dem Handy.
 - **Daten ordentlich modellieren.** Keine Arrays in Dokumenten mehr, die per Transaktion umgeschrieben werden (Notizen, Lebensmittel, Abwesenheiten …), sondern Tabellen mit Bezügen.
 - **Nichts lokal verstecken, was zählt.** Der Nachweis der Teilzeitkräfte lag nur im `localStorage` eines Geräts – im Neubau liegt er in der Datenbank.

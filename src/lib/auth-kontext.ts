@@ -10,9 +10,11 @@ export interface AuthWert {
   ich: Ich | null;
   rollen: Rollen | null;
   fehler: string | null;
-  /** Liefert eine Fehlermeldung oder null bei Erfolg. */
-  codeSenden: (mail: string) => Promise<string | null>;
-  codePruefen: (mail: string, code: string) => Promise<string | null>;
+  /** true, solange die Person noch das von der Koordination vergebene Startpasswort benutzt. */
+  mussPasswortAendern: boolean;
+  /** Die folgenden Funktionen liefern eine Fehlermeldung oder null bei Erfolg. */
+  anmelden: (mail: string, passwort: string) => Promise<string | null>;
+  passwortAendern: (neu: string) => Promise<string | null>;
   abmelden: () => Promise<void>;
 }
 
