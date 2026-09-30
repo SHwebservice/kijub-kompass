@@ -1,5 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 
+const FOKUSSIERBAR = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [tabindex]:not([tabindex="-1"])';
+
 interface Props { titel: string; schliessen: () => void; children: ReactNode }
 
 /** Einfaches Fenster über der Seite (Dialog): Escape und Klick auf den Hintergrund schließen, Fokus wandert hinein und zurück. */
@@ -13,7 +15,18 @@ export function Sheet({ titel, schliessen, children }: Props) {
   useEffect(() => {
     const vorher = document.activeElement as HTMLElement | null;
     ref.current?.focus();
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') schliessenRef.current(); };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { schliessenRef.current(); return; }
+      if (e.key !== 'Tab' || !ref.current) return;
+      // Der Fokus bleibt im Fenster: am Ende geht es zum Anfang und umgekehrt
+      const ziele = [...ref.current.querySelectorAll<HTMLElement>(FOKUSSIERBAR)].filter((x) => !x.hasAttribute('disabled') && x.getAttribute('aria-hidden') !== 'true');
+      if (ziele.length === 0) { e.preventDefault(); ref.current.focus(); return; }
+      const erstes = ziele[0]!; const letztes = ziele[ziele.length - 1]!;
+      const aktiv = document.activeElement;
+      if (!ref.current.contains(aktiv) || aktiv === ref.current) { e.preventDefault(); (e.shiftKey ? letztes : erstes).focus(); }
+      else if (e.shiftKey && aktiv === erstes) { e.preventDefault(); letztes.focus(); }
+      else if (!e.shiftKey && aktiv === letztes) { e.preventDefault(); erstes.focus(); }
+    };
     document.addEventListener('keydown', esc);
     return () => { document.removeEventListener('keydown', esc); vorher?.focus?.(); };
   }, []);

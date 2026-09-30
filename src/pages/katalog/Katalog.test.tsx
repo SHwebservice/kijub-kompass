@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../katalog/api';
@@ -224,5 +225,13 @@ describe('Katalog: Detail', () => {
     expect(await screen.findByText('Link kopiert ✓')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Drucken / als PDF speichern' }));
     expect(titel).toBe('Fangen');
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    zeigeListe();
+    await screen.findByRole('link', { name: 'Fangen' });
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

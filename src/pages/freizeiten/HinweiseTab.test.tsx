@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../freizeiten/api';
@@ -233,5 +234,13 @@ describe('Fehlerfälle', () => {
     await userEvent.click(within(feld.closest('form')!).getByRole('button', { name: 'Speichern' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Dafür fehlt die Berechtigung.');
     expect(feld).toHaveValue('Wichtig');
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    zeige('teamer', teamer);
+    await screen.findByText('Bitte Sonnencreme mitbringen');
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

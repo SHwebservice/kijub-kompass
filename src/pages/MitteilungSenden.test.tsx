@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as fzApi from '../freizeiten/api';
@@ -143,5 +144,13 @@ describe('Mitteilung senden (Koordination)', () => {
     zeige();
     await userEvent.type(await screen.findByLabelText('Text'), 'Hallo');
     expect(screen.getByText('5 von 300 Zeichen')).toBeInTheDocument();
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    zeige();
+    await within(reichweite()).findByText('12 Personen – 7 davon haben Mitteilungen eingeschaltet.');
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

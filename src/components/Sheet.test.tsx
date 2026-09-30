@@ -49,4 +49,56 @@ describe('Sheet', () => {
     expect(knopf).toHaveFocus();
     knopf.remove();
   });
+
+  describe('Tastaturfokus bleibt im Fenster', () => {
+    const fenster = () => render(<Sheet titel="Test" schliessen={() => undefined}><input aria-label="Erstes" /><button>Mitte</button><input aria-label="Letztes" /><button disabled>Gesperrt</button></Sheet>);
+
+    it('Tab am Ende springt zum ersten, Umschalt+Tab am Anfang zum letzten Element (Schließen-Knopf zuerst)', async () => {
+      fenster();
+      const zu = screen.getByRole('button', { name: 'Schließen' });
+      const letztes = screen.getByLabelText('Letztes');
+      letztes.focus();
+      await userEvent.tab();
+      expect(zu).toHaveFocus();
+      await userEvent.tab({ shift: true });
+      expect(letztes).toHaveFocus();
+    });
+
+    it('Tab läuft normal durch die Elemente; gesperrte werden übersprungen', async () => {
+      fenster();
+      screen.getByRole('button', { name: 'Schließen' }).focus();
+      await userEvent.tab();
+      expect(screen.getByLabelText('Erstes')).toHaveFocus();
+      await userEvent.tab();
+      expect(screen.getByRole('button', { name: 'Mitte' })).toHaveFocus();
+      await userEvent.tab();
+      expect(screen.getByLabelText('Letztes')).toHaveFocus();
+    });
+
+    it('vom Fenster selbst (beim Öffnen fokussiert) führt Tab zum ersten, Umschalt+Tab zum letzten Element', async () => {
+      fenster();
+      expect(screen.getByRole('dialog')).toHaveFocus();
+      await userEvent.tab();
+      expect(screen.getByRole('button', { name: 'Schließen' })).toHaveFocus();
+      screen.getByRole('dialog').focus();
+      await userEvent.tab({ shift: true });
+      expect(screen.getByLabelText('Letztes')).toHaveFocus();
+    });
+
+    it('liegt der Fokus außerhalb, holt Tab ihn zurück ins Fenster', async () => {
+      const draussen = document.createElement('button');
+      document.body.appendChild(draussen);
+      fenster();
+      draussen.focus();
+      await userEvent.tab();
+      expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+      draussen.remove();
+    });
+
+    it('ohne bedienbare Elemente bleibt der Fokus im Fenster', async () => {
+      render(<Sheet titel="Leer" schliessen={() => undefined}><p>nur Text</p></Sheet>);
+      await userEvent.tab();
+      expect(document.body.contains(document.activeElement)).toBe(true);
+    });
+  });
 });

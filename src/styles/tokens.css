@@ -9,10 +9,10 @@
   --surface: #ffffff;
   --surface-2: #edf0f5;
   --border: rgb(0 0 0 / 0.11);
-  --border-strong: rgb(0 0 0 / 0.26);
+  --border-strong: rgb(0 0 0 / 0.5);          /* Rahmen von Eingaben und Knöpfen: mindestens 3 : 1 */
   --text: #1a1a2e;
   --text-muted: #4a5068;
-  --text-hint: #6b7086;
+  --text-hint: #5d637a;
 
   /* Marke */
   --accent: #1b4b8a;
@@ -35,7 +35,7 @@
   --radius-sm: 10px;
   --radius-lg: 20px;
   --shadow-soft: 0 4px 20px rgb(15 23 42 / 0.06);
-  --focus-ring: 0 0 0 3px rgb(27 75 138 / 0.35);
+  --focus-ring: 0 0 0 3px rgb(27 75 138 / 0.8);
 
   /* Abstände (4-px-Raster) */
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
@@ -60,7 +60,7 @@
     --surface: #181d2c;
     --surface-2: #212738;
     --border: rgb(255 255 255 / 0.12);
-    --border-strong: rgb(255 255 255 / 0.3);
+    --border-strong: rgb(255 255 255 / 0.45);
     --text: #eef0f7;
     --text-muted: #b4b9cc;
     --text-hint: #9198b0;
@@ -80,6 +80,6 @@
     --warning-bg: #36290a;
 
     --shadow-soft: 0 4px 20px rgb(0 0 0 / 0.4);
-    --focus-ring: 0 0 0 3px rgb(122 167 232 / 0.45);
+    --focus-ring: 0 0 0 3px rgb(122 167 232 / 0.85);
   }
 }

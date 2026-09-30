@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
@@ -327,5 +328,14 @@ describe('Dienstplan: Mitteilungen werden ausgelöst', () => {
     await userEvent.type(screen.getByLabelText('Kommentar schreiben'), 'Hallo');
     await userEvent.click(screen.getByRole('button', { name: 'Kommentar senden' }));
     await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan_kommentar', 'k-neu'));
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea', 'ben'] })]);
+    await zeige(betreuerin);
+    tag(mo);
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

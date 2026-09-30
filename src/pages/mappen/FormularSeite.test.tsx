@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../formulare/api';
@@ -185,5 +186,12 @@ describe('Formulare: Beispiele (Koordination)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Beispiele bearbeiten' }));
     await userEvent.click(screen.getByRole('button', { name: 'Beispiele speichern' }));
     expect(await screen.findByText('Die Beispiele konnten nicht gespeichert werden.')).toBeInTheDocument();
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    await zeige();
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

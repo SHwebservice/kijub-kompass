@@ -36,7 +36,7 @@ Variante B – ohne CLI: Im Dashboard unter **SQL Editor** den Inhalt von `supab
 
 **Projekt läuft schon und es kommen neue Migrationen dazu?** Dann nur die neue Datei aus `supabase/migrations/` (z. B. `0009_person_entfernen.sql`)
 im SQL Editor ausführen – nicht die Sammeldatei, die ist nur für leere Projekte.
-Aktueller Stand der Migrationen: `0001` bis `0018` (`0010` = KiJuKo-Import, `0011` = Live-Aktualisierung der Freizeiten, `0012` = Dienstplan der Treffs, `0013` = Katalog-Kommentare mit Namen, `0014` = Lebenszeichen, `0015` = Mitteilungen, `0016` = Tagesprotokoll und Notizen der Treffs, `0017` = Mitteilungen zu Bewerbung, Nachweis und Lebensmitteln, `0018` = Koordination getrennt in Freizeiten- und Treffkoordination).
+Aktueller Stand der Migrationen: `0001` bis `0021` (`0010` = KiJuKo-Import, `0011` = Live-Aktualisierung der Freizeiten, `0012` = Dienstplan der Treffs, `0013` = Katalog-Kommentare mit Namen, `0014` = Lebenszeichen, `0015` = Mitteilungen, `0016` = Tagesprotokoll und Notizen der Treffs, `0017` = Mitteilungen zu Bewerbung, Nachweis und Lebensmitteln, `0018` = Koordination getrennt in Freizeiten- und Treffkoordination, `0019` = Fehlermeldungen der App, `0020` = Startseite in einem Aufruf und „Neu seit letztem Besuch“, `0021` = Bewerbung mit Rollenwahl und Aufräumen beim Entfernen aus einem Treff).
 
 ### Erste Koordination anlegen **[du]**
 

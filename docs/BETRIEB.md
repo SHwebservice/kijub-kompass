@@ -111,6 +111,16 @@ die nur „ok“ zurückgibt (Migration `0014`, die einzige ohne Anmeldung aufru
 - **Achtung, GitHub-Regel:** In Repositories ohne Aktivität deaktiviert GitHub geplante Workflows nach **60 Tagen**. Jeder Commit (oder „Enable workflow“ im Actions-Reiter) schaltet sie wieder ein.
   Auch die Datensicherung fällt darunter – die Mail von GitHub nicht übersehen.
 
+## 3b. Fehlermeldungen der App
+
+Wenn in der App etwas Unerwartetes schiefgeht (Fehler beim Zeichnen einer Seite, nicht abgefangene Fehler), meldet sie das selbsttätig an die Datenbank (Migration `0019`). Die Koordination sieht sie unter *Mehr → Fehlermeldungen* und als Kachel *Fehlermeldungen* mit der Zahl offener Fehler.
+- **Keine Personendaten:** Adresse und Text werden von Kennungen, Mail-Adressen und Telefon-/Zahlenfolgen befreit (in der App und noch einmal in der Datenbank); es wird nicht gespeichert, wer den Fehler hatte.
+- **Gezählt statt vervielfacht:** Gleiche Fehler (Version, Seite, Meldung) erhöhen nur einen Zähler; ein erledigter Fehler, der wiederkommt, öffnet sich wieder. Pro Sitzung werden höchstens fünf verschiedene Fehler gemeldet, insgesamt höchstens 300 Meldungen pro Stunde.
+- **Aufräumen:** Meldungen ohne Wiederholung werden nach 90 Tagen gelöscht; erledigte lassen sich von Hand löschen.
+- Kein fehlendes Netz und keine Browser-Erweiterungen: Solche Meldungen werden ignoriert.
+
+Zeilenenden: Das Repository ist auf einheitliche Zeilenenden (LF) eingestellt (`.gitattributes`, `.editorconfig`), auch unter Windows.
+
 ## 4. Datensicherung
 
 Kostenlose Supabase-Projekte haben **keine automatischen Sicherungen**. Darum sichert `backup.yml` jeden Sonntag (03:43 UTC) und auf Knopfdruck:
@@ -154,7 +164,7 @@ dann ist der Ernstfall kein Erstkontakt. Diese Wiederherstellung wurde noch nich
 ## 5. Vor dem Start für alle: Checkliste **[du]**
 
 - [ ] Supabase: *Confirm email* wieder einschalten, Mindestlänge Passwort 10, Registrierung (*Allow new users to sign up*) **aus** – `npm run check:live` zeigt den Stand.
-- [ ] Migrationen `0001` bis `0018` eingespielt, Edge Functions (`konto-passwort`, `konto-entfernen`, `push-senden`) bereitgestellt, VAPID-Schlüssel eingetragen.
+- [ ] Migrationen `0001` bis `0021` eingespielt, Edge Functions (`konto-passwort`, `konto-entfernen`, `push-senden`) bereitgestellt, VAPID-Schlüssel eingetragen.
 - [ ] Cloudflare Pages läuft, `npm run check:site -- <Adresse>` zeigt „Alles in Ordnung“.
 - [ ] Fünf GitHub-Geheimnisse gesetzt (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DB_URL`, `BACKUP_PASSPHRASE`, `CRON_SECRET`), *Lebenszeichen* und *Datensicherung* je einmal von Hand gestartet (grün), `BACKUP_PASSPHRASE` im Passwort-Manager.
 - [ ] Probewiederherstellung in einem zweiten Projekt.

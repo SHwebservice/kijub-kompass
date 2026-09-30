@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../freizeiten/api';
@@ -248,5 +249,13 @@ describe('Wochenplan: Leitung und Koordination', () => {
     zeige('leitung', leitung);
     await userEvent.click(await screen.findByRole('button', { name: '+ Abend-Slot hinzufügen' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Das gibt es schon.');
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    zeige('teamer', teamer);
+    await screen.findAllByRole('heading', { level: 2 });
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../quiz/api';
@@ -243,5 +244,14 @@ describe('Quiz-Verwaltung', () => {
     expect(zeilen[1]).toHaveTextContent('5/5 (100 %)');
     expect(zeilen[2]).toHaveTextContent('Ben Baum');
     expect(zeilen[2]).toHaveTextContent('Kleidung, Verhalten & Regeln');
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    vi.mocked(api.meineBestwerte).mockResolvedValue([{ thema: 'schwimmen', bester_wert: 2, gesamt: 3 }]);
+    renderMitAuth(<QuizSeite zufall={() => 0} />, teamer);
+    await screen.findByRole('button', { name: 'Quiz starten: Schwimmen & Wasser' });
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

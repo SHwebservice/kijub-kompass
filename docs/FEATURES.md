@@ -354,3 +354,17 @@ Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und
 - **Mitteilungen:** Bewerbung, Absprache (Freizeit) und Lebensmittel gehen an die Freizeitenkoordination, „Nachweis eingereicht“ ohne Treffleitung an die Treffkoordination, Katalog-Vorschläge an beide.
 
 **Bewusst so:** Wer Koordination vergeben darf, ist jede der beiden Koordinationen (gemeinsame Personenverwaltung). Die Bereiche trennen die Zuständigkeit, sichern aber nicht gegeneinander ab.
+
+## Stand der Umsetzung: Verbesserungen an Technik und Bedienung (Phase 11, 2026-10-01)
+
+**Umgesetzt und getestet:**
+- **Startseite in einem Aufruf (Migration `0020`):** Statt zehn Einzelabfragen holt die Startseite alles Übrige mit einer Datenbankfunktion (`fn_heute`, läuft mit den Rechten der Person; nur angefragte Teile werden berechnet). Die Datenbankfunktion ist mit Tests je Rolle abgesichert.
+- **„Neu seit deinem letzten Besuch“:** siehe `docs/ANZEIGEN_UND_MITTEILUNGEN.md`, Abschnitt 4. Der Besuchsstand liegt je Person in der Datenbank (Tabelle `besuche`), damit er auf allen Geräten gilt.
+- **Schnellerer Start:** Seiten werden erst beim Öffnen geladen; das Hauptpaket schrumpfte von 848 kB auf 343 kB (106 kB komprimiert).
+- **Fehlermeldungen der App (Migration `0019`):** ohne Personendaten, gezählt, für die Koordination einsehbar (`docs/BETRIEB.md`, Abschnitt 3b).
+- **Zeilenenden vereinheitlicht** (`.gitattributes`, `.editorconfig`).
+- **Bewerbung mit Rollenwahl** (TeamerIn oder Leitung), **Warnung und Aufräumen beim Entfernen aus einem Treff** (Migration `0021`): Die Rückfrage nennt, in wie vielen künftigen Diensten die Person noch steht; beim Entfernen fallen künftige Dienste und offene Dienstwünsche weg, vergangene Dienste bleiben (Grundlage der Nachweise).
+- **Gleichzeitiges Bearbeiten eines Tagesprotokolls:** Hat jemand anderes inzwischen gespeichert, erscheint eine Warnung mit Name und Zeit („Aktuelle Fassung laden“ oder „Meine Fassung trotzdem speichern“); nichts geht mehr still verloren. Zeiten erscheinen in Ortszeit (vorher UTC).
+- **Barrierefreiheit:** automatische Prüfung der Hauptseiten mit axe-core (keine Verstöße gegen gängige Regeln), **Farbkontraste** nach WCAG 2.2 für helles und dunkles Farbschema (Text 4,5 : 1, Rahmen von Eingaben und Fokusring 3 : 1 – dafür wurden Rahmen, Hinweistext und Fokusring etwas kräftiger), **Fenster halten den Tastaturfokus** (Tab und Umschalt+Tab bleiben im Fenster).
+
+**Nicht erprobt:** Echte Hilfsmittel (Screenreader, Zoom), Lesbarkeit auf echten Geräten und Farbwirkung bei Sonnenlicht; die Zeilenenden-Umstellung greift auf anderen Rechnern nach einem frischen `git pull` (bei Bedarf `git rm --cached -r . && git reset --hard`, wenn dort nichts Ungespeichertes liegt).

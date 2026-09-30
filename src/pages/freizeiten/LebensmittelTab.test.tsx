@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { sendePush } from '../../mitteilungen/senden';
@@ -192,5 +193,13 @@ describe('Lebensmittel: Verbrauch und Buchungen', () => {
     await userEvent.click(within(milch).getAllByRole('button', { name: /Verbrauch vom .* löschen/ })[0]!);
     expect(confirm).toHaveBeenCalledTimes(2);
     expect(api.loescheVerbrauch).toHaveBeenCalledWith('v1');
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    zeige();
+    await screen.findByText('Kakao', { selector: 'strong' });
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { sendePush } from '../../mitteilungen/senden';
@@ -247,5 +248,14 @@ describe('Nachweis: Treffleitung und Koordination', () => {
     await userEvent.click(within(liste2).getAllByRole('button', { name: 'Öffnen' })[0]!);
     await userEvent.click(await screen.findByRole('button', { name: 'Löschen' }));
     expect(api.loescheNachweis).toHaveBeenCalledWith('n1');
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    vi.mocked(api.listeNachweise).mockResolvedValue([nachweis()]);
+    zeige(tzk, 'betreuerin');
+    await tabelle();
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

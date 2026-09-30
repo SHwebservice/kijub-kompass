@@ -63,3 +63,20 @@ Freizeitenkoordination und Treffkoordination; eine Person kann beides sein. Was 
 | Protokolle | – | lesen und bearbeiten (keine Mitteilung) |
 
 Neue Katalog-Vorschläge gehen an **beide** (gemeinsamer Katalog). Die Erinnerung „Tagesprotokoll fehlt“ geht weiterhin nur an Treffleitung und Eingeteilte.
+
+## 4. „Neu seit deinem letzten Besuch“ (Startseite)
+
+Unter den Kacheln erscheint eine Karte mit dem, was **andere** seit dem letzten Besuch angelegt haben – mit Link dorthin (höchstens 30 Einträge, dazu „… und n weitere“). Ein Besuch endet nach 30 Minuten ohne Aufruf der Startseite; beim ersten Besuch gibt es nichts „Neues“. „Alles gesehen“ beginnt den nächsten Besuch ab jetzt. Eigene Änderungen zählen nie, und jede Person sieht nur Neuigkeiten aus ihrem Bereich:
+
+| Neuigkeit | Wer sie sieht |
+|---|---|
+| Hinweise und Absprachen der aktuellen Freizeiten und Treffs | Team (Hinweise), Leitung und Koordination des Bereichs (Absprachen) |
+| Neuer Eintrag im Wochenplan der aktuellen Freizeiten | Team und Freizeitenkoordination |
+| Protokoll geändert, neue Notiz, neuer Kommentar im Dienstplan | Team des Treffs, Treffkoordination |
+| Neue Bewerbung | Freizeitenkoordination |
+| Neuer Katalog-Vorschlag | jede Koordination |
+| Nachweis eingereicht | Treffleitung, Treffkoordination |
+
+## 5. Bewerbung annehmen mit Rolle
+
+Beim Annehmen wählt die Freizeitenkoordination **TeamerIn** oder **Leitung** (Migration `0021`). Ist die Person schon im Team, wird sie höchstens zur Leitung hochgestuft. Die Mitteilung „Bewerbung angenommen“ nennt die Rolle („Du bist als Leitung dabei: …“).

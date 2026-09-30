@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../mappen/api';
@@ -202,5 +203,13 @@ describe('Mappe: Bearbeiten (Koordination)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
     expect(await screen.findByText('Die Mappe konnte nicht gespeichert werden.')).toBeInTheDocument();
     expect(screen.getByText('Kachel 1')).toBeInTheDocument();
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    zeige();
+    await screen.findByRole('button', { name: /Aufsichtspflicht/ });
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

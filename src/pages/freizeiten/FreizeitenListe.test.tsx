@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { axeVerstoesse } from '../../test-a11y';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../freizeiten/api';
@@ -139,5 +140,13 @@ describe('Freizeiten-Liste: andere Rollen', () => {
     vi.mocked(api.listeFreizeiten).mockRejectedValue(new Error('x'));
     renderMitAuth(<FreizeitenListe />);
     expect(await screen.findByRole('alert')).toHaveTextContent('konnten nicht geladen werden');
+  });
+});
+
+describe('Barrierefreiheit (axe)', () => {
+  it('keine Verstöße gegen gängige Regeln', async () => {
+    renderMitAuth(<FreizeitenListe />, teamerMitZuordnung);
+    await screen.findByText('Meine Sommerfreizeit');
+    expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });
