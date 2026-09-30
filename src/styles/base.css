@@ -96,13 +96,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .page-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
 .page-header h1 { margin: 0; }
 
-.list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
 .list__item {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3);
   padding: var(--space-3) var(--space-4); background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius);
 }
-.list__main { min-width: 0; }
+.list__main { min-width: 0; flex: 1 1 12rem; }
 .list__title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list__meta { color: var(--text-muted); font-size: var(--fs-sm); display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 
@@ -110,7 +110,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .row { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
 
 /* ===== App-Hülle ===== */
-.shell { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; }
+.shell { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto; }   /* minmax(0, …): breite Inhalte (Tabellen, Reiter) scrollen in sich, statt die ganze Seite zu verbreitern */
 .shell__header {
   position: sticky; top: 0; z-index: 10; padding-top: var(--safe-top);
   background: var(--surface); border-bottom: 1px solid var(--border);
@@ -121,7 +121,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .brand { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-weight: 700; color: var(--accent); text-decoration: none; }
 .brand img { width: 28px; height: 28px; border-radius: 6px; }
-.shell__main { max-width: 960px; width: 100%; margin: 0 auto; padding: var(--space-4); padding-bottom: calc(var(--space-7) + var(--safe-bottom) + 56px); }
+.shell__main { min-width: 0; max-width: 960px; width: 100%; margin: 0 auto; padding: var(--space-4); padding-bottom: calc(var(--space-7) + var(--safe-bottom) + 56px); }
 
 .nav { display: flex; gap: var(--space-1); }
 .nav__link {
@@ -162,7 +162,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .option input { margin-top: 4px; width: 18px; height: 18px; flex: none; }
 
 /* ===== Tabelle ===== */
-.tabelle-wrap { overflow-x: auto; }
+.tabelle-wrap { overflow-x: auto; position: relative; }   /* position: sonst ragen unsichtbare Hilfstexte (sr-only) über den Rand und verbreitern die Seite */
 .tabelle { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .tabelle th, .tabelle td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); text-align: right; }
 .tabelle th:first-child, .tabelle thead th { text-align: left; }
@@ -303,7 +303,7 @@ a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
 .aufgabe__antwort { margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); }
 
 /* Zuordnung von Personen zu Freizeiten und Treffs (Tabelle in „Personen“, Fenster je Person, Mehrfachauswahl im Team) */
-.zuordnung-wrap { max-height: 75vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.zuordnung-wrap { position: relative; max-height: 75vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .zuordnung { min-width: max-content; }
 .zuordnung th, .zuordnung td { vertical-align: top; }
 .zuordnung td { text-align: center; }
