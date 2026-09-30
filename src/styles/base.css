@@ -342,3 +342,12 @@ a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
 .menue__details > .card { border: 0; box-shadow: none; }
 
 .menue__details > .card > h2 { display: none; }   /* die Zusammenfassung ist schon die Überschrift */
+
+/* Schmale Bildschirme: Kacheln kompakter (Symbol links, Name rechts), damit die wichtigen Karten weiter oben stehen */
+@media (max-width: 480px) {
+  .kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+  .kachel, .kachel--auswahl summary { flex-direction: row; justify-content: flex-start; min-height: 52px; padding: var(--space-2) var(--space-3); gap: var(--space-2); text-align: left; }
+  .kachel--auswahl { padding: 0; }
+  .kachel__icon { font-size: 1.35rem; }
+  .kachel__badge { top: 4px; right: 6px; }
+}
