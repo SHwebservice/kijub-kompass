@@ -21,12 +21,18 @@ beforeEach(() => {
   vi.mocked(api.loescheFreizeit).mockResolvedValue(undefined);
 });
 
-const neu = () => renderMitAuth(<FreizeitForm />, { ...koord, pfad: '/freizeiten/neu', route: '/freizeiten/neu' });
-const bearbeiten = () => renderMitAuth(<FreizeitForm />, { ...koord, pfad: '/freizeiten/f1/bearbeiten', route: '/freizeiten/:id/bearbeiten' });
+/** Wartet, bis Formular UND die nachgeladenen Listen (Orte, Schlagworte) da sind – sonst sind Auswahlfelder noch leer. */
+async function bereit() {
+  await screen.findByLabelText('Name');
+  await screen.findByRole('option', { name: 'Strandbad' });
+  await screen.findByLabelText('Großfreizeit');
+}
+const neu = async () => { renderMitAuth(<FreizeitForm />, { ...koord, pfad: '/freizeiten/neu', route: '/freizeiten/neu' }); await bereit(); };
+const bearbeiten = async () => { renderMitAuth(<FreizeitForm />, { ...koord, pfad: '/freizeiten/f1/bearbeiten', route: '/freizeiten/:id/bearbeiten' }); await bereit(); };
 
 describe('Neue Freizeit', () => {
   it('zeigt Fehler, wenn Pflichtangaben fehlen, und speichert nicht', async () => {
-    neu();
+    await neu();
     await userEvent.click(await screen.findByRole('button', { name: 'Freizeit anlegen' }));
     expect(screen.getByText('Bitte einen Namen eingeben.')).toBeInTheDocument();
     expect(screen.getByText('Bitte das Startdatum angeben.')).toBeInTheDocument();
@@ -35,7 +41,7 @@ describe('Neue Freizeit', () => {
   });
 
   it('legt mit gültigen Angaben an und wechselt zur neuen Freizeit', async () => {
-    neu();
+    await neu();
     await userEvent.type(await screen.findByLabelText('Name'), '  Herbst im Siedlerheim ');
     await userEvent.type(screen.getByLabelText('Start'), '2027-10-11');
     await userEvent.type(screen.getByLabelText('Ende'), '2027-10-15');
@@ -52,7 +58,7 @@ describe('Neue Freizeit', () => {
   });
 
   it('prüft Ende nach Start und Ferienwoche', async () => {
-    neu();
+    await neu();
     await userEvent.type(await screen.findByLabelText('Name'), 'X');
     await userEvent.type(screen.getByLabelText('Start'), '2027-10-15');
     await userEvent.type(screen.getByLabelText('Ende'), '2027-10-11');
@@ -62,7 +68,7 @@ describe('Neue Freizeit', () => {
   });
 
   it('Ferienwoche ist erst nach der Ferienzeit wählbar und zeigt genau so viele Wochen wie erlaubt', async () => {
-    neu();
+    await neu();
     const woche = await screen.findByLabelText('Ferienwoche');
     expect(woche).toBeDisabled();
     await userEvent.selectOptions(screen.getByLabelText('Ferienzeit'), 'ostern');
@@ -72,7 +78,7 @@ describe('Neue Freizeit', () => {
   });
 
   it('ein Wechsel der Ferienzeit setzt die Woche zurück (keine ungültige Kombination)', async () => {
-    neu();
+    await neu();
     await userEvent.selectOptions(await screen.findByLabelText('Ferienzeit'), 'sommer');
     await userEvent.selectOptions(screen.getByLabelText('Ferienwoche'), '5');
     await userEvent.selectOptions(screen.getByLabelText('Ferienzeit'), 'ostern');
@@ -81,7 +87,7 @@ describe('Neue Freizeit', () => {
 
   it('zeigt Serverfehler verständlich', async () => {
     vi.mocked(api.speichereFreizeit).mockRejectedValue({ code: '42501', message: 'row-level security' });
-    neu();
+    await neu();
     await userEvent.type(await screen.findByLabelText('Name'), 'X');
     await userEvent.type(screen.getByLabelText('Start'), '2027-10-11');
     await userEvent.type(screen.getByLabelText('Ende'), '2027-10-15');
@@ -90,7 +96,7 @@ describe('Neue Freizeit', () => {
   });
 
   it('bietet zum Anlegen kein Löschen an', async () => {
-    neu();
+    await neu();
     await screen.findByLabelText('Name');
     expect(screen.queryByText('Freizeit löschen')).not.toBeInTheDocument();
   });
@@ -105,7 +111,7 @@ describe('Freizeit bearbeiten', () => {
   });
 
   it('füllt das Formular mit den vorhandenen Werten', async () => {
-    bearbeiten();
+    await bearbeiten();
     expect(await screen.findByLabelText('Name')).toHaveValue('Sommer-Sause');
     expect(screen.getByLabelText('Start')).toHaveValue('2027-07-05');
     expect(screen.getByLabelText('Ferienzeit')).toHaveValue('sommer');
@@ -118,7 +124,7 @@ describe('Freizeit bearbeiten', () => {
   });
 
   it('speichert Änderungen unter der vorhandenen ID', async () => {
-    bearbeiten();
+    await bearbeiten();
     const name = await screen.findByLabelText('Name');
     await userEvent.clear(name);
     await userEvent.type(name, 'Sommer-Sause (neu)');
@@ -127,7 +133,7 @@ describe('Freizeit bearbeiten', () => {
   });
 
   it('Löschen verlangt den Namen zur Bestätigung', async () => {
-    bearbeiten();
+    await bearbeiten();
     await userEvent.click(await screen.findByRole('button', { name: 'Löschen …' }));
     expect(screen.getByText('Das lässt sich nicht rückgängig machen.')).toBeInTheDocument();
     const loeschen = screen.getByRole('button', { name: 'Endgültig löschen' });
@@ -144,7 +150,7 @@ describe('Freizeit bearbeiten', () => {
 
   it('unbekannte Freizeit: verständliche Meldung statt Formular', async () => {
     vi.mocked(api.holeFreizeit).mockResolvedValue(null);
-    bearbeiten();
+    renderMitAuth(<FreizeitForm />, { ...koord, pfad: '/freizeiten/f1/bearbeiten', route: '/freizeiten/:id/bearbeiten' });
     expect(await screen.findByRole('alert')).toHaveTextContent('nicht gefunden');
     expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
   });

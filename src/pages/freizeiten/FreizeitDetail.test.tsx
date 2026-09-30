@@ -163,6 +163,7 @@ describe('Team-Reiter', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     zeige({ ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } }, '/freizeiten/f1/team');
     await screen.findByText('Tom Zeh');
+    await screen.findByRole('option', { name: /Neu, Ida/ });        // Personenliste ist geladen
 
     const auswahl = screen.getByLabelText('Person');
     expect(within(auswahl).getAllByRole('option').map((o) => o.textContent)).toEqual(['– bitte wählen –', 'Neu, Ida (FSJ)']);
@@ -195,7 +196,8 @@ describe('Team-Reiter', () => {
     vi.mocked(api.listePersonen).mockResolvedValue([{ id: 'p3', vorname: 'Ida', nachname: 'Neu', kategorie: 'FSJ', aktiv: true }]);
     vi.mocked(api.teamHinzufuegen).mockRejectedValue({ code: '42501', message: 'row-level security' });
     zeige({ ich: { ist_koordination: true } }, '/freizeiten/f1/team');
-    await userEvent.selectOptions(await screen.findByLabelText('Person'), 'p3');
+    await screen.findByRole('option', { name: /Neu, Ida/ });
+    await userEvent.selectOptions(screen.getByLabelText('Person'), 'p3');
     await userEvent.click(screen.getByRole('button', { name: 'Zuordnen' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Dafür fehlt die Berechtigung.');
   });
