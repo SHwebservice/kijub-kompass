@@ -18,6 +18,7 @@ export function Mehr() {
             <h2>Koordination</h2>
             <ul className="list">
               <li><Link className="list__item" to="/personen">Personen &amp; Zugänge</Link></li>
+              <li><Link className="list__item" to="/import">KiJuKo-Import</Link></li>
             </ul>
           </Card>
         )}

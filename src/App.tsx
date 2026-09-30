@@ -9,6 +9,7 @@ import { Heute, Platzhalter } from './pages/Heute';
 import { Mehr } from './pages/Mehr';
 import { Personen } from './pages/Personen';
 import { PasswortAendern } from './pages/PasswortAendern';
+import { KijukoImportSeite } from './pages/KijukoImport';
 
 function Zugang() {
   const { status, fehler, mussPasswortAendern, anmelden, passwortAendern, abmelden } = useAuth();
@@ -57,6 +58,7 @@ function Geschuetzt() {
         <Route path="katalog/*" element={<Platzhalter titel="Katalog" text="Programmpunkte, Favoriten und Bewertungen folgen in Phase 3." />} />
         <Route path="mehr" element={<Mehr />} />
         <Route path="personen" element={rollen?.koordination ? <Personen /> : <Navigate to="/" replace />} />
+        <Route path="import" element={rollen?.koordination ? <KijukoImportSeite /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

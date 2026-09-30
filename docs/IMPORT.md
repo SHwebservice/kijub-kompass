@@ -3,6 +3,34 @@
 Stand: 2026-09-30 · Grundlage: Backup `KiJuKo-Backup-2026-09-30.json` (469 KB) und `js/backup-import.js` des Altcodes.
 **Entscheidung:** KiJuKo2.1 bleibt die Offline-Verwaltungssoftware; der Kompass importiert dauerhaft aus ihr, und der Import wird gegenüber dem Altcode erweitert.
 
+## Stand der Umsetzung (Phase 3)
+
+**Umgesetzt und getestet:** Parser (`src/import/kijuko.ts`), Datenbankfunktion `fn_kijuko_import` (Migration `0010`),
+Oberfläche *Mehr → KiJuKo-Import* (nur Koordination). Maßgeblich für das Verhalten sind Code und Tests
+(`src/import/kijuko.test.ts`, `tests/db/import.test.ts`); dieses Dokument beschreibt Ziel und Regeln.
+
+**Ablauf:** Datei wählen → der Browser prüft sie und baut einen schlanken Plan (nur benötigte Felder) → die Datenbank
+rechnet den kompletten Import als **Probelauf** durch und macht ihn wieder rückgängig (Vorschau = exakt das, was der echte Lauf tut)
+→ Entscheidungen treffen → **Import durchführen** (eine Transaktion, alles oder nichts, Protokoll in `import_laeufe`).
+
+**Feldregeln** (neu = KiJuKo, ist = Kompass, stand = Wert beim letzten Import):
+leere KiJuKo-Werte überschreiben nie · ist = neu: nichts · neu = stand (KiJuKo unverändert): Kompass-Wert bleibt, auch bei Abweichung ·
+ist leer: neu übernehmen · ist = stand (Kompass nicht angefasst): neu übernehmen · sonst **Konflikt** (Koordination entscheidet; ohne Entscheidung
+bleibt der Kompass-Wert und der Konflikt offen).
+
+**Abgleich mit Vorhandenem:** über die KiJuKo-ID; fehlt sie, über Mail-Adresse (Personen), Name (Orte) bzw. Name + Startdatum (Freizeiten) –
+so entstehen keine Doppelten. Kompass-eigene Angaben (Koordinations-Flag, Farbe, Rollen im Team, Wochenpläne, Hinweise …) werden nie berührt.
+
+**Was wegfällt:** nie stillschweigend gelöscht. Personen und Freizeiten werden markiert (`kijuko_entfallen_am`), entfallene Zuteilungen
+nur auf Häkchen entfernt. Im Kompass bewusst entfernte Zuteilungen kommen nicht zurück.
+
+**Bekannte Grenzen:** Der Import setzt die Koordination nie außer Kraft – selbst auf ausdrückliche Entscheidung lässt sich die letzte aktive Koordination
+nicht deaktivieren. Ändert sich die Mail-Adresse einer Person mit Login-Konto, läuft das Konto unter der alten Adresse weiter (Hinweis in der Vorschau).
+Am echten Backup (Stand 2026-09-30) geprüft: 10 Orte, 77 Personen, 44 Freizeiten, 224 Zuteilungen (66 Leitungen), 105 Verpflegungszeilen, 33 Materialposten;
+zwei Datensätze übersprungen (Hauptamtliche ohne Mail, Beispielzeile); ein zweiter Lauf ändert nichts.
+
+---
+
 ## 1. Was das Backup enthält (gemessen)
 
 | Schlüssel | Anzahl | Inhalt |

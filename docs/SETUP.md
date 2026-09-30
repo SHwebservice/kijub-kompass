@@ -36,6 +36,7 @@ Variante B – ohne CLI: Im Dashboard unter **SQL Editor** den Inhalt von `supab
 
 **Projekt läuft schon und es kommen neue Migrationen dazu?** Dann nur die neue Datei aus `supabase/migrations/` (z. B. `0009_person_entfernen.sql`)
 im SQL Editor ausführen – nicht die Sammeldatei, die ist nur für leere Projekte.
+Aktueller Stand der Migrationen: `0001` bis `0010` (`0010` = KiJuKo-Import).
 
 ### Erste Koordination anlegen **[du]**
 
