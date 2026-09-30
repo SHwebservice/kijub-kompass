@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
-import { useLaden, type Geladen } from '../../lib/laden';
+import type { Geladen } from '../../lib/laden';
 import { formatMenge } from '../../freizeiten/lebensmittel';
-import { listeOrtNamen, listeTeamZeilen, listeTreffNamen } from '../../heute/api';
-import { knappeJeOrt, nichtGeseheneImTeam, personenText, wuenscheJeTreff, type BestandZeile, type OffeneNotiz, type WunschZeile } from '../../heute/logik';
+import { knappeJeOrt, nichtGeseheneImTeam, personenText, wuenscheJeTreff, type BestandZeile, type OffeneNotiz, type TeamZeile, type WunschZeile } from '../../heute/logik';
 import { formatKurz } from '../../freizeiten/logik';
 import { Alert, Badge, Card } from '../../components/ui';
 
@@ -12,15 +11,13 @@ interface FreizeitOrt { id: string; name: string; ort_id: string | null }
  * Für Leitungen (und die Koordination): knappe Lebensmittel an den Orten der aktuellen Freizeiten und Hinweise,
  * die noch nicht alle TeamerInnen gesehen haben.
  */
-export function LeitungSicht({ heute, freizeiten, bestand, notizen }: { heute: string; freizeiten: FreizeitOrt[]; bestand: Geladen<BestandZeile[]>; notizen: Geladen<OffeneNotiz[]> }) {
+export function LeitungSicht({ heute, freizeiten, bestand, notizen, orte, team }: { heute: string; freizeiten: FreizeitOrt[]; bestand: Geladen<BestandZeile[]>; notizen: Geladen<OffeneNotiz[]>; orte: Record<string, string>; team: TeamZeile[] }) {
   const ids = freizeiten.map((f) => f.id);
-  const orte = useLaden(listeOrtNamen, 'heute-orte');
-  const team = useLaden(() => listeTeamZeilen(ids), `heute-leitung-team-${ids.join(',')}`);
 
   const ortIds = new Set(freizeiten.map((f) => f.ort_id).filter((o): o is string => !!o));
   const knapp = knappeJeOrt(bestand.daten ?? [], ortIds);
-  const nichtGesehen = nichtGeseheneImTeam(notizen.daten ?? [], team.daten ?? [], ids, heute);
-  const fehler = bestand.fehler ?? notizen.fehler ?? team.fehler;
+  const nichtGesehen = nichtGeseheneImTeam(notizen.daten ?? [], team, ids, heute);
+  const fehler = bestand.fehler ?? notizen.fehler;
 
   if (!fehler && knapp.length === 0 && nichtGesehen.length === 0) return null;
 
@@ -40,7 +37,7 @@ export function LeitungSicht({ heute, freizeiten, bestand, notizen }: { heute: s
               return (
                 <li key={o.ort_id} className="list__item" style={{ display: 'block' }}>
                   <div className="row" style={{ justifyContent: 'space-between' }}>
-                    {f ? <Link className="list__title" to={`/freizeiten/${f.id}/lebensmittel`}>{orte.daten?.[o.ort_id] ?? f.name}</Link> : <strong>{orte.daten?.[o.ort_id] ?? 'Ort'}</strong>}
+                    {f ? <Link className="list__title" to={`/freizeiten/${f.id}/lebensmittel`}>{orte[o.ort_id] ?? f.name}</Link> : <strong>{orte[o.ort_id] ?? 'Ort'}</strong>}
                     <span>{o.leer > 0 && <Badge ton="danger">{o.leer} leer</Badge>} {o.knapp > 0 && <Badge ton="warning">{o.knapp} knapp</Badge>}</span>
                   </div>
                   <div className="list__meta">
@@ -74,8 +71,7 @@ export function LeitungSicht({ heute, freizeiten, bestand, notizen }: { heute: s
 }
 
 /** Für Treffleitungen (und die Koordination): offene Dienstwünsche der nächsten Wochen. */
-export function TreffleitungSicht({ wuensche }: { wuensche: Geladen<WunschZeile[]> }) {
-  const namen = useLaden(listeTreffNamen, 'heute-treffnamen');
+export function TreffleitungSicht({ wuensche, treffNamen }: { wuensche: Geladen<WunschZeile[]>; treffNamen: Record<string, string> }) {
   const jeTreff = wuenscheJeTreff(wuensche.daten ?? []);
 
   if (!wuensche.fehler && jeTreff.length === 0) return null;
@@ -88,7 +84,7 @@ export function TreffleitungSicht({ wuensche }: { wuensche: Geladen<WunschZeile[
         {jeTreff.map((w) => (
           <li key={w.treff_id} className="list__item">
             <div className="list__main">
-              <Link className="list__title" to={`/treffs/${w.treff_id}/dienstplan`}>{namen.daten?.[w.treff_id] ?? 'Treff'}</Link>
+              <Link className="list__title" to={`/treffs/${w.treff_id}/dienstplan`}>{treffNamen[w.treff_id] ?? 'Treff'}</Link>
               <div className="list__meta"><span>{personenText(w.anzahl, 'Wunsch wartet', 'Wünsche warten')} auf Antwort, der nächste für {formatKurz(w.erster)}</span></div>
             </div>
             <Badge ton="warning">{w.anzahl}</Badge>

@@ -41,3 +41,8 @@ export function useLaden<T>(laden: () => Promise<T>, schluessel: string): Gelade
     neuLaden: () => setVersion((v) => v + 1),
   };
 }
+
+/** Ein Ausschnitt eines Ergebnisses (z. B. nur die Notizen aus dem Gesamtergebnis der Startseite) mit demselben Lade- und Fehlerzustand. */
+export function teil<T, U>(g: Geladen<T>, aus: (t: T) => U): Geladen<U> {
+  return { daten: g.daten === null ? null : aus(g.daten), fehler: g.fehler, laedt: g.laedt, neuLaden: g.neuLaden };
+}

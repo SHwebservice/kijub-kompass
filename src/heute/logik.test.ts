@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   aktuelleFreizeiten, darfBestaetigen, gruppiereOffene, knappeJeOrt, laeuftHeute, nichtGeseheneImTeam, offeneFuerMich, ohneLeitung, personenText,
   planNachFreizeit, wuenscheJeTreff, type BestandZeile, type OffeneNotiz, type RollenAuszug, type TeamZeile,
+  vorZeit,
 } from './logik';
 
 const HEUTE = '2027-07-07';
@@ -167,5 +168,22 @@ describe('aktuelleFreizeiten und Helfer', () => {
   it('personenText', () => {
     expect(personenText(1, 'Person', 'Personen')).toBe('1 Person');
     expect(personenText(0, 'Person', 'Personen')).toBe('0 Personen');
+  });
+});
+
+describe('vorZeit', () => {
+  const jetzt = new Date('2027-07-07T12:00:00Z');
+  const vor = (min: number) => new Date(jetzt.getTime() - min * 60000).toISOString();
+  it('gerade eben, Minuten, Stunden, gestern, Tage', () => {
+    expect(vorZeit(vor(0), jetzt)).toBe('gerade eben');
+    expect(vorZeit(vor(1), jetzt)).toBe('vor 1 Min.');
+    expect(vorZeit(vor(59), jetzt)).toBe('vor 59 Min.');
+    expect(vorZeit(vor(60), jetzt)).toBe('vor 1 Std.');
+    expect(vorZeit(vor(23 * 60), jetzt)).toBe('vor 23 Std.');
+    expect(vorZeit(vor(24 * 60), jetzt)).toBe('gestern');
+    expect(vorZeit(vor(4 * 24 * 60), jetzt)).toBe('vor 4 Tagen');
+  });
+  it('Zeiten in der Zukunft (Uhr weicht ab) gelten als „gerade eben“', () => {
+    expect(vorZeit(vor(-5), jetzt)).toBe('gerade eben');
   });
 });

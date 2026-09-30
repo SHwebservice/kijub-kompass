@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
-import { useLaden } from '../../lib/laden';
+import type { Geladen } from '../../lib/laden';
 import { formatDatum, type FreizeitKurz } from '../../freizeiten/logik';
-import { listePlanHeute } from '../../heute/api';
-import { planNachFreizeit } from '../../heute/logik';
+import { planNachFreizeit, type PlanPunkt } from '../../heute/logik';
 import type { MeinDienst } from '../../treffs/api';
 import { dienstZeit } from '../../treffs/dienstplan';
 import { Alert, Badge, Card } from '../../components/ui';
@@ -12,13 +11,12 @@ interface Props {
   /** Freizeiten, die heute laufen (schon auf die der Person eingegrenzt). */
   freizeiten: (FreizeitKurz & { ort_name: string | null })[];
   dienste: MeinDienst[];
-  /** Die Wochenplan-Einträge dürfen nur Team und Koordination sehen; die Datenbank liefert sonst nichts. */
+  /** Wochenplan von heute für diese Freizeiten (die Datenbank liefert nur, was die Person sehen darf). */
+  plan: Geladen<PlanPunkt[]>;
 }
 
 /** „Heute“: was läuft heute bei dir – laufende Freizeiten mit Tagesprogramm und die Dienste des Tages. */
-export function HeuteTag({ heute, freizeiten, dienste }: Props) {
-  const ids = freizeiten.map((f) => f.id);
-  const plan = useLaden(() => listePlanHeute(ids, heute), `heute-plan-${heute}-${ids.join(',')}`);
+export function HeuteTag({ heute, freizeiten, dienste, plan }: Props) {
   const nachFreizeit = planNachFreizeit(plan.daten ?? []);
   const heuteDienste = dienste.filter((d) => d.datum === heute);
 

@@ -1,16 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Alert, Badge, Card, EmptyState, PageHeader, Spinner } from '../components/ui';
 import { useAuth } from '../lib/auth-kontext';
-import { useLaden } from '../lib/laden';
+import { teil, useLaden } from '../lib/laden';
 import { rollenBezeichnungen } from '../lib/rollen';
-import { listeFreizeiten, offeneBewerbungen } from '../freizeiten/api';
+import { listeFreizeiten } from '../freizeiten/api';
 import { formatKurz, heuteIso, phase, tageBisStart, zeitraumText } from '../freizeiten/logik';
-import { listeVorschlaege } from '../katalog/api';
-import { listeKnappeLebensmittel, listeNotizenFuerHeute, listeOffeneWuensche, zaehleEingereichteNachweise } from '../heute/api';
+import { ladeHeute, quittiereBesuch } from '../heute/api';
 import { baueKacheln } from '../heute/kacheln';
 import { aktuelleFreizeiten, knappeJeOrt, laeuftHeute, offeneFuerMich } from '../heute/logik';
 import { listeMeineDienste, listeTreffs } from '../treffs/api';
-import { listeProtokollStand } from '../tagesprotokoll/api';
 import { protokollFaellig } from '../tagesprotokoll/logik';
 import { addTage, dienstZeit } from '../treffs/dienstplan';
 import { Bewerben } from './heute/Bewerben';
@@ -18,6 +16,7 @@ import { HeuteTag } from './heute/HeuteTag';
 import { KoordSicht } from './heute/KoordSicht';
 import { LeitungSicht, TreffleitungSicht } from './heute/LeitungSicht';
 import { MitteilungsHinweis } from './heute/MitteilungsHinweis';
+import { NeuSeitBesuch } from './heute/NeuSeitBesuch';
 import { ProtokollKarte } from './heute/ProtokollKarte';
 import { Schnellzugriff } from './heute/Schnellzugriff';
 import { WartetAufDich } from './heute/WartetAufDich';
@@ -52,33 +51,45 @@ export function Heute() {
   const notizTreffIds = tk ? (treffs.daten ?? []).map((t) => t.id) : meineTreffIds;
   const fIds = notizFreizeiten.map((f) => f.id);
 
-  const notizen = useLaden(() => listeNotizenFuerHeute(fIds, notizTreffIds), `heute-notizen-${fIds.join(',')}-${notizTreffIds.join(',')}`);
-  const bestand = useLaden(async () => (istLeitung ? listeKnappeLebensmittel() : []), `heute-bestand-${istLeitung}`);
-  const wuensche = useLaden(async () => (istTreffleitung ? listeOffeneWuensche(tk ? null : (rollen?.treffleitungen ?? []), heute) : []), `heute-wuensche-${istTreffleitung}-${tk}-${heute}`);
-  const bewerbungen = useLaden(async () => (fk ? offeneBewerbungen() : []), `heute-bewerbungen-${fk}`);
-  const vorschlaege = useLaden(async () => (koord ? listeVorschlaege() : []), `heute-vorschlaege-${koord}`);
-  const nachweise = useLaden(async () => (istTreffleitung ? zaehleEingereichteNachweise() : 0), `heute-nachweise-${istTreffleitung}`);
   const kachelTreffs = tk ? treffs.daten ?? [] : (treffs.daten ?? []).filter((t) => meineTreffIds.includes(t.id));
   const kachelTreffIds = kachelTreffs.map((t) => t.id);
-  const stand = useLaden(() => listeProtokollStand(kachelTreffIds, heute), `heute-protokollstand-${kachelTreffIds.join(',')}-${heute}`);
+  const laufendIds = (fk ? aktuelle : aktuelleMeine).filter((f) => laeuftHeute(f, heute)).map((f) => f.id);
+  const leitungIds = fk ? aktuelle.map((f) => f.id) : aktuelleMeine.filter((f) => rollen?.leitungFreizeiten.includes(f.id)).map((f) => f.id);
+  const teamIds = [...new Set([...leitungIds, ...(fk ? aktuelle.map((f) => f.id) : [])])];
+
+  // Alles Übrige in EINEM Aufruf (fn_heute) – erst, wenn klar ist, welche Freizeiten und Treffs gemeint sind
+  const bereit = !freizeiten.laedt && !treffs.laedt;
+  const anfrage = {
+    heute, notizFreizeiten: fIds, notizTreffs: notizTreffIds, teamFreizeiten: teamIds, planFreizeiten: laufendIds, kachelTreffs: kachelTreffIds,
+    bestand: istLeitung, nachweise: istTreffleitung, bewerbungen: fk, vorschlaege: koord, fehler: koord, besuch: true,
+    ...(istTreffleitung ? { wuensche: tk ? ('alle' as const) : (rollen?.treffleitungen ?? []) } : {}),
+  };
+  const stand = useLaden(async () => (bereit ? ladeHeute(anfrage) : null), `heute-stand-${bereit}-${JSON.stringify(anfrage)}`);
+  const notizen = teil(stand, (d) => d?.notizen ?? []);
+  const bestand = teil(stand, (d) => d?.bestand ?? []);
+  const wuensche = teil(stand, (d) => d?.wuensche ?? []);
+  const bewerbungen = teil(stand, (d) => d?.bewerbungen ?? 0);
+  const vorschlaege = teil(stand, (d) => d?.vorschlaege ?? 0);
+  const plan = teil(stand, (d) => d?.plan ?? []);
   if (!ich || !rollen) return null;
 
   const meine = alle.filter((f) => meineIds.has(f.id) && phase(f, heute) !== 'vergangen' && f.status === 'geplant').sort((a, b) => a.start_datum.localeCompare(b.start_datum) || a.name.localeCompare(b.name, 'de'));
   const laufendHeute = (fk ? aktuelle : aktuelleMeine).filter((f) => laeuftHeute(f, heute));
   const leitungFreizeiten = fk ? aktuelle : aktuelleMeine.filter((f) => rollen.leitungFreizeiten.includes(f.id));
+  const d = stand.daten;
   const kommendeDienste = (dienste.daten ?? []).filter((d) => d.datum > heute);
   const diensteHeute = (dienste.daten ?? []).filter((d) => d.datum === heute).length;
   const nichtsZuTun = meineIds.size === 0 && !hatTreffs && !koord;     // gar keine Zuordnung und keine Koordination
 
   // Zahlen für die Kacheln
-  const offen = offeneFuerMich(notizen.daten ?? [], ich.id, rollen, heute);
+  const offen = offeneFuerMich(d?.notizen ?? [], ich.id, rollen, heute);
   const ortIds = new Set(leitungFreizeiten.map((f) => f.ort_id).filter((o): o is string => !!o));
-  const knapp = knappeJeOrt(bestand.daten ?? [], ortIds).reduce((n, o) => n + o.artikel.length, 0);
+  const knapp = knappeJeOrt(d?.bestand ?? [], ortIds).reduce((n, o) => n + o.artikel.length, 0);
 
   const jetzt = new Date();
   const uhrzeit = `${String(jetzt.getHours()).padStart(2, '0')}:${String(jetzt.getMinutes()).padStart(2, '0')}`;
-  const protokolliert = new Set(stand.daten?.protokolliert ?? []);
-  const ohneProtokoll = stand.daten ? kachelTreffs.filter((t) => protokollFaellig(t.oeffnungszeiten, heute, uhrzeit) && !protokolliert.has(t.id)) : [];
+  const protokolliert = new Set(d?.protokolliert ?? []);
+  const ohneProtokoll = d ? kachelTreffs.filter((t) => protokollFaellig(t.oeffnungszeiten, heute, uhrzeit) && !protokolliert.has(t.id)) : [];
 
   const kacheln = baueKacheln({
     freizeitkoordination: fk, treffkoordination: tk, bewerbend: rollen.bewerbend, darfTreffmappe: rollen.darfTreffmappe,
@@ -89,9 +100,8 @@ export function Heute() {
     zaehler: {
       hinweise: offen.filter((n) => n.freizeit_id !== null).length,          // Hinweise und Absprachen der Freizeiten, die noch bestätigt werden sollen
       treffAbsprachen: offen.filter((n) => n.treff_id !== null).length,
-      knapp, wuensche: wuensche.daten?.length ?? 0, bewerbungen: bewerbungen.daten?.length ?? 0,
-      vorschlaege: (vorschlaege.daten ?? []).filter((v) => v.status === 'offen').length, nachweise: nachweise.daten ?? 0, diensteHeute,
-      protokollFehlt: ohneProtokoll.length, offeneNotizen: Object.values(stand.daten?.offeneNotizen ?? {}).reduce((n, x) => n + x, 0),
+      knapp, wuensche: d?.wuensche.length ?? 0, bewerbungen: d?.bewerbungen ?? 0, vorschlaege: d?.vorschlaege ?? 0, nachweise: d?.nachweise ?? 0, diensteHeute,
+      protokollFehlt: ohneProtokoll.length, offeneNotizen: Object.values(d?.offeneNotizen ?? {}).reduce((n, x) => n + x, 0), fehler: d?.fehler ?? 0,
     },
   });
   const bezeichnungen = rollenBezeichnungen(rollen);
@@ -107,15 +117,16 @@ export function Heute() {
       <div className="stack">
         <MitteilungsHinweis />
         <Schnellzugriff gruppen={kacheln} />
-        {freizeiten.fehler && <Alert ton="error">{freizeiten.fehler}</Alert>}
+        {(freizeiten.fehler ?? stand.fehler) && <Alert ton="error">{freizeiten.fehler ?? stand.fehler}</Alert>}
+        <NeuSeitBesuch seit={d?.seit ?? null} neu={d?.neu ?? []} gesamt={d?.neuGesamt ?? 0} gesehen={async () => { await quittiereBesuch(); stand.neuLaden(); }} />
 
-        <HeuteTag heute={heute} freizeiten={laufendHeute} dienste={dienste.daten ?? []} />
+        <HeuteTag heute={heute} freizeiten={laufendHeute} dienste={dienste.daten ?? []} plan={plan} />
         <WartetAufDich heute={heute} notizen={notizen} />
         <ProtokollKarte treffs={ohneProtokoll} />
 
-        {istLeitung && <LeitungSicht heute={heute} freizeiten={leitungFreizeiten} bestand={bestand} notizen={notizen} />}
-        {istTreffleitung && <TreffleitungSicht wuensche={wuensche} />}
-        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} bewerbungen={bewerbungen} vorschlaege={vorschlaege} />}
+        {istLeitung && <LeitungSicht heute={heute} freizeiten={leitungFreizeiten} bestand={bestand} notizen={notizen} orte={d?.orte ?? {}} team={d?.team ?? []} />}
+        {istTreffleitung && <TreffleitungSicht wuensche={wuensche} treffNamen={d?.treffNamen ?? {}} />}
+        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} bewerbungen={bewerbungen} vorschlaege={vorschlaege} team={d?.team ?? []} />}
 
         {meineIds.size > 0 && (
           <Card>

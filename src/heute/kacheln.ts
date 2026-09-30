@@ -33,9 +33,11 @@ export interface Zaehler {
   protokollFehlt: number;
   /** Offene Notizen und Listen in den Treffs. */
   offeneNotizen: number;
+  /** Offene Fehlermeldungen der App (nur Koordination). */
+  fehler: number;
 }
 
-export const KEINE_ZAEHLER: Zaehler = { hinweise: 0, treffAbsprachen: 0, knapp: 0, wuensche: 0, bewerbungen: 0, vorschlaege: 0, nachweise: 0, diensteHeute: 0, protokollFehlt: 0, offeneNotizen: 0 };
+export const KEINE_ZAEHLER: Zaehler = { hinweise: 0, treffAbsprachen: 0, knapp: 0, wuensche: 0, bewerbungen: 0, vorschlaege: 0, nachweise: 0, diensteHeute: 0, protokollFehlt: 0, offeneNotizen: 0, fehler: 0 };
 
 export interface KachelKontext {
   /** Freizeitenkoordination: alle Freizeiten, Bewerbungen, Lebensmittel, KiJuKo-Import. */
@@ -142,6 +144,7 @@ export function baueKacheln(k: KachelKontext): KachelGruppe[] {
         ...(fk ? [kachel('kijuko', 'KiJuKo-Import', '🔄', '/import')] : []),
         kachel('katalog-import', 'Katalog importieren', '📦', '/katalog/import'),
         kachel('quiz-fragen', 'Quiz-Fragen', '🧠', '/quiz/verwalten'),
+        kachel('fehler', 'Fehlermeldungen', '🐞', '/fehler', z.fehler),
       ],
     });
   }

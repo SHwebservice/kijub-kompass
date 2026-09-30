@@ -3,9 +3,9 @@ import { screen, within } from '@testing-library/react';
 import * as fzApi from '../freizeiten/api';
 import * as treffApi from '../treffs/api';
 import * as heuteApi from '../heute/api';
-import * as katalogApi from '../katalog/api';
+import { leererStand } from '../test-heute';
+import type { HeuteDaten } from '../heute/api';
 import * as geraet from '../mitteilungen/geraet';
-import * as protokollApi from '../tagesprotokoll/api';
 import { Heute } from './Heute';
 import { renderMitAuth, type Szene } from '../test-utils';
 import { freizeit, inTagen, treff } from '../test-daten';
@@ -14,9 +14,9 @@ import type { OffeneNotiz } from '../heute/logik';
 vi.mock('../freizeiten/api');
 vi.mock('../treffs/api');
 vi.mock('../heute/api');
-vi.mock('../katalog/api');
 vi.mock('../mitteilungen/geraet');
-vi.mock('../tagesprotokoll/api');
+
+let stand: HeuteDaten;
 
 const laeuft = freizeit({ id: 'f1', name: 'Sommer-Sause', start_datum: inTagen(-1), ende_datum: inTagen(3), ort_id: 'o1', ort_name: 'Mörscher Au', ferienzeitraum: 'sommer', ferienwoche: 1 });
 
@@ -36,19 +36,11 @@ beforeEach(() => {
   vi.mocked(fzApi.listeFreizeiten).mockResolvedValue([laeuft]);
   vi.mocked(fzApi.meineBewerbungen).mockResolvedValue([]);
   vi.mocked(fzApi.holeVorlaufTage).mockResolvedValue(7);
-  vi.mocked(fzApi.offeneBewerbungen).mockResolvedValue([]);
   vi.mocked(treffApi.listeTreffs).mockResolvedValue([{ ...treff({ id: 't1', name: 'Kindertreff' }), oeffnungszeiten: [] }]);
   vi.mocked(treffApi.listeMeineDienste).mockResolvedValue([]);
-  vi.mocked(heuteApi.listeNotizenFuerHeute).mockResolvedValue([]);
-  vi.mocked(heuteApi.listeTeamZeilen).mockResolvedValue([]);
-  vi.mocked(heuteApi.listePlanHeute).mockResolvedValue([]);
-  vi.mocked(heuteApi.listeKnappeLebensmittel).mockResolvedValue([]);
-  vi.mocked(heuteApi.listeOffeneWuensche).mockResolvedValue([]);
-  vi.mocked(heuteApi.zaehleEingereichteNachweise).mockResolvedValue(0);
-  vi.mocked(heuteApi.listeOrtNamen).mockResolvedValue({ o1: 'Mörscher Au' });
-  vi.mocked(heuteApi.listeTreffNamen).mockResolvedValue({ t1: 'Kindertreff' });
-  vi.mocked(katalogApi.listeVorschlaege).mockResolvedValue([]);
-  vi.mocked(protokollApi.listeProtokollStand).mockResolvedValue({ protokolliert: [], offeneNotizen: {} });
+  stand = { ...leererStand(), orte: { o1: 'Mörscher Au' }, treffNamen: { t1: 'Kindertreff' } };
+  vi.mocked(heuteApi.ladeHeute).mockImplementation(async () => ({ ...stand }));
+  vi.mocked(heuteApi.quittiereBesuch).mockResolvedValue(undefined);
   vi.mocked(geraet.pruefeStatus).mockResolvedValue('an');
   vi.mocked(geraet.istApple).mockReturnValue(false);
 });
@@ -80,7 +72,7 @@ describe('Startseite: Schnellzugriff', () => {
   });
 
   it('die Zahl der offenen Hinweise hängt an der Kachel „Hinweise“', async () => {
-    vi.mocked(heuteApi.listeNotizenFuerHeute).mockResolvedValue([notiz({ id: '1' }), notiz({ id: '2' }), notiz({ id: '3', bestaetigt_von: ['ich'] })]);
+    stand.notizen = [notiz({ id: '1' }), notiz({ id: '2' }), notiz({ id: '3', bestaetigt_von: ['ich'] })];
     zeige(teamer);
     expect(await screen.findByRole('link', { name: /Hinweise\s*Offen:\s*2/ })).toHaveAttribute('href', '/freizeiten/f1/hinweise');
   });
@@ -96,9 +88,9 @@ describe('Startseite: Schnellzugriff', () => {
   });
 
   it('Leitung: Lebensmittel-Kachel mit der Zahl knapper Artikel (nur am Ort der eigenen Freizeit)', async () => {
-    vi.mocked(heuteApi.listeKnappeLebensmittel).mockResolvedValue([
+    stand.bestand = [
       { ort_id: 'o1', name: 'Milch', einheit: 'l', rest: 1, status: 'knapp' }, { ort_id: 'o1', name: 'Reis', einheit: 'kg', rest: 0, status: 'leer' }, { ort_id: 'o9', name: 'Salz', einheit: null, rest: 0, status: 'leer' },
-    ] as never);
+    ] as never;
     zeige(leitung);
     expect(await screen.findByRole('link', { name: /Lebensmittel\s*Offen:\s*2/ })).toHaveAttribute('href', '/freizeiten/f1/lebensmittel');
   });
@@ -116,8 +108,8 @@ describe('Startseite: Schnellzugriff', () => {
   });
 
   it('Treffleitung: Wünsche, Monatsplan, Abwesenheit & Feiertage, Nachweise mit Zahl eingereichter', async () => {
-    vi.mocked(heuteApi.listeOffeneWuensche).mockResolvedValue([{ person_id: 'b', datum: inTagen(2), treff_id: 't1' }] as never);
-    vi.mocked(heuteApi.zaehleEingereichteNachweise).mockResolvedValue(3);
+    stand.wuensche = [{ person_id: 'b', datum: inTagen(2), treff_id: 't1' }] as never;
+    stand.nachweise = 3;
     zeige(treffleitung);
     const treffs = await screen.findByRole('list', { name: 'Treffs' });
     expect(await within(treffs).findByRole('link', { name: /Dienstwünsche\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/dienstplan');
@@ -127,8 +119,8 @@ describe('Startseite: Schnellzugriff', () => {
   });
 
   it('Koordination: Verwaltung mit offenen Aufgaben, aufgeklappt, wenn etwas offen ist', async () => {
-    vi.mocked(fzApi.offeneBewerbungen).mockResolvedValue([{ id: 'b1' }, { id: 'b2' }] as never);
-    vi.mocked(katalogApi.listeVorschlaege).mockResolvedValue([{ status: 'offen' }] as never);
+    stand.bewerbungen = 2;
+    stand.vorschlaege = 1;
     zeige(koord);
     expect(await screen.findByText('3 offen')).toBeInTheDocument();
     const verwaltung = screen.getByRole('list', { name: 'Verwaltung' });
@@ -176,7 +168,7 @@ describe('Startseite: Tagesprotokoll und Notizen der Treffs', () => {
 
   it('Protokoll ist schon da: keine Karte, keine Zahl', async () => {
     geoeffnet();
-    vi.mocked(protokollApi.listeProtokollStand).mockResolvedValue({ protokolliert: ['t1'], offeneNotizen: {} });
+    stand.protokolliert = ['t1'];
     zeige(tzk);
     await screen.findByRole('navigation', { name: 'Schnellzugriff' });
     expect(await screen.findByRole('link', { name: 'Tagesprotokoll' })).toBeInTheDocument();
@@ -190,7 +182,7 @@ describe('Startseite: Tagesprotokoll und Notizen der Treffs', () => {
   });
 
   it('offene Notizen: Zahl an der Kachel „Notizen“', async () => {
-    vi.mocked(protokollApi.listeProtokollStand).mockResolvedValue({ protokolliert: [], offeneNotizen: { t1: 3 } });
+    stand.offeneNotizen = { t1: 3 };
     zeige(tzk);
     expect(await within(await screen.findByRole('list', { name: 'Treffs' })).findByRole('link', { name: /Notizen\s*Offen:\s*3/ })).toHaveAttribute('href', '/treffs/t1/notizen');
   });
@@ -202,7 +194,7 @@ describe('Startseite: Koordination getrennt nach Bereichen', () => {
   const taeglich = [1, 2, 3, 4, 5, 6, 7].map((wochentag) => ({ wochentag, von: '00:00', bis: '23:59' }));
 
   it('Freizeitenkoordination: Freizeiten, Lebensmittel, Bewerbungen, KiJuKo – keine Treffs', async () => {
-    vi.mocked(fzApi.offeneBewerbungen).mockResolvedValue([{ id: 'b1' }, { id: 'b2' }] as never);
+    stand.bewerbungen = 2;
     zeige(fkOnly);
     await screen.findByRole('navigation', { name: 'Schnellzugriff' });
     expect(kachelLink('Freizeiten', 'Wochenplan')).toHaveAttribute('href', '/freizeiten/f1/plan');
@@ -219,7 +211,7 @@ describe('Startseite: Koordination getrennt nach Bereichen', () => {
 
   it('Treffkoordination: Treffs, Protokolle, Nachweise – keine Freizeiten, Lebensmittel, Bewerbungen', async () => {
     vi.mocked(treffApi.listeTreffs).mockResolvedValue([{ ...treff({ id: 't1', name: 'Kindertreff' }), oeffnungszeiten: taeglich }]);
-    vi.mocked(heuteApi.zaehleEingereichteNachweise).mockResolvedValue(2);
+    stand.nachweise = 2;
     zeige(tkOnly);
     const treffs = await screen.findByRole('list', { name: 'Treffs' });
     expect(await within(treffs).findByRole('link', { name: /Tagesprotokoll\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/protokoll');
@@ -229,12 +221,11 @@ describe('Startseite: Koordination getrennt nach Bereichen', () => {
     expect(verwaltung.querySelector('a[href="/treffs/neu"]')).not.toBeNull();
     for (const weg of ['/bewerbungen', '/import', '/freizeiten/neu']) expect(verwaltung.querySelector(`a[href="${weg}"]`)).toBeNull();
     expect(await screen.findByRole('list', { name: 'Treffs ohne Protokoll von heute' })).toBeInTheDocument();
-    expect(fzApi.offeneBewerbungen).not.toHaveBeenCalled();
-    expect(heuteApi.listeKnappeLebensmittel).not.toHaveBeenCalled();
+    expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ bewerbungen: false, bestand: false }));         // gar nicht erst angefragt
   });
 
   it('Koordinations-Karte: Bewerbungen nur für die Freizeitenkoordination, Katalog-Vorschläge für beide', async () => {
-    vi.mocked(katalogApi.listeVorschlaege).mockResolvedValue([{ status: 'offen' }] as never);
+    stand.vorschlaege = 1;
     const { unmount } = zeige(fkOnly);
     const karte = (await screen.findByRole('list', { name: 'Offene Aufgaben der Koordination' }));
     expect(within(karte).getByRole('link', { name: 'Bewerbungen' })).toBeInTheDocument();
@@ -259,10 +250,10 @@ describe('Startseite: Koordination getrennt nach Bereichen', () => {
   });
 
   it('Hinweise der Freizeit-Absprachen bestätigt nur die Freizeitenkoordination – die der Treffs nur die Treffkoordination', async () => {
-    vi.mocked(heuteApi.listeNotizenFuerHeute).mockResolvedValue([
+    stand.notizen = [
       notiz({ id: 'fa', art: 'absprache', text: 'Budget' }),
       notiz({ id: 'ta', art: 'absprache', text: 'Schlüssel', freizeit_id: null, treff_id: 't1', quelle: 'Kindertreff' }),
-    ]);
+    ];
     vi.mocked(treffApi.listeTreffs).mockResolvedValue([{ ...treff({ id: 't1', name: 'Kindertreff' }), oeffnungszeiten: [] }]);
     const { unmount } = zeige(fkOnly);
     const karte = await screen.findByRole('list', { name: 'Offene Hinweise und Absprachen' });

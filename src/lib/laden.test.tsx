@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { useLaden } from './laden';
+import { teil, useLaden, type Geladen } from './laden';
 
 describe('useLaden', () => {
   it('lädt, liefert dann die Daten', async () => {
@@ -60,5 +60,19 @@ describe('useLaden', () => {
     expect(result.current.daten).toBe(1);
     expect(result.current.laedt).toBe(false);
     await waitFor(() => expect(result.current.daten).toBe(2));
+  });
+});
+
+describe('teil', () => {
+  const g = (daten: { a: number; b: string } | null): Geladen<{ a: number; b: string }> => ({ daten, fehler: null, laedt: false, neuLaden: () => undefined });
+  it('schneidet einen Ausschnitt heraus und behält Lade- und Fehlerzustand', () => {
+    const neuLaden = () => undefined;
+    const t = teil({ daten: { a: 1, b: 'x' }, fehler: 'Oje', laedt: true, neuLaden }, (d) => d.a);
+    expect(t).toEqual({ daten: 1, fehler: 'Oje', laedt: true, neuLaden });
+  });
+  it('ohne Daten bleibt der Ausschnitt leer (null), ohne die Auswahl aufzurufen', () => {
+    const aus = vi.fn();
+    expect(teil(g(null), aus).daten).toBeNull();
+    expect(aus).not.toHaveBeenCalled();
   });
 });

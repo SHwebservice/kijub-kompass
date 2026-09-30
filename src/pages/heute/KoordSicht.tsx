@@ -1,22 +1,19 @@
 import { Link } from 'react-router-dom';
-import { useLaden, type Geladen } from '../../lib/laden';
-import type { FreizeitZeile, OffeneBewerbung } from '../../freizeiten/api';
-import type { Vorschlag } from '../../katalog/api';
+import type { Geladen } from '../../lib/laden';
+import type { FreizeitZeile } from '../../freizeiten/api';
 import { ferienText, gruppiereNachFerien, zeitraumText } from '../../freizeiten/logik';
-import { listeTeamZeilen } from '../../heute/api';
-import { ohneLeitung, personenText } from '../../heute/logik';
+import { ohneLeitung, personenText, type TeamZeile } from '../../heute/logik';
 import { Alert, Badge, Card } from '../../components/ui';
 
 /** Koordination: offene Bewerbungen (nur Freizeitenkoordination) und Vorschläge, Freizeiten ohne Leitung und der Überblick über die aktuelle Saison. */
-export function KoordSicht({ freizeiten, aktuelle, bewerbungen, vorschlaege }: { freizeiten: boolean; aktuelle: FreizeitZeile[]; bewerbungen: Geladen<OffeneBewerbung[]>; vorschlaege: Geladen<Vorschlag[]> }) {
+export function KoordSicht({ freizeiten, aktuelle, bewerbungen, vorschlaege, team }: {
+  freizeiten: boolean; aktuelle: FreizeitZeile[]; bewerbungen: Geladen<number>; vorschlaege: Geladen<number>; team: TeamZeile[];
+}) {
   // Bewerbungen und Saison-Überblick gehören zur Freizeitenkoordination; die Katalog-Vorschläge zu jeder Koordination
-  const ids = freizeiten ? aktuelle.map((f) => f.id) : [];
-  const team = useLaden(() => listeTeamZeilen(ids), `heute-koord-team-${ids.join(',')}`);
-
-  const nBewerbungen = bewerbungen.daten?.length ?? 0;
-  const nVorschlaege = (vorschlaege.daten ?? []).filter((v) => v.status === 'offen').length;
-  const ohne = ohneLeitung(aktuelle, team.daten ?? []);
-  const fehler = bewerbungen.fehler ?? vorschlaege.fehler ?? team.fehler;
+  const nBewerbungen = bewerbungen.daten ?? 0;
+  const nVorschlaege = vorschlaege.daten ?? 0;
+  const ohne = freizeiten ? ohneLeitung(aktuelle, team) : [];
+  const fehler = bewerbungen.fehler ?? vorschlaege.fehler;
 
   return (
     <>

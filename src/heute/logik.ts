@@ -135,3 +135,14 @@ export function ohneLeitung<T extends { id: string }>(freizeiten: T[], team: Tea
 }
 
 export const personenText = (n: number, einzahl: string, mehrzahl: string) => `${n} ${n === 1 ? einzahl : mehrzahl}`;
+
+/** „gerade eben“, „vor 5 Min.“, „vor 3 Std.“, „gestern“, „vor 4 Tagen“. */
+export function vorZeit(iso: string, jetzt: Date = new Date()): string {
+  const min = Math.max(0, Math.floor((jetzt.getTime() - new Date(iso).getTime()) / 60000));
+  if (min < 1) return 'gerade eben';
+  if (min < 60) return `vor ${min} Min.`;
+  const std = Math.floor(min / 60);
+  if (std < 24) return `vor ${std} Std.`;
+  const tage = Math.floor(std / 24);
+  return tage === 1 ? 'gestern' : `vor ${tage} Tagen`;
+}
