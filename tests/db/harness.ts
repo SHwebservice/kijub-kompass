@@ -8,7 +8,7 @@ const MIGRATIONS = join(__dirname, '../../supabase/migrations');
  * Baut eine frische Postgres-Datenbank (PGlite) mit einer Attrappe für Supabase-Auth
  * (auth.users, auth.uid()) und spielt alle Migrationen der Reihe nach ein.
  */
-export async function neueDb(opts: { realtime?: boolean } = {}): Promise<PGlite> {
+export async function neueDb(opts: { realtime?: boolean; ueberspringen?: string[] } = {}): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(`
     create role anon nologin;
@@ -23,7 +23,7 @@ export async function neueDb(opts: { realtime?: boolean } = {}): Promise<PGlite>
   `);
   // Supabase legt diese Veröffentlichung selbst an; für Tests der Realtime-Migration kann sie nachgestellt werden.
   if (opts.realtime) await db.exec('create publication supabase_realtime');
-  const dateien = readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).sort();
+  const dateien = readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql') && !(opts.ueberspringen ?? []).some((n) => f.startsWith(n))).sort();
   for (const datei of dateien) {
     try {
       await db.exec(readFileSync(join(MIGRATIONS, datei), 'utf8'));
