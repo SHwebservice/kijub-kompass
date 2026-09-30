@@ -99,7 +99,7 @@ export function AngebotDetail() {
           {rollen.koordination && <Link className="btn btn--sm" to={`/katalog/${a.id}/bearbeiten`}>Bearbeiten</Link>}
           {rollen.koordination && (
             <Button klein variante="danger" onClick={() => {
-              if (window.confirm(`„${a.name}“ endgültig löschen? Bewertungen, Kommentare und Favoriten gehen mit; Einträge in Wochenplänen bleiben als Freitext nicht erhalten.`)) {
+              if (window.confirm(`„${a.name}“ endgültig löschen? Bewertungen, Kommentare und Favoriten gehen mit. Einträge in Wochenplänen bleiben mit dem Namen als Freitext erhalten.`)) {
                 void lauf(() => loescheAngebot(a.id), () => navigate('/katalog', { replace: true }));
               }
             }}>Löschen</Button>

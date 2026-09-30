@@ -226,3 +226,19 @@ Koordination: Fragen anlegen, ändern, löschen, Standardfragen übernehmen, Bes
 - Eine Datenbank-Änderung war dafür nicht nötig.
 
 **Hinweis:** Bearbeiten mehrere Personen gleichzeitig Mappe oder Beispiele, gewinnt der zuletzt gespeicherte Stand.
+
+## Stand der Umsetzung: Katalog (Phase 3e, 2026-09-30)
+
+**Umgesetzt und getestet:** G1 (alle Felder eines Programmpunkts), G2 (Suche über Name, Umsetzung, Material, Vorbereitung, Nachbereitung, Raum, Personal, Dauer, Gruppe, Autor und Alter – Umlaute und Groß-/Kleinschreibung egal;
+Filter nach Kategorie, Wetter, Alter und Favoriten; einklappbare Kategorien mit Anzahl), G3 (Favoriten je Person in der Datenbank, Teilen per Link, Druck/PDF einzelner Programmpunkte und der gefilterten Liste),
+G4 (ähnliche Programmpunkte per Textvergleich im Browser), G5 (Bewertung 1–5 Sterne je Person, Durchschnitt und Anzahl; Kommentare mit Namen, Löschen durch Verfasser und Koordination),
+G6 (Vorschläge: alle reichen ein, die Koordination korrigiert, übernimmt oder lehnt ab; Einreichende sehen den Stand ihrer Vorschläge), G7 (Import: Word-Pläne füllen das Formular vor; neu: JSON-Import mit Vorschau und Erkennung von Doppelten),
+G9 (nur für Angemeldete). Die Koordination legt Programmpunkte an, ändert und löscht sie.
+
+**Bewusste Entscheidungen:**
+- Kommentare zeigen den Namen der Schreibenden, auch wenn man kein Team teilt (eigene Sicht `v_angebot_kommentare`, Migration `0013`; aus dem Profil kommen nur Vor- und Nachname).
+- Der Import erkennt die Feldnamen des alten und des neuen Katalogs. Wer den alten Katalog übernehmen will, exportiert die Sammlung `angebote` aus Firestore als JSON und lädt sie unter „Katalog → Importieren“ hoch. Er wird nicht automatisch migriert.
+- Die Bibliothek zum Lesen von Word-Dateien (mammoth) wird erst beim ersten Word-Import nachgeladen.
+- Wird ein Programmpunkt gelöscht, der in einem Wochenplan (Freizeit oder Treff) steht, bleibt der Eintrag dort mit dem Namen als Freitext erhalten (Migration `0013`).
+
+**Noch offen (bewusst später):** „Teilen“ als fertiger Nachrichtentext, Push bei neuen Vorschlägen an die Koordination (Bereich Mitteilungen), Volltextsuche in der Datenbank statt im Browser (erst bei sehr großem Katalog nötig).

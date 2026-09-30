@@ -48,3 +48,27 @@ describe('v_angebot_kommentare', () => {
     expect(k.affectedRows).toBe(1);
   });
 });
+
+describe('Programmpunkt löschen, der im Plan steht', () => {
+  it('Wochenplan- und Treffplan-Einträge bleiben mit dem Namen als Freitext erhalten', async () => {
+    const fz = (await q<{ id: string }>(`insert into freizeiten (name, start_datum, ende_datum) values ('F', current_date + 30, current_date + 32) returning id`)).rows[0]!.id;
+    const slot = (await q<{ id: string }>(`select id from freizeit_slots where freizeit_id = $1 limit 1`, [fz])).rows[0]!.id;
+    const treff = (await q<{ id: string }>(`insert into treffs (name) values ('T') returning id`)).rows[0]!.id;
+    const a = (await q<{ id: string }>(`insert into angebote (name, kategorie) values ('Schatzsuche', 'highlight') returning id`)).rows[0]!.id;
+    await q(`insert into plan_eintraege (freizeit_id, datum, slot_id, angebot_id) values ($1, current_date + 30, $2, $3)`, [fz, slot, a]);
+    await q(`insert into treff_plan_eintraege (treff_id, wochentag, angebot_id) values ($1, 2, $2)`, [treff, a]);
+
+    const geloescht = await als(db, koord, () => q(`delete from angebote where id = $1`, [a]));
+    expect(geloescht.affectedRows).toBe(1);
+    const plan = await q<{ freitext: string; angebot_id: string | null }>(`select freitext, angebot_id from plan_eintraege where freizeit_id = $1`, [fz]);
+    expect(plan.rows).toEqual([{ freitext: 'Schatzsuche', angebot_id: null }]);
+    const tp = await q<{ freitext: string; angebot_id: string | null }>(`select freitext, angebot_id from treff_plan_eintraege where treff_id = $1`, [treff]);
+    expect(tp.rows).toEqual([{ freitext: 'Schatzsuche', angebot_id: null }]);
+  });
+  it('ein Programmpunkt ohne Verwendung lässt sich wie bisher löschen; Nicht-Koordination darf es nicht', async () => {
+    const a = (await q<{ id: string }>(`insert into angebote (name, kategorie) values ('Frei', 'planb') returning id`)).rows[0]!.id;
+    const nein = await als(db, anna, () => q(`delete from angebote where id = $1`, [a]));
+    expect(nein.affectedRows).toBe(0);
+    expect((await als(db, koord, () => q(`delete from angebote where id = $1`, [a]))).affectedRows).toBe(1);
+  });
+});

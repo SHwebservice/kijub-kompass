@@ -11,3 +11,15 @@ create view v_angebot_kommentare as
 
 revoke all on v_angebot_kommentare from anon;
 grant select on v_angebot_kommentare to authenticated;
+
+-- Ein Programmpunkt, der schon in einem Wochenplan steht, darf gelöscht werden: die Einträge bleiben mit seinem Namen
+-- als Freitext erhalten (sonst würde die Regel „Programmpunkt oder Freitext“ das Löschen verhindern).
+create function fn_angebot_loeschen() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  update plan_eintraege set freitext = old.name, angebot_id = null where angebot_id = old.id;
+  update treff_plan_eintraege set freitext = old.name, angebot_id = null where angebot_id = old.id;
+  return old;
+end $$;
+create trigger angebot_loeschen before delete on angebote for each row execute function fn_angebot_loeschen();
+revoke execute on function fn_angebot_loeschen() from public, anon;

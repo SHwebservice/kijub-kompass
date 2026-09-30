@@ -18,6 +18,9 @@ import { MappeSeite } from './pages/mappen/MappeSeite';
 import { FormularSeite } from './pages/mappen/FormularSeite';
 import { KatalogListe } from './pages/katalog/KatalogListe';
 import { AngebotDetail } from './pages/katalog/AngebotDetail';
+import { AngebotForm } from './pages/katalog/AngebotForm';
+import { Vorschlaege } from './pages/katalog/Vorschlaege';
+import { KatalogImport } from './pages/katalog/KatalogImport';
 import { QuizSeite } from './pages/quiz/QuizSeite';
 import { QuizVerwaltung } from './pages/quiz/QuizVerwaltung';
 import { TreffeListe } from './pages/treffs/TreffeListe';
@@ -76,6 +79,11 @@ function Geschuetzt() {
         <Route path="treffs/:id/bearbeiten" element={rollen?.koordination ? <TreffForm /> : <Navigate to="/treffs" replace />} />
         <Route path="treffs/:id/*" element={<TreffDetail />} />
         <Route path="katalog" element={<KatalogListe />} />
+        <Route path="katalog/neu" element={rollen?.koordination ? <AngebotForm modus="neu" /> : <Navigate to="/katalog" replace />} />
+        <Route path="katalog/vorschlagen" element={<AngebotForm modus="vorschlag" />} />
+        <Route path="katalog/vorschlaege" element={<Vorschlaege />} />
+        <Route path="katalog/import" element={rollen?.koordination ? <KatalogImport /> : <Navigate to="/katalog" replace />} />
+        <Route path="katalog/:id/bearbeiten" element={rollen?.koordination ? <AngebotForm modus="bearbeiten" /> : <Navigate to="/katalog" replace />} />
         <Route path="katalog/:id" element={<AngebotDetail />} />
         <Route path="teamermappe" element={<MappeSeite schluessel="teamermappe" titel="Teamermappe" mitSchlagworten
           untertitel="Regeln, Abläufe und Antworten für die Arbeit in den Freizeiten." />} />
