@@ -351,3 +351,5 @@ a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
   .kachel__icon { font-size: 1.35rem; }
   .kachel__badge { top: 4px; right: 6px; }
 }
+
+.seite-laedt { display: flex; justify-content: center; align-items: center; min-height: 40vh; }

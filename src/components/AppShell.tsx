@@ -35,7 +35,7 @@ export function AppShell() {
         </div>
       </header>
       <main id="inhalt" className="shell__main" tabIndex={-1}>
-        <Suspense fallback={<Spinner />}><Outlet /></Suspense>
+        <Suspense fallback={<div className="seite-laedt"><Spinner /></div>}><Outlet /></Suspense>
       </main>
       <div className="shell__nav-bottom"><Navigation eintraege={eintraege} beschriftung="Hauptnavigation (mobil)" /></div>
     </div>

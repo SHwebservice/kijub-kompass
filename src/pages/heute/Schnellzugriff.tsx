@@ -45,7 +45,7 @@ export function Schnellzugriff({ gruppen }: { gruppen: KachelGruppe[] }) {
         const offen = summeBadges(g);
         return (
           <details key={g.id} className="kacheln__gruppe" open={offen > 0}>
-            <summary><h2 className="kacheln__titel" style={{ display: 'inline' }}>{g.titel}</h2>{offen > 0 && <> <Badge ton="warning">{offen} offen</Badge></>}</summary>
+            <summary><span aria-hidden="true">⚙️ </span><h2 className="kacheln__titel" style={{ display: 'inline' }}>{g.titel}</h2>{offen > 0 && <> <Badge ton="warning">{offen} offen</Badge></>}</summary>
             {liste}
           </details>
         );
