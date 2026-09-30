@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { ApiFehler } from '../lib/fehler';
 import type { Ferienzeitraum } from './logik';
+import type { AngebotKurz, PlanEintrag, Slot } from './plan';
 
 /** Dünne Schicht über Supabase für die Freizeiten. Rechte entscheidet die Datenbank (RLS), nicht diese Datei. */
 
@@ -239,4 +240,51 @@ export async function holeVerpflegung(freizeitId: string): Promise<VerpflegungZe
 export async function holeMaterial(freizeitId: string): Promise<MaterialZeile[]> {
   return pruefe(await supabase.from('freizeit_material').select('id, name, einheit, menge, notiz')
     .eq('freizeit_id', freizeitId).order('name')) as MaterialZeile[];
+}
+
+/* ───── Wochenplan ───── */
+
+
+export async function listeSlots(freizeitId: string): Promise<Slot[]> {
+  return pruefe(await supabase.from('freizeit_slots').select('id, name, position').eq('freizeit_id', freizeitId).order('position')) as Slot[];
+}
+
+export async function listeEintraege(freizeitId: string): Promise<PlanEintrag[]> {
+  const r = pruefe(await supabase.from('plan_eintraege')
+    .select('id, datum, slot_id, angebot_id, freitext, notiz, erstellt_von, created_at, angebote(name, kategorie)')
+    .eq('freizeit_id', freizeitId).order('created_at')) as unknown as (Omit<PlanEintrag, 'angebot_name' | 'angebot_kategorie'> & { angebote: { name: string; kategorie: string } | null })[];
+  return r.map(({ angebote, ...rest }) => ({ ...rest, angebot_name: angebote?.name ?? null, angebot_kategorie: angebote?.kategorie ?? null }));
+}
+
+export async function listeAngebote(): Promise<AngebotKurz[]> {
+  return pruefe(await supabase.from('angebote').select('id, name, kategorie, dauer, gruppe, wetter, alter_gruppen').order('name')) as AngebotKurz[];
+}
+
+export interface EintragWerte { angebot_id: string | null; freitext: string | null; notiz: string | null }
+
+export async function trageEin(freizeitId: string, datum: string, slotId: string, w: EintragWerte): Promise<void> {
+  pruefe(await supabase.from('plan_eintraege').insert({ freizeit_id: freizeitId, datum, slot_id: slotId, ...w }));
+}
+
+export async function aendereEintrag(id: string, w: Partial<EintragWerte>): Promise<void> {
+  pruefe(await supabase.from('plan_eintraege').update(w).eq('id', id));
+}
+
+export async function loescheEintrag(id: string): Promise<void> {
+  pruefe(await supabase.from('plan_eintraege').delete().eq('id', id));
+}
+
+export async function slotHinzufuegen(freizeitId: string, name: string, position: number): Promise<void> {
+  pruefe(await supabase.from('freizeit_slots').insert({ freizeit_id: freizeitId, name, position }));
+}
+
+export async function slotPositionen(aenderungen: { id: string; position: number }[]): Promise<void> {
+  for (const a of aenderungen) pruefe(await supabase.from('freizeit_slots').update({ position: a.position }).eq('id', a.id));
+}
+
+/** Namen von Personen (nur solche, die man sehen darf: das eigene Team bzw. alle für die Koordination). */
+export async function holeNamen(ids: string[]): Promise<Record<string, string>> {
+  if (!ids.length) return {};
+  const r = pruefe(await supabase.from('v_personen_namen').select('id, vorname, nachname').in('id', ids)) as { id: string; vorname: string; nachname: string }[];
+  return Object.fromEntries(r.map((p) => [p.id, `${p.vorname} ${p.nachname}`]));
 }
