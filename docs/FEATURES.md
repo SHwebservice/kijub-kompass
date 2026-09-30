@@ -295,3 +295,25 @@ H3 (Einschalten, Testen und Ausschalten je Gerät unter „Mehr“; Hinweis für
 - Lebensmittel werden nur für Orte gezeigt, an denen gerade eine Freizeit läuft oder in zwei Wochen beginnt – alte Restbestände früherer Freizeiten stören nicht.
 
 **Noch offen:** „Neu seit letztem Besuch“ (D4) und Kommentare zu Absprachen als Hinweis für die Koordination, Farbe je Freizeit (C10).
+
+## Stand der Umsetzung: Tagesprotokoll und Notizen der Treffs (Phase 7, 2026-09-30)
+
+**Umgesetzt und getestet** (Migration `0016`, neue Reiter im Treff: *Tagesprotokoll* und *Notizen*):
+- **Tagesprotokoll** je Treff und Öffnungstag: Anzahl der Kinder nach **m / w / d** (Zähler mit + und −, Gesamtzahl automatisch; nur Zahlen, keine Namen), *Was war los?* und *Besondere Vorkommnisse*.
+  Das **ganze Team** (und die Koordination) darf jederzeit lesen und bearbeiten, auch Protokolle anderer; angezeigt wird, wer zuletzt bearbeitet hat. Löschen dürfen nur Treffleitung und Koordination.
+  Ein Protokoll gibt es je Treff und Tag nur einmal, nicht für die Zukunft; es lässt sich nachtragen („Anderen Tag nachtragen“). Fehlende Öffnungstage der letzten zwei Wochen werden aufgelistet (Feiertage ausgenommen).
+- **Notizen und Listen** je Treff: To-do, Einkauf, offene Frage, Sonstiges. Sie bleiben, bis jemand sie erledigt (Haken; wer und wann wird vermerkt). To-dos und Sonstiges haben optional Fälligkeit (überfällig wird markiert) und Zuständigkeit (nur aus dem Team),
+  Einkauf nur Text und Haken, offene Fragen werden mit einer **Antwort** erledigt, die lesbar bleibt. Filter nach Art mit Zahlen, Erledigtes eingeklappt (nach 30 Tagen ausgeblendet). Aus dem Protokoll heraus lässt sich nebenbei eine Notiz anlegen.
+- **Auswertung** (Treffleitung, Koordination): Kinder je Monat und Jahr nach m/w/d mit Summe, Durchschnitt je Tag und Anteilen, dazu **CSV-Export** (Excel-tauglich, gegen Formel-Einschleusung geschützt).
+- **Startseite:** Kacheln *Tagesprotokoll* (Zahl = Treffs, für die heute geöffnet ist und das Protokoll noch fehlt) und *Notizen* (Zahl offener Einträge), außerdem die Karte *Tagesprotokoll fehlt* mit Link, sobald die Öffnungszeit begonnen hat.
+- **Erinnerung per Mitteilung:** abends „Tagesprotokoll fehlt“ an Treffleitung und die heute Eingeteilten, einmal pro Treff und Tag, 15 Minuten bis 3 Stunden nach Ende der Öffnung, nicht an Feiertagen. Ein GitHub-Zeitplan (`erinnerung.yml`) ruft dafür die Edge Function `push-senden` mit einem eigenen Geheimnis
+  (`CRON_SECRET`) auf; das Geheimnis erlaubt nur diese Erinnerung. Einrichtung: `docs/BETRIEB.md`, Abschnitt 2c.
+
+**Bewusste Entscheidungen:**
+- Keine Altersgruppen (nicht benötigt), keine Namen von Kindern – die Datenbank speichert nur Zahlen und Freitext; unter „Vorkommnisse“ steht der Hinweis, keine Namen einzutragen.
+- Vorkommnisse sind für das ganze Team sichtbar, damit Übergaben zwischen Diensten funktionieren.
+- Wer zuletzt speichert, gewinnt: Bearbeiten zwei Personen gleichzeitig dasselbe Protokoll, überschreibt die spätere Speicherung die frühere (die Liste aktualisiert sich live, ein geöffnetes Formular nicht).
+- Die Regeln (Zukunft verboten, Verfasser nicht fälschbar, „erledigt“ nicht vortäuschbar, Zuständige nur aus dem Team) stehen in der Datenbank, nicht nur in der Oberfläche.
+
+**Noch offen:** Erinnerung auch an Personen, die einen Dienst getauscht haben (derzeit: laut Dienstplan Eingeteilte), Protokoll-Vorlagen je Wochentag, Auswertung über mehrere Treffs zugleich.
+

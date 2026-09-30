@@ -46,6 +46,7 @@ async function lies(body: Uint8Array, g: Geraet): Promise<{ titel: string; text:
 
 interface Aufbau {
   plan?: { empfaenger: string[]; titel: string; text: string; url: string };
+  plaene?: { empfaenger: string[]; titel: string; text: string; url: string }[];
   rpcFehler?: { code?: string; message?: string };
   geraete?: Geraet[];
   status?: Record<string, number | 'netzwerkfehler'>;
@@ -58,6 +59,7 @@ function attrappe(a: Aufbau) {
   const erzeuge = ((_url: string, schluessel: string, opts?: { global?: { headers?: Record<string, string> } }) => ({
     rpc: async (name: string, args: Record<string, unknown>) => {
       protokoll.rpc.push({ schluessel, auth: opts?.global?.headers?.Authorization, name, args });
+      if (name === 'fn_protokoll_erinnerungen') return a.rpcFehler ? { data: null, error: a.rpcFehler } : { data: a.plaene ?? [], error: null };
       return a.rpcFehler ? { data: null, error: a.rpcFehler } : { data: a.plan, error: null };
     },
     from: (tabelle: string) => ({
@@ -209,5 +211,67 @@ describe('push-senden: Versand', () => {
     expect(r).not.toContain('p1');
     expect(r).not.toContain('push.example');
     expect(r).not.toContain(g[0]!.p256dh);
+  });
+});
+
+describe('push-senden: Zeitplan (Erinnerung „Tagesprotokoll fehlt“)', () => {
+  const GEHEIMNIS = 'ein-langes-geheimnis-fuer-den-zeitplan';
+  const zeitplan = (kopf: Record<string, string> = {}) => anfrage({}, { Authorization: `Bearer ${ANON}`, 'x-cron-secret': GEHEIMNIS, ...kopf });
+  const ERINNERUNG = { empfaenger: ['p1', 'p2'], titel: 'Tagesprotokoll fehlt · Kindertreff', text: 'Bitte das Protokoll für heute eintragen.', url: '/treffs/t1/protokoll' };
+
+  it('mit richtigem Geheimnis: Plan aus der Datenbank (Service-Schlüssel), Versand an jedes Gerät', async () => {
+    const g = await neuesGeraet(1);
+    const a = attrappe({ plaene: [ERINNERUNG], geraete: [g] });
+    const r = await behandle(zeitplan(), umgebung({ CRON_SECRET: GEHEIMNIS }), a.holen, a.erzeuge);
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ erinnerungen: 1, empfaenger: 2, geraete: 1, gesendet: 1, entfernt: 0, fehlgeschlagen: 0 });
+    expect(a.protokoll.rpc).toHaveLength(1);
+    expect(a.protokoll.rpc[0]).toMatchObject({ name: 'fn_protokoll_erinnerungen', schluessel: SERVICE });
+    expect(a.protokoll.rpc.some((x) => x.name === 'fn_push_vorbereiten')).toBe(false);
+    expect(await lies(a.protokoll.gesendet[0]!.body, g)).toEqual({ titel: ERINNERUNG.titel, text: ERINNERUNG.text, url: ERINNERUNG.url });
+  });
+
+  it('falsches, leeres oder nicht eingerichtetes Geheimnis: 401, die Datenbank wird nicht gefragt', async () => {
+    const a = attrappe({ plaene: [ERINNERUNG], geraete: [await neuesGeraet(1)] });
+    expect((await behandle(zeitplan({ 'x-cron-secret': 'falsch-falsch-falsch-falsch' }), umgebung({ CRON_SECRET: GEHEIMNIS }), a.holen, a.erzeuge)).status).toBe(401);
+    expect((await behandle(zeitplan({ 'x-cron-secret': '' }), umgebung({ CRON_SECRET: GEHEIMNIS }), a.holen, a.erzeuge)).status).toBe(401);
+    expect((await behandle(zeitplan(), umgebung(), a.holen, a.erzeuge)).status).toBe(401);                                  // CRON_SECRET nicht gesetzt
+    expect((await behandle(zeitplan({ 'x-cron-secret': 'kurz' }), umgebung({ CRON_SECRET: 'kurz' }), a.holen, a.erzeuge)).status).toBe(401);   // zu kurzes Geheimnis gilt nicht
+    expect(a.protokoll.rpc).toHaveLength(0);
+    expect(a.protokoll.gesendet).toHaveLength(0);
+  });
+
+  it('ohne Geheimnis läuft der normale Weg – der Zeitplan ist damit nicht erreichbar', async () => {
+    const a = attrappe({ plan: { ...PLAN, empfaenger: [] } });
+    await behandle(anfrage({ art: 'protokoll_erinnerung' }), umgebung({ CRON_SECRET: GEHEIMNIS }), a.holen, a.erzeuge);
+    expect(a.protokoll.rpc[0]).toMatchObject({ name: 'fn_push_vorbereiten', schluessel: ANON });
+  });
+
+  it('keine fälligen Treffs: nichts wird gesendet', async () => {
+    const a = attrappe({ plaene: [] });
+    const r = await behandle(zeitplan(), umgebung({ CRON_SECRET: GEHEIMNIS }), a.holen, a.erzeuge);
+    expect(await r.json()).toEqual({ erinnerungen: 0, empfaenger: 0, geraete: 0, gesendet: 0, entfernt: 0, fehlgeschlagen: 0 });
+    expect(a.protokoll.gesendet).toHaveLength(0);
+  });
+
+  it('mehrere Treffs: Zahlen werden zusammengezählt; abgelaufene Geräte werden entfernt', async () => {
+    const g1 = await neuesGeraet(1); const g2 = await neuesGeraet(2);
+    const a = attrappe({ plaene: [ERINNERUNG, { ...ERINNERUNG, empfaenger: ['p3'], url: '/treffs/t2/protokoll' }], geraete: [g1, g2], status: { [g2.endpoint]: 410 } });
+    const r = await behandle(zeitplan(), umgebung({ CRON_SECRET: GEHEIMNIS }), a.holen, a.erzeuge);
+    expect(await r.json()).toEqual({ erinnerungen: 2, empfaenger: 3, geraete: 4, gesendet: 2, entfernt: 2, fehlgeschlagen: 0 });
+  });
+
+  it('Datenbankfehler: 500 ohne Einzelheiten', async () => {
+    const a = attrappe({ rpcFehler: { code: 'XX000', message: 'relation "geheim" does not exist' } });
+    const r = await behandle(zeitplan(), umgebung({ CRON_SECRET: GEHEIMNIS }), a.holen, a.erzeuge);
+    expect(r.status).toBe(500);
+    expect(JSON.stringify(await r.json())).not.toContain('geheim');
+  });
+
+  it('ohne VAPID-Schlüssel auch im Zeitplan: 503', async () => {
+    const a = attrappe({ plaene: [ERINNERUNG] });
+    const r = await behandle(zeitplan(), umgebung({ CRON_SECRET: GEHEIMNIS, VAPID_PRIVATE_KEY: '' }), a.holen, a.erzeuge);
+    expect(r.status).toBe(503);
+    expect(a.protokoll.rpc).toHaveLength(0);
   });
 });

@@ -6,6 +6,7 @@ import * as treffApi from '../treffs/api';
 import * as heuteApi from '../heute/api';
 import * as katalogApi from '../katalog/api';
 import * as geraet from '../mitteilungen/geraet';
+import * as protokollApi from '../tagesprotokoll/api';
 import { Heute } from './Heute';
 import { renderMitAuth, type Szene } from '../test-utils';
 import { freizeit, inTagen, treff } from '../test-daten';
@@ -17,6 +18,7 @@ vi.mock('../treffs/api');
 vi.mock('../heute/api');
 vi.mock('../katalog/api');
 vi.mock('../mitteilungen/geraet');
+vi.mock('../tagesprotokoll/api');
 
 const laeuft = freizeit({ id: 'f1', name: 'Sommer-Sause', start_datum: inTagen(-1), ende_datum: inTagen(3), ort_id: 'o1', ort_name: 'Mörscher Au', ferienzeitraum: 'sommer', ferienwoche: 1 });
 const bald = freizeit({ id: 'f2', name: 'Sommer-Sause 2', start_datum: inTagen(6), ende_datum: inTagen(10), ort_id: 'o2', ferienzeitraum: 'sommer', ferienwoche: 2 });
@@ -49,6 +51,7 @@ beforeEach(() => {
   vi.mocked(heuteApi.listeOrtNamen).mockResolvedValue({ o1: 'Mörscher Au', o2: 'Strandbad' });
   vi.mocked(heuteApi.listeTreffNamen).mockResolvedValue({ t1: 'Kindertreff' });
   vi.mocked(katalogApi.listeVorschlaege).mockResolvedValue([]);
+  vi.mocked(protokollApi.listeProtokollStand).mockResolvedValue({ protokolliert: [], offeneNotizen: {} });
   vi.mocked(geraet.pruefeStatus).mockResolvedValue('an');
   vi.mocked(geraet.istApple).mockReturnValue(false);
 });

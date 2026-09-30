@@ -4,10 +4,10 @@ import { neueDb } from './harness';
 const TABELLEN = [
   'dienst_wuensche', 'dienst_zuteilungen', 'dienste', 'dienstplan_kommentare', 'feiertage', 'freizeit_slots', 'freizeit_team',
   'lebensmittel_eingang', 'lebensmittel_verbrauch', 'notiz_bestaetigungen', 'notiz_kommentare', 'notizen', 'plan_eintraege',
-  'treff_plan_eintraege', 'treff_team',
+  'treff_aufgaben', 'treff_plan_eintraege', 'treff_protokolle', 'treff_team',
 ];
 
-describe('Live-Aktualisierung (Migrationen 0011 und 0012)', () => {
+describe('Live-Aktualisierung (Migrationen 0011, 0012 und 0016)', () => {
   it('läuft ohne Realtime-Veröffentlichung folgenlos durch', async () => {
     const db = await neueDb();
     const r = await db.query<{ n: number }>(`select count(*)::int as n from pg_publication`);

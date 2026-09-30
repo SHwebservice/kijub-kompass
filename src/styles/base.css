@@ -285,3 +285,19 @@ a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
 .kachel__alle { color: var(--text-muted); }
 .kacheln__gruppe > summary { cursor: pointer; margin-bottom: var(--space-2); }
 .kacheln > li:has(> details[open]) { grid-column: span 2; }
+
+/* Tagesprotokoll und Notizen der Treffs */
+.linklike { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-align: left; }
+.linklike:hover { text-decoration: underline; }
+.linklike:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.zaehler-gruppe { border: 0; padding: 0; margin: 0 0 var(--space-4); }
+.zaehler-reihe { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); }
+.zaehler__reihe { display: flex; align-items: center; gap: var(--space-2); }
+.zaehler__reihe .btn { min-width: 44px; min-height: 44px; font-size: var(--fs-lg); }
+.zaehler__wert { width: 4.5rem; text-align: center; font-variant-numeric: tabular-nums; font-size: var(--fs-lg); }
+.zaehler__gesamt { margin: var(--space-2) 0 0; }
+.aufgabe__haken { display: flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; }
+.aufgabe__haken input { width: 20px; height: 20px; }
+.aufgabe__haken--gross { min-width: 44px; min-height: 44px; }
+.aufgabe__haken--gross input { width: 26px; height: 26px; }
+.aufgabe__antwort { margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); }

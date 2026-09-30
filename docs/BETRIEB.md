@@ -7,6 +7,7 @@ alles andere ist im Repository vorbereitet und getestet.
 |---|---|---|
 | Cloudflare Pages | liefert die App aus (HTTPS, weltweit schnell) | Cloudflare-Konto **[du]**, `public/_headers`, `public/_redirects`, `.node-version` |
 | Supabase | Datenbank, Anmeldung, Zugriffsregeln | Supabase-Projekt **[du]**, `supabase/migrations/` |
+| Erinnerung Tagesprotokoll | „Protokoll fehlt“ abends per Mitteilung an Treffleitung und Dienst des Tages | Migration `0016`, Workflow `erinnerung.yml`, Secret `CRON_SECRET` **[du]** |
 | Mitteilungen | Web-Push an die Geräte (Hinweise, Dienstplan, Bewerbungen …) | Edge Function `push-senden`, Migration `0015`, `public/sw.js`, VAPID-Schlüssel **[du]** |
 | Lebenszeichen | verhindert, dass Supabase das Projekt nach 7 Tagen ohne Zugriff pausiert | `.github/workflows/keepalive.yml`, Migration `0014` |
 | Datensicherung | sichert die Datenbank wöchentlich, verschlüsselt | `.github/workflows/backup.yml` |
@@ -84,6 +85,21 @@ Hinweise:
 - **Neue Schlüssel** (`npm run vapid` ein zweites Mal) machen alle bisherigen Geräteanmeldungen ungültig: Alle müssen die Mitteilungen einmal aus- und wieder einschalten.
 - Mitteilungen sind **nicht zuverlässig genug für Notfälle** (Geräte im Energiesparmodus, ausgeschaltete Benachrichtigungen, Browser ohne Unterstützung). Wichtiges zusätzlich anders weitergeben.
 
+## 2c. Erinnerung „Tagesprotokoll fehlt“ einrichten **[du]**
+
+Wer ein Treff-Team ist, bekommt abends eine Mitteilung, wenn für den Öffnungstag noch kein Tagesprotokoll geschrieben wurde. Ein GitHub-Lauf (`.github/workflows/erinnerung.yml`) fragt dafür
+alle 30 Minuten (16–24 Uhr) die Edge Function `push-senden`. **Die Datenbank** (Migration `0016`, `fn_protokoll_erinnerungen`) entscheidet: Treffleitung und die heute Eingeteilten, frühestens 15 Minuten
+nach Ende der Öffnungszeit, höchstens drei Stunden danach, nicht an Feiertagen, einmal pro Treff und Tag. Das Geheimnis erlaubt dem Zeitplan **nur** diese eine Erinnerung – sonst nichts.
+
+1. **Migration** `supabase/migrations/0016_tagesprotokoll.sql` im SQL Editor ausführen.
+2. **Geheimnis erzeugen:** `openssl rand -hex 32` (oder ein anderer Passwortgenerator, mindestens 32 Zeichen).
+3. **Supabase → Edge Functions → Secrets:** `CRON_SECRET` = das Geheimnis.
+4. **Edge Function `push-senden` neu bereitstellen** (Inhalt von `supabase/functions/push-senden/index.ts` – sie kennt jetzt den Zeitplan-Aufruf).
+5. **GitHub → Settings → Secrets and variables → Actions:** `CRON_SECRET` = dasselbe Geheimnis (`SUPABASE_URL` und `SUPABASE_ANON_KEY` gibt es schon).
+6. **Testen:** Actions → *Erinnerung Tagesprotokoll* → *Run workflow*. Ausgabe „Antwort (200)“ mit Zahlen; außerhalb der Fenster lautet sie `erinnerungen: 0`. Ohne VAPID-Schlüssel oder ohne Secrets warnt der Lauf nur, er schlägt nicht fehl.
+
+Hinweis: GitHub startet Zeitpläne nicht sekundengenau, Verspätungen von einigen Minuten sind normal. Die Erinnerung ist deshalb ein Hinweis, keine Uhr.
+
 ## 3. Lebenszeichen
 
 Kostenlose Supabase-Projekte werden nach **7 Tagen ohne Zugriffe pausiert**. `keepalive.yml` ruft montags und donnerstags (06:17 UTC) die Funktion `fn_ping` auf,
@@ -138,9 +154,9 @@ dann ist der Ernstfall kein Erstkontakt. Diese Wiederherstellung wurde noch nich
 ## 5. Vor dem Start für alle: Checkliste **[du]**
 
 - [ ] Supabase: *Confirm email* wieder einschalten, Mindestlänge Passwort 10, Registrierung (*Allow new users to sign up*) **aus** – `npm run check:live` zeigt den Stand.
-- [ ] Migrationen `0001` bis `0015` eingespielt, Edge Functions (`konto-passwort`, `konto-entfernen`, `push-senden`) bereitgestellt, VAPID-Schlüssel eingetragen.
+- [ ] Migrationen `0001` bis `0016` eingespielt, Edge Functions (`konto-passwort`, `konto-entfernen`, `push-senden`) bereitgestellt, VAPID-Schlüssel eingetragen.
 - [ ] Cloudflare Pages läuft, `npm run check:site -- <Adresse>` zeigt „Alles in Ordnung“.
-- [ ] Vier GitHub-Geheimnisse gesetzt, *Lebenszeichen* und *Datensicherung* je einmal von Hand gestartet (grün), `BACKUP_PASSPHRASE` im Passwort-Manager.
+- [ ] Fünf GitHub-Geheimnisse gesetzt (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DB_URL`, `BACKUP_PASSPHRASE`, `CRON_SECRET`), *Lebenszeichen* und *Datensicherung* je einmal von Hand gestartet (grün), `BACKUP_PASSPHRASE` im Passwort-Manager.
 - [ ] Probewiederherstellung in einem zweiten Projekt.
 - [ ] **Datenschutz:** Die Seiten *Impressum* und *Datenschutzhinweise* (`/impressum`, `/datenschutz`, Texte in `src/pages/recht/`) von der/dem Datenschutzbeauftragten der Stadt prüfen lassen.
       Dazu gehören: Auftragsverarbeitungsverträge mit Supabase und Cloudflare, die Wahl der Supabase-Region (beim Anlegen des Projekts festgelegt – bei Bedarf prüfen), und der Eintrag im Verzeichnis der Verarbeitungstätigkeiten.

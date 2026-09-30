@@ -76,8 +76,18 @@ describe('Schnellzugriff: Treffs', () => {
   const treff = [{ id: 't1', name: 'Kindertreff' }];
   it('Betreuerin (FSJ): Dienstplan, Absprachen, Team – ohne Nachweis', () => {
     const k = ctx({ treffTeam: true, treffs: treff, kategorie: 'FSJ' });
-    expect(gruppe(k, 'treffs')!.kacheln.map((x) => x.id)).toEqual(['dienstplan', 'treff-absprachen', 'treff-team', 'treffs']);
+    expect(gruppe(k, 'treffs')!.kacheln.map((x) => x.id)).toEqual(['protokoll', 'notizen', 'dienstplan', 'treff-absprachen', 'treff-team', 'treffs']);
     expect(kachel(k, 'dienstplan')!.pfad).toBe('/treffs/t1/dienstplan');
+  });
+  it('Tagesprotokoll und Notizen für alle im Treff-Team, mit Zahl fehlender Protokolle und offener Notizen', () => {
+    const k = ctx({ treffTeam: true, treffs: treff, kategorie: 'FSJ', zaehler: { ...KEINE_ZAEHLER, protokollFehlt: 1, offeneNotizen: 5 } });
+    expect(kachel(k, 'protokoll')).toMatchObject({ pfad: '/treffs/t1/protokoll', badge: 1 });
+    expect(kachel(k, 'notizen')).toMatchObject({ pfad: '/treffs/t1/notizen', badge: 5 });
+    expect(kachel(ctx({ treffTeam: true, treffs: treff }), 'protokoll')).not.toHaveProperty('badge');
+  });
+  it('mehrere Treffs: Auswahl für Protokoll und Notizen', () => {
+    const k = ctx({ treffTeam: true, treffs: [{ id: 't1', name: 'Nord' }, { id: 't2', name: 'Süd' }] });
+    expect(kachel(k, 'protokoll')!.ziele).toEqual([{ label: 'Nord', pfad: '/treffs/t1/protokoll' }, { label: 'Süd', pfad: '/treffs/t2/protokoll' }]);
   });
   it('TZK bekommt den Nachweis (ohne Zahl)', () => {
     const k = ctx({ treffTeam: true, treffs: treff, kategorie: 'TZK', zaehler: { ...KEINE_ZAEHLER, nachweise: 4 } });
@@ -86,7 +96,7 @@ describe('Schnellzugriff: Treffs', () => {
   });
   it('Treffleitung: Wünsche, Monatsplan, Abwesenheit & Feiertage, Nachweise mit Zahl der eingereichten', () => {
     const k = ctx({ treffTeam: true, treffleitung: true, treffs: treff, kategorie: 'Hauptamtliche*r', zaehler: { ...KEINE_ZAEHLER, wuensche: 2, nachweise: 3, diensteHeute: 1 } });
-    expect(gruppe(k, 'treffs')!.kacheln.map((x) => x.id)).toEqual(['dienstplan', 'treff-absprachen', 'nachweis', 'wuensche', 'monat', 'abwesenheit', 'treff-team', 'treffs']);
+    expect(gruppe(k, 'treffs')!.kacheln.map((x) => x.id)).toEqual(['protokoll', 'notizen', 'dienstplan', 'treff-absprachen', 'nachweis', 'wuensche', 'monat', 'abwesenheit', 'treff-team', 'treffs']);
     expect(kachel(k, 'wuensche')).toMatchObject({ badge: 2, pfad: '/treffs/t1/dienstplan' });
     expect(kachel(k, 'nachweis')!.badge).toBe(3);
     expect(kachel(k, 'dienstplan')!.badge).toBe(1);

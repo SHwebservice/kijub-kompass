@@ -29,9 +29,13 @@ export interface Zaehler {
   vorschlaege: number;
   nachweise: number;
   diensteHeute: number;
+  /** Treffs, die heute geöffnet haben und für die noch kein Tagesprotokoll geschrieben wurde. */
+  protokollFehlt: number;
+  /** Offene Notizen und Listen in den Treffs. */
+  offeneNotizen: number;
 }
 
-export const KEINE_ZAEHLER: Zaehler = { hinweise: 0, treffAbsprachen: 0, knapp: 0, wuensche: 0, bewerbungen: 0, vorschlaege: 0, nachweise: 0, diensteHeute: 0 };
+export const KEINE_ZAEHLER: Zaehler = { hinweise: 0, treffAbsprachen: 0, knapp: 0, wuensche: 0, bewerbungen: 0, vorschlaege: 0, nachweise: 0, diensteHeute: 0, protokollFehlt: 0, offeneNotizen: 0 };
 
 export interface KachelKontext {
   koordination: boolean;
@@ -89,6 +93,8 @@ export function baueKacheln(k: KachelKontext): KachelGruppe[] {
   const treffs: Kachel[] = [];
   if (k.treffTeam || k.koordination) {
     if (k.treffs.length > 0) {
+      treffs.push(mitZielen('protokoll', 'Tagesprotokoll', '📝', '/treffs', k.treffs, 'protokoll', z.protokollFehlt));
+      treffs.push(mitZielen('notizen', 'Notizen', '🗒️', '/treffs', k.treffs, 'notizen', z.offeneNotizen));
       treffs.push(mitZielen('dienstplan', 'Dienstplan', '🗓️', '/treffs', k.treffs, 'dienstplan', z.diensteHeute));
       treffs.push(mitZielen('treff-absprachen', 'Absprachen', '🤝', '/treffs', k.treffs, 'absprachen', z.treffAbsprachen));
       if (k.kategorie === 'TZK' || k.treffleitung || k.koordination) treffs.push(mitZielen('nachweis', 'Nachweis', '🧾', '/treffs', k.treffs, 'nachweis', k.treffleitung || k.koordination ? z.nachweise : 0));

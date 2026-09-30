@@ -8,6 +8,8 @@
 //
 // Secrets (Dashboard → Edge Functions → Secrets), erzeugt mit `npm run vapid`:
 //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (z. B. mailto:freizeiten@frankenthal.de)
+// Zeitplan (GitHub Actions, .github/workflows/erinnerung.yml): CRON_SECRET – ein langes Zufallsgeheimnis. Damit darf der Zeitplan NUR die Erinnerung
+// „Tagesprotokoll fehlt“ auslösen (Kopfzeile x-cron-secret); wer sie bekommt, entscheidet fn_protokoll_erinnerungen in der Datenbank.
 // Automatisch gesetzt: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -134,6 +136,17 @@ function fehlerAntwort(fehler: { code?: string; message?: string }) {
 
 export interface Umgebung { get(name: string): string | undefined }
 
+interface Plan { empfaenger: string[]; titel: string; text: string; url: string }
+interface Zaehlung { empfaenger: number; geraete: number; gesendet: number; entfernt: number; fehlgeschlagen: number }
+
+/** Vergleich ohne Zeitunterschiede, damit das Geheimnis nicht durch Antwortzeiten erraten werden kann. */
+function gleich(a: string, b: string): boolean {
+  const x = kodiere.encode(a); const y = kodiere.encode(b);
+  let d = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i += 1) d |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return d === 0;
+}
+
 /** Die eigentliche Funktion; Umgebung, Netzwerk und Datenbank-Client sind austauschbar, damit sie getestet werden kann. */
 export async function behandle(req: Request, umgebung: Umgebung, holen: typeof fetch = fetch, erzeuge: typeof createClient = createClient): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -150,6 +163,48 @@ export async function behandle(req: Request, umgebung: Umgebung, holen: typeof f
   };
   if (!vapid.oeffentlich || !vapid.privat || !vapid.betreff) return antwort({ fehler: 'Mitteilungen sind noch nicht eingerichtet (VAPID-Schlüssel fehlen).' }, 503);
 
+  const admin = erzeuge(url, service, { auth: { persistSession: false } });
+
+  /** Lädt die Geräte der Empfänger (nur mit Service-Schlüssel lesbar), verschickt die Nachricht und räumt abgelaufene Geräte auf. null = Geräte nicht ladbar. */
+  const versende = async (plan: Plan): Promise<Zaehlung | null> => {
+    if (!plan.empfaenger.length) return { empfaenger: 0, geraete: 0, gesendet: 0, entfernt: 0, fehlgeschlagen: 0 };
+    const { data: abos, error: aboFehler } = await admin.from('push_abos').select('id, endpoint, p256dh, auth').in('person_id', plan.empfaenger);
+    if (aboFehler) return null;
+
+    const nachricht = JSON.stringify({ titel: plan.titel, text: plan.text, url: plan.url });
+    const ergebnisse = await Promise.all((abos ?? []).map(async (a: { id: string; endpoint: string; p256dh: string; auth: string }) => {
+      try { return { id: a.id, ...(await sendePush(a, nachricht, vapid, {}, holen)) }; } catch { return { id: a.id, status: 0, ok: false, abgelaufen: false }; }
+    }));
+
+    const abgelaufen = ergebnisse.filter((e) => e.abgelaufen).map((e) => e.id);
+    if (abgelaufen.length) await admin.from('push_abos').delete().in('id', abgelaufen);
+
+    return {
+      empfaenger: plan.empfaenger.length,
+      geraete: ergebnisse.length,
+      gesendet: ergebnisse.filter((e) => e.ok).length,
+      entfernt: abgelaufen.length,
+      fehlgeschlagen: ergebnisse.filter((e) => !e.ok && !e.abgelaufen).length,
+    };
+  };
+
+  // Zeitplan statt Anmeldung: nur die Erinnerung „Tagesprotokoll fehlt“, Plan aus der Datenbank (Service-Schlüssel, nur dafür).
+  const cron = req.headers.get('x-cron-secret');
+  if (cron !== null) {
+    const erwartet = umgebung.get('CRON_SECRET') ?? '';
+    if (erwartet.length < 16 || !gleich(cron, erwartet)) return antwort({ fehler: 'Nicht angemeldet.' }, 401);
+    const { data: plaene, error: planFehler } = await admin.rpc('fn_protokoll_erinnerungen');
+    if (planFehler) return antwort({ fehler: 'Die Erinnerungen konnten nicht vorbereitet werden.' }, 500);
+    const summe = { erinnerungen: 0, empfaenger: 0, geraete: 0, gesendet: 0, entfernt: 0, fehlgeschlagen: 0 };
+    for (const plan of (plaene ?? []) as Plan[]) {
+      const z = await versende(plan);
+      if (!z) return antwort({ fehler: 'Die Geräte konnten nicht geladen werden.' }, 500);
+      summe.erinnerungen += 1;
+      for (const k of ['empfaenger', 'geraete', 'gesendet', 'entfernt', 'fehlgeschlagen'] as const) summe[k] += z[k];
+    }
+    return antwort(summe);
+  }
+
   // 1. Eingabe
   let eingabe: { art?: unknown; ref?: unknown; extra?: unknown } = {};
   try { eingabe = await req.json(); } catch { /* leer */ }
@@ -161,30 +216,13 @@ export async function behandle(req: Request, umgebung: Umgebung, holen: typeof f
   const aufrufer = erzeuge(url, anon, { global: { headers: { Authorization: req.headers.get('Authorization')! } } });
   const { data, error } = await aufrufer.rpc('fn_push_vorbereiten', { p_art: eingabe.art, p_ref: ref, p_extra: extra });
   if (error) return fehlerAntwort(error);
-  const plan = data as { empfaenger: string[]; titel: string; text: string; url: string };
+  const plan = data as Plan;
   if (!plan.empfaenger.length) return antwort({ empfaenger: 0, geraete: 0, gesendet: 0, entfernt: 0, fehlgeschlagen: 0 });
 
-  // 3. Geräte der Empfänger (nur mit Service-Schlüssel lesbar) und Versand
-  const admin = erzeuge(url, service, { auth: { persistSession: false } });
-  const { data: abos, error: aboFehler } = await admin.from('push_abos').select('id, endpoint, p256dh, auth').in('person_id', plan.empfaenger);
-  if (aboFehler) return antwort({ fehler: 'Die Geräte konnten nicht geladen werden.' }, 500);
-
-  const nachricht = JSON.stringify({ titel: plan.titel, text: plan.text, url: plan.url });
-  const ergebnisse = await Promise.all((abos ?? []).map(async (a: { id: string; endpoint: string; p256dh: string; auth: string }) => {
-    try { return { id: a.id, ...(await sendePush(a, nachricht, vapid, {}, holen)) }; } catch { return { id: a.id, status: 0, ok: false, abgelaufen: false }; }
-  }));
-
-  // 4. Geräte, die es nicht mehr gibt, aufräumen
-  const abgelaufen = ergebnisse.filter((e) => e.abgelaufen).map((e) => e.id);
-  if (abgelaufen.length) await admin.from('push_abos').delete().in('id', abgelaufen);
-
-  return antwort({
-    empfaenger: plan.empfaenger.length,
-    geraete: ergebnisse.length,
-    gesendet: ergebnisse.filter((e) => e.ok).length,
-    entfernt: abgelaufen.length,
-    fehlgeschlagen: ergebnisse.filter((e) => !e.ok && !e.abgelaufen).length,
-  });
+  // 3. Geräte der Empfänger und Versand
+  const z = await versende(plan);
+  if (!z) return antwort({ fehler: 'Die Geräte konnten nicht geladen werden.' }, 500);
+  return antwort(z);
 }
 
 // Start in Supabase (Deno). In den Tests gibt es kein Deno – dort wird nur behandle() benutzt.

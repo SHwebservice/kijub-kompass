@@ -10,12 +10,15 @@ import { listeKnappeLebensmittel, listeNotizenFuerHeute, listeOffeneWuensche, za
 import { baueKacheln } from '../heute/kacheln';
 import { aktuelleFreizeiten, knappeJeOrt, laeuftHeute, offeneFuerMich } from '../heute/logik';
 import { listeMeineDienste, listeTreffs } from '../treffs/api';
+import { listeProtokollStand } from '../tagesprotokoll/api';
+import { protokollFaellig } from '../tagesprotokoll/logik';
 import { addTage, dienstZeit } from '../treffs/dienstplan';
 import { Bewerben } from './heute/Bewerben';
 import { HeuteTag } from './heute/HeuteTag';
 import { KoordSicht } from './heute/KoordSicht';
 import { LeitungSicht, TreffleitungSicht } from './heute/LeitungSicht';
 import { MitteilungsHinweis } from './heute/MitteilungsHinweis';
+import { ProtokollKarte } from './heute/ProtokollKarte';
 import { Schnellzugriff } from './heute/Schnellzugriff';
 import { WartetAufDich } from './heute/WartetAufDich';
 
@@ -53,6 +56,9 @@ export function Heute() {
   const bewerbungen = useLaden(async () => (koord ? offeneBewerbungen() : []), `heute-bewerbungen-${koord}`);
   const vorschlaege = useLaden(async () => (koord ? listeVorschlaege() : []), `heute-vorschlaege-${koord}`);
   const nachweise = useLaden(async () => (istTreffleitung ? zaehleEingereichteNachweise() : 0), `heute-nachweise-${istTreffleitung}`);
+  const kachelTreffs = koord ? treffs.daten ?? [] : (treffs.daten ?? []).filter((t) => meineTreffIds.includes(t.id));
+  const kachelTreffIds = kachelTreffs.map((t) => t.id);
+  const stand = useLaden(() => listeProtokollStand(kachelTreffIds, heute), `heute-protokollstand-${kachelTreffIds.join(',')}-${heute}`);
   if (!ich || !rollen) return null;
 
   const meine = alle.filter((f) => meineIds.has(f.id) && phase(f, heute) !== 'vergangen' && f.status === 'geplant').sort((a, b) => a.start_datum.localeCompare(b.start_datum) || a.name.localeCompare(b.name, 'de'));
@@ -67,17 +73,23 @@ export function Heute() {
   const ortIds = new Set(leitungFreizeiten.map((f) => f.ort_id).filter((o): o is string => !!o));
   const knapp = knappeJeOrt(bestand.daten ?? [], ortIds).reduce((n, o) => n + o.artikel.length, 0);
 
+  const jetzt = new Date();
+  const uhrzeit = `${String(jetzt.getHours()).padStart(2, '0')}:${String(jetzt.getMinutes()).padStart(2, '0')}`;
+  const protokolliert = new Set(stand.daten?.protokolliert ?? []);
+  const ohneProtokoll = stand.daten ? kachelTreffs.filter((t) => protokollFaellig(t.oeffnungszeiten, heute, uhrzeit) && !protokolliert.has(t.id)) : [];
+
   const kacheln = baueKacheln({
     koordination: koord, bewerbend: rollen.bewerbend, darfTreffmappe: rollen.darfTreffmappe,
     leitung: rollen.leitungFreizeiten.length > 0, treffleitung: rollen.treffleitungen.length > 0,
     freizeitTeam: meineIds.size > 0, treffTeam: hatTreffs, kategorie: ich.kategorie,
     freizeiten: (koord ? aktuelle : meine).map((f) => ({ id: f.id, name: f.name })),
-    treffs: (koord ? treffs.daten ?? [] : (treffs.daten ?? []).filter((t) => meineTreffIds.includes(t.id))).map((t) => ({ id: t.id, name: t.name })),
+    treffs: kachelTreffs.map((t) => ({ id: t.id, name: t.name })),
     zaehler: {
       hinweise: offen.filter((n) => n.freizeit_id !== null).length,          // Hinweise und Absprachen der Freizeiten, die noch bestätigt werden sollen
       treffAbsprachen: offen.filter((n) => n.treff_id !== null).length,
       knapp, wuensche: wuensche.daten?.length ?? 0, bewerbungen: bewerbungen.daten?.length ?? 0,
       vorschlaege: (vorschlaege.daten ?? []).filter((v) => v.status === 'offen').length, nachweise: nachweise.daten ?? 0, diensteHeute,
+      protokollFehlt: ohneProtokoll.length, offeneNotizen: Object.values(stand.daten?.offeneNotizen ?? {}).reduce((n, x) => n + x, 0),
     },
   });
   const bezeichnungen = rollenBezeichnungen(rollen);
@@ -97,6 +109,7 @@ export function Heute() {
 
         <HeuteTag heute={heute} freizeiten={laufendHeute} dienste={dienste.daten ?? []} />
         <WartetAufDich heute={heute} notizen={notizen} />
+        <ProtokollKarte treffs={ohneProtokoll} />
 
         {istLeitung && <LeitungSicht heute={heute} freizeiten={leitungFreizeiten} bestand={bestand} notizen={notizen} />}
         {istTreffleitung && <TreffleitungSicht wuensche={wuensche} />}

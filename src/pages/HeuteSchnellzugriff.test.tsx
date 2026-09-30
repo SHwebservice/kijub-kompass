@@ -5,6 +5,7 @@ import * as treffApi from '../treffs/api';
 import * as heuteApi from '../heute/api';
 import * as katalogApi from '../katalog/api';
 import * as geraet from '../mitteilungen/geraet';
+import * as protokollApi from '../tagesprotokoll/api';
 import { Heute } from './Heute';
 import { renderMitAuth, type Szene } from '../test-utils';
 import { freizeit, inTagen, treff } from '../test-daten';
@@ -15,6 +16,7 @@ vi.mock('../treffs/api');
 vi.mock('../heute/api');
 vi.mock('../katalog/api');
 vi.mock('../mitteilungen/geraet');
+vi.mock('../tagesprotokoll/api');
 
 const laeuft = freizeit({ id: 'f1', name: 'Sommer-Sause', start_datum: inTagen(-1), ende_datum: inTagen(3), ort_id: 'o1', ort_name: 'Mörscher Au', ferienzeitraum: 'sommer', ferienwoche: 1 });
 
@@ -46,6 +48,7 @@ beforeEach(() => {
   vi.mocked(heuteApi.listeOrtNamen).mockResolvedValue({ o1: 'Mörscher Au' });
   vi.mocked(heuteApi.listeTreffNamen).mockResolvedValue({ t1: 'Kindertreff' });
   vi.mocked(katalogApi.listeVorschlaege).mockResolvedValue([]);
+  vi.mocked(protokollApi.listeProtokollStand).mockResolvedValue({ protokolliert: [], offeneNotizen: {} });
   vi.mocked(geraet.pruefeStatus).mockResolvedValue('an');
   vi.mocked(geraet.istApple).mockReturnValue(false);
 });
@@ -156,5 +159,39 @@ describe('Startseite: Schnellzugriff', () => {
     await screen.findByRole('navigation', { name: 'Schnellzugriff' });
     expect(kachelLink('Freizeiten', /^Lebensmittel/)).toBeInTheDocument();
     expect(await within(screen.getByRole('list', { name: 'Treffs' })).findByRole('link', { name: /Dienstwünsche/ })).toBeInTheDocument();
+  });
+});
+
+describe('Startseite: Tagesprotokoll und Notizen der Treffs', () => {
+  const taeglichAb0 = [1, 2, 3, 4, 5, 6, 7].map((wochentag) => ({ wochentag, von: '00:00', bis: '23:59' }));
+  const geoeffnet = () => vi.mocked(treffApi.listeTreffs).mockResolvedValue([{ ...treff({ id: 't1', name: 'Kindertreff' }), oeffnungszeiten: taeglichAb0 }]);
+
+  it('heute geöffnet und noch kein Protokoll: Karte mit Link und Zahl an der Kachel', async () => {
+    geoeffnet();
+    zeige(tzk);
+    const karte = await screen.findByRole('list', { name: 'Treffs ohne Protokoll von heute' });
+    expect(within(karte).getByRole('link', { name: 'Kindertreff' })).toHaveAttribute('href', '/treffs/t1/protokoll');
+    expect(await within(screen.getByRole('list', { name: 'Treffs' })).findByRole('link', { name: /Tagesprotokoll\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/protokoll');
+  });
+
+  it('Protokoll ist schon da: keine Karte, keine Zahl', async () => {
+    geoeffnet();
+    vi.mocked(protokollApi.listeProtokollStand).mockResolvedValue({ protokolliert: ['t1'], offeneNotizen: {} });
+    zeige(tzk);
+    await screen.findByRole('navigation', { name: 'Schnellzugriff' });
+    expect(await screen.findByRole('link', { name: 'Tagesprotokoll' })).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Treffs ohne Protokoll von heute' })).not.toBeInTheDocument();
+  });
+
+  it('Treff ohne Öffnung heute: nichts fehlt', async () => {
+    zeige(tzk);          // Standard-Treff ohne Öffnungszeiten
+    await screen.findByRole('navigation', { name: 'Schnellzugriff' });
+    expect(screen.queryByText('Tagesprotokoll fehlt')).not.toBeInTheDocument();
+  });
+
+  it('offene Notizen: Zahl an der Kachel „Notizen“', async () => {
+    vi.mocked(protokollApi.listeProtokollStand).mockResolvedValue({ protokolliert: [], offeneNotizen: { t1: 3 } });
+    zeige(tzk);
+    expect(await within(await screen.findByRole('list', { name: 'Treffs' })).findByRole('link', { name: /Notizen\s*Offen:\s*3/ })).toHaveAttribute('href', '/treffs/t1/notizen');
   });
 });

@@ -132,6 +132,6 @@ describe('Projektdateien', () => {
   });
   it('alle Geheimnisse, die die Workflows brauchen, sind in der Betriebsanleitung beschrieben', () => {
     const doku = lies('docs/BETRIEB.md');
-    for (const name of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_DB_URL', 'BACKUP_PASSPHRASE']) expect(doku).toContain(name);
+    for (const name of ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_DB_URL', 'BACKUP_PASSPHRASE', 'CRON_SECRET']) expect(doku).toContain(name);
   });
 });
