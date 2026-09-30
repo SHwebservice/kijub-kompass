@@ -186,3 +186,25 @@ B9 (Bewerbung und Zurückziehen, Entscheidung durch die Koordination), Startseit
 - „Neu seit letztem Besuch" (D4 bei Treffs) und Hinweis „gelesen" für die Koordination.
 - Der **Katalog ist noch leer** (Phase 3, Bereich Katalog): Bis dahin tragen Leitungen im Wochenplan Freitext ein, TeamerInnen sehen einen Hinweis.
 - Push-Benachrichtigungen bei neuen Hinweisen/Absprachen (Bereich Mitteilungen).
+
+## Stand der Umsetzung: Treffs (Phase 3c, 2026-09-30)
+
+**Umgesetzt und getestet:** D1 (Stammdaten und strukturierte Öffnungszeiten je Wochentag, Formular für die Koordination, Löschen mit Kaskade und Namensbestätigung),
+D2 (Wochenprogramm: ein Programmpunkt je Öffnungstag, Katalog oder Freitext, Notiz), D3 (Absprachen der Treffleitung, optional an einen Tag gekoppelt, von allen im Treff bestätigt),
+D6 (Team mit rollenabhängigen Kontaktdaten und TZK-Angaben; Zuordnung und Rollen durch die Koordination, nur zulässige Kategorien), D7 (Kaskade),
+E1 (Dienstplan je Kalenderwoche mit Karte je Öffnungstag, Feiertags- und Absprachen-Badge, Abwesenden), E2 (Zuteilen durch Treffleitung/Koordination, Abwesende werden markiert),
+E3 (Wunschdienste: wünschen, zurücknehmen, bestätigen = zugleich einteilen, ablehnen, erneut wünschen nach Ablehnung), E4 (Sonderdienste, auch an Schließtagen),
+E5 (Monatsmuster mit Rückfrage, wie viele Tage ersetzt werden), E6 (Monatsübersicht als Liste), E7 (Statistik Dienste und Stunden je Person und Monat),
+E8 (Wochenkommentare), E9 (Abwesenheiten Urlaub/Krank je Person und Zeitraum, gelten für alle Einsätze), E10 (Feiertage je Treff oder – Koordination – für alle Treffs),
+E11 (Nachweis der Teilzeitkräfte in der Datenbank: Zeilen aus Dienstplan und Abwesenheiten vorbefüllt, frei änderbar, Summe, Unterschrift als Text,
+Entwurf → eingereicht → freigegeben, PDF über den Druckdialog des Browsers mit Dateiname `JJ_MM_Nachname_Vorname`), Startseite: „Meine Treffs“ und „Meine Dienste“ der nächsten 14 Tage.
+
+**Neu gegenüber dem Altcode (bewusste Entscheidungen):**
+- Ein Wunsch für einen Tag ohne Dienst legt den Dienst über eine Datenbankfunktion an (BetreuerInnen dürfen sonst keine Dienste anlegen).
+- Zuteilungen sind nur für Personen des Treffs möglich – auch bei direkten Schreibzugriffen (Datenbank-Regel).
+- Zeilen des Nachweises, die man ändert, gelten danach als manuell und bleiben beim „Aus Dienstplan aktualisieren“ erhalten (ggf. doppelte Zeilen löschen).
+- Den Nachweis führen nur Personen der Kategorie TZK; Treffleitung und Koordination prüfen, geben frei und können zur Überarbeitung zurückgeben.
+
+**Noch offen (bewusst später):**
+- Kalenderansicht des Monats (heute: Liste), „Neu seit letztem Besuch“ (D4), Push bei Dienständerungen, neuen Wünschen und Kommentaren (Bereich Mitteilungen).
+- Wochenprogramm kann laut Datenbank jede Person des Treffs ändern; die Oberfläche beschränkt es auf Treffleitung und Koordination (bei Bedarf lockern).

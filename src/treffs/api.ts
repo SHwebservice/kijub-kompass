@@ -4,6 +4,7 @@ import type { Notiz } from '../freizeiten/notizen';
 import type { NotizWerte } from '../freizeiten/api';
 import type { Abwesenheit, Dienst, Feiertag, SonderEingabe, StatistikZeile, Muster, WunschStatus } from './dienstplan';
 import { musterAlsJson } from './dienstplan';
+import type { Nachweis, NachweisStatus, NachweisZeile } from './nachweis';
 import { oeffnungszeitenAusTagen, sortiereOeffnungszeiten, type Oeffnungszeit, type TageEingabe, type TreffMitglied, type WochenprogrammEintrag } from './logik';
 
 /** Dünne Schicht über Supabase für die Treffs. Rechte entscheidet die Datenbank (RLS), nicht diese Datei. */
@@ -247,4 +248,76 @@ export async function speichereFeiertag(treffId: string | null, datum: string, b
 
 export async function loescheFeiertag(id: string): Promise<void> {
   pruefe(await supabase.from('feiertage').delete().eq('id', id));
+}
+
+/* ───── Nachweis der Teilzeitkräfte ───── */
+
+/** Nachweise des Monats, die die angemeldete Person sehen darf (eigene; Treffleitung und Koordination alle des Treffs). */
+export async function listeNachweise(treffId: string, monat: string): Promise<Nachweis[]> {
+  const r = pruefe(await supabase.from('zeitnachweise')
+    .select('id, person_id, monat, status, unterschrift, freigegeben_von, zeitnachweis_zeilen(id, datum, zeiten, stunden, quelle)')
+    .eq('treff_id', treffId).eq('monat', monat)) as unknown as
+    (Omit<Nachweis, 'zeilen'> & { zeitnachweis_zeilen: (Omit<NachweisZeile, 'stunden'> & { stunden: number | string | null })[] })[];
+  return r.map(({ zeitnachweis_zeilen, ...n }) => ({
+    ...n, zeilen: (zeitnachweis_zeilen ?? []).map((z) => ({ ...z, stunden: z.stunden === null ? null : Number(z.stunden) })),
+  }));
+}
+
+/** Legt den eigenen Nachweis an und befüllt ihn aus dem Dienstplan; gibt die ID zurück. */
+export async function legeNachweisAn(treffId: string, personId: string, monat: string): Promise<string> {
+  const id = (pruefe(await supabase.from('zeitnachweise').insert({ treff_id: treffId, person_id: personId, monat }).select('id').single()) as { id: string }).id;
+  pruefe(await supabase.rpc('fn_nachweis_befuellen', { p_nachweis: id }));
+  return id;
+}
+
+/** Ersetzt die aus Dienstplan und Abwesenheiten erzeugten Zeilen; manuelle bleiben. */
+export async function befuelleNachweis(id: string): Promise<void> {
+  pruefe(await supabase.rpc('fn_nachweis_befuellen', { p_nachweis: id }));
+}
+
+export interface ZeilenWerte { datum: string; zeiten: string | null; stunden: number | null }
+
+/** Neue Zeile (id = null) oder Änderung; geänderte Zeilen zählen danach als manuell und überstehen das Aktualisieren. */
+export async function speichereZeile(nachweisId: string, id: string | null, w: ZeilenWerte): Promise<void> {
+  const werte = { datum: w.datum, zeiten: w.zeiten, stunden: w.stunden, quelle: 'manuell' };
+  if (id) pruefe(await supabase.from('zeitnachweis_zeilen').update(werte).eq('id', id));
+  else pruefe(await supabase.from('zeitnachweis_zeilen').insert({ nachweis_id: nachweisId, ...werte }));
+}
+
+export async function loescheZeile(id: string): Promise<void> {
+  pruefe(await supabase.from('zeitnachweis_zeilen').delete().eq('id', id));
+}
+
+export async function speichereUnterschrift(id: string, text: string): Promise<void> {
+  pruefe(await supabase.from('zeitnachweise').update({ unterschrift: leer(text) }).eq('id', id));
+}
+
+export async function setzeNachweisStatus(id: string, status: NachweisStatus, unterschrift?: string): Promise<void> {
+  pruefe(await supabase.from('zeitnachweise').update(unterschrift === undefined ? { status } : { status, unterschrift: leer(unterschrift) }).eq('id', id));
+}
+
+export async function loescheNachweis(id: string): Promise<void> {
+  pruefe(await supabase.from('zeitnachweise').delete().eq('id', id));
+}
+
+/* ───── Meine Dienste (für die Startseite) ───── */
+
+export interface MeinDienst {
+  id: string;
+  datum: string;
+  von: string | null;
+  bis: string | null;
+  ist_sonder: boolean;
+  bezeichnung: string | null;
+  treff_id: string;
+  treff_name: string;
+}
+
+export async function listeMeineDienste(personId: string, von: string, bis: string): Promise<MeinDienst[]> {
+  const r = pruefe(await supabase.from('dienst_zuteilungen')
+    .select('dienste!inner(id, datum, von, bis, ist_sonder, bezeichnung, treff_id, treffs(name))')
+    .eq('person_id', personId).gte('dienste.datum', von).lte('dienste.datum', bis)) as unknown as
+    { dienste: Omit<MeinDienst, 'treff_name'> & { treffs: { name: string } | null } }[];
+  return r.map(({ dienste: { treffs, ...d } }) => ({ ...d, von: d.von?.slice(0, 5) ?? null, bis: d.bis?.slice(0, 5) ?? null, treff_name: treffs?.name ?? '' }))
+    .sort((a, b) => a.datum.localeCompare(b.datum) || (a.von ?? '').localeCompare(b.von ?? ''));
 }
