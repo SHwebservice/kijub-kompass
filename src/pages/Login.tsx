@@ -5,10 +5,12 @@ import { Alert, Button, Card, TextField } from '../components/ui';
 interface Props {
   anmelden: (mail: string, passwort: string) => Promise<string | null>;
   konfiguriert: boolean;
+  /** Wird nach erfolgreicher Anmeldung aufgerufen (die App springt dann zur Startseite). */
+  nachAnmeldung?: () => void;
 }
 
 /** Anmeldung mit Mail-Adresse und Passwort. Zugänge richtet die Koordination ein. */
-export function Login({ anmelden, konfiguriert }: Props) {
+export function Login({ anmelden, konfiguriert, nachAnmeldung }: Props) {
   const [mail, setMail] = useState('');
   const [passwort, setPasswort] = useState('');
   const [fehler, setFehler] = useState<string | null>(null);
@@ -19,8 +21,9 @@ export function Login({ anmelden, konfiguriert }: Props) {
     setLaedt(true); setFehler(null);
     const f = await anmelden(mail, passwort);
     setLaedt(false);
-    if (f) setFehler(f);
+    if (f) { setFehler(f); return; }
     // Bei Erfolg wechselt die App über den Auth-Zustand von selbst in den angemeldeten Bereich.
+    nachAnmeldung?.();
   }
 
   return (

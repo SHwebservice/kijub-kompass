@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './lib/auth';
 import { useAuth } from './lib/auth-kontext';
 import { konfiguriert } from './lib/supabase';
@@ -12,12 +12,14 @@ import { PasswortAendern } from './pages/PasswortAendern';
 
 function Zugang() {
   const { status, fehler, mussPasswortAendern, anmelden, passwortAendern, abmelden } = useAuth();
+  const navigate = useNavigate();
+  const zurStartseite = () => navigate('/', { replace: true });
 
   if (status === 'laedt') {
     return <div className="login"><Spinner beschriftung="App wird geladen …" /></div>;
   }
   if (status === 'abgemeldet') {
-    return <Login anmelden={anmelden} konfiguriert={konfiguriert} />;
+    return <Login anmelden={anmelden} konfiguriert={konfiguriert} nachAnmeldung={zurStartseite} />;
   }
   if (status === 'keine_person' || status === 'fehler') {
     return (
@@ -38,7 +40,7 @@ function Zugang() {
   }
 
   if (mussPasswortAendern) {
-    return <PasswortAendern erzwungen speichern={passwortAendern} abmelden={() => void abmelden()} />;
+    return <PasswortAendern erzwungen speichern={passwortAendern} abmelden={() => void abmelden()} onFertig={zurStartseite} />;
   }
 
   return <Geschuetzt />;

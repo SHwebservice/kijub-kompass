@@ -1,6 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { KATEGORIEN, type Kategorie } from '../lib/rollen';
+import { useAuth } from '../lib/auth-kontext';
+import { PersonEntfernen, type Modus, type Uebersicht } from './PersonEntfernen';
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, SelectField, Spinner, TextField } from '../components/ui';
 
 interface PersonZeile {
@@ -48,6 +50,8 @@ function StartpasswortAnzeige({ s, schliessen }: { s: Startpasswort; schliessen:
 /** Koordination: Personen anlegen, Zugang einrichten, Passwort zurücksetzen.
  *  Die volle Personalverwaltung folgt in Phase 3. */
 export function Personen() {
+  const { ich } = useAuth();
+  const [entfernen, setEntfernen] = useState<PersonZeile | null>(null);
   const [zeilen, setZeilen] = useState<PersonZeile[] | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
@@ -99,6 +103,42 @@ export function Personen() {
     neuLaden();
   }
 
+  const ladeUebersicht = useCallback(async (): Promise<Uebersicht> => {
+    if (!entfernen) throw new Error('keine Person');
+    const { data, error } = await supabase.rpc('fn_person_datenuebersicht', { p_id: entfernen.id });
+    if (error) throw error;
+    return data as Uebersicht;
+  }, [entfernen]);
+
+  async function entfernenAusfuehren(modus: Modus): Promise<string | null> {
+    if (!entfernen) return null;
+    const p = entfernen;
+    const name = `${p.vorname} ${p.nachname}`;
+    if (modus === 'deaktivieren') {
+      const { error } = await supabase.from('personen').update({ aktiv: false }).eq('id', p.id);
+      if (error) return /letzte aktive Koordination/.test(error.message)
+        ? 'Die letzte aktive Koordination kann nicht deaktiviert werden.' : 'Deaktivieren hat nicht geklappt.';
+    } else {
+      const { data, error } = await supabase.functions.invoke('konto-entfernen', { body: { person_id: p.id, modus } });
+      if (error || !data?.ok) {
+        return data?.fehler ?? 'Das Entfernen hat nicht geklappt. Ist die Funktion „konto-entfernen" bereitgestellt?';
+      }
+    }
+    setEntfernen(null);
+    setMeldung(modus === 'person' ? `${name} wurde endgültig gelöscht.`
+      : modus === 'zugang' ? `Der Zugang von ${name} wurde entzogen.` : `${name} wurde deaktiviert.`);
+    neuLaden();
+    return null;
+  }
+
+  async function aktivieren(p: PersonZeile) {
+    setFehler(null); setMeldung(null);
+    const { error } = await supabase.from('personen').update({ aktiv: true }).eq('id', p.id);
+    if (error) { setFehler('Aktivieren hat nicht geklappt.'); return; }
+    setMeldung(`${p.vorname} ${p.nachname} ist wieder aktiv.`);
+    neuLaden();
+  }
+
   const gefiltert = (zeilen ?? []).filter((p) =>
     `${p.vorname} ${p.nachname} ${p.mail}`.toLowerCase().includes(suche.trim().toLowerCase()));
 
@@ -107,6 +147,10 @@ export function Personen() {
       <PageHeader titel="Personen" />
       {fehler && <Alert ton="error">{fehler}</Alert>}
       {meldung && <Alert ton="success">{meldung}</Alert>}
+      {entfernen && (
+        <PersonEntfernen person={entfernen} ladeUebersicht={ladeUebersicht} ausfuehren={entfernenAusfuehren}
+          schliessen={() => setEntfernen(null)} />
+      )}
       {startpasswort && <StartpasswortAnzeige s={startpasswort} schliessen={() => setStartpasswort(null)} />}
 
       <Card>
@@ -148,11 +192,18 @@ export function Personen() {
                     {!p.aktiv && <Badge ton="danger">Deaktiviert</Badge>}
                   </div>
                 </div>
-                {p.aktiv && (
-                  <Button klein laedt={arbeitet === p.id} onClick={() => void zugangEinrichten(p)}>
-                    {p.auth_user_id ? 'Passwort zurücksetzen' : 'Zugang einrichten'}
-                  </Button>
-                )}
+                <div className="row" style={{ gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
+                  {p.aktiv ? (
+                    <Button klein laedt={arbeitet === p.id} onClick={() => void zugangEinrichten(p)}>
+                      {p.auth_user_id ? 'Passwort zurücksetzen' : 'Zugang einrichten'}
+                    </Button>
+                  ) : (
+                    <Button klein onClick={() => void aktivieren(p)}>Aktivieren</Button>
+                  )}
+                  {p.id !== ich?.id && (
+                    <Button klein variante="danger" onClick={() => { setStartpasswort(null); setEntfernen(p); }}>Entfernen …</Button>
+                  )}
+                </div>
               </li>
             );
           })}

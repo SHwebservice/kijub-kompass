@@ -34,6 +34,9 @@ npx supabase db push          # spielt supabase/migrations/*.sql der Reihe nach 
 Variante B – ohne CLI: Im Dashboard unter **SQL Editor** den Inhalt von `supabase/alle-migrationen.sql` einfügen und
 **einmal** ausführen (nur für ein leeres Projekt; die Datei entsteht mit `npm run sql:bundle`).
 
+**Projekt läuft schon und es kommen neue Migrationen dazu?** Dann nur die neue Datei aus `supabase/migrations/` (z. B. `0009_person_entfernen.sql`)
+im SQL Editor ausführen – nicht die Sammeldatei, die ist nur für leere Projekte.
+
 ### Erste Koordination anlegen **[du]**
 
 Die App hat bewusst keinen „erster Benutzer"-Weg. Einmalig im SQL Editor (eigene Daten einsetzen):
@@ -50,13 +53,19 @@ Ab dann richtet die Koordination alle weiteren Zugänge in der App ein (**Mehr �
 > Schon angemeldet, aber ohne Passwort (z. B. über einen früheren Einladungslink)? Die Sitzung bleibt bestehen –
 > unter **Mehr → Passwort ändern** ein Passwort festlegen, **bevor** du dich abmeldest.
 
-## 3. Funktion „konto-passwort" bereitstellen **[du]**
+## 3. Edge Functions bereitstellen **[du]**
 
-Sie richtet Zugänge ein und setzt Passwörter zurück (braucht den Service-Schlüssel, den die App nie sieht).
+Zwei Funktionen brauchen den Service-Schlüssel, den die App nie sieht:
 
-Ohne CLI: Dashboard → **Edge Functions → Deploy a new function → „Via Editor"**, Name **`konto-passwort`**,
-Inhalt von `supabase/functions/konto-passwort/index.ts` einfügen und bereitstellen. Die Datei ist in sich geschlossen.
-Mit CLI: `npx supabase functions deploy konto-passwort`.
+| Funktion | Datei | Zweck |
+|---|---|---|
+| `konto-passwort` | `supabase/functions/konto-passwort/index.ts` | Zugang einrichten, Passwort zurücksetzen |
+| `konto-entfernen` | `supabase/functions/konto-entfernen/index.ts` | Zugang entziehen, Person endgültig löschen |
+
+Ohne CLI, für **jede** der beiden Funktionen: Dashboard → **Edge Functions → Deploy a new function → „Via Editor"**, Name genau wie in der
+Tabelle, Beispielcode löschen, Inhalt der Datei einfügen und bereitstellen. Die Dateien sind in sich geschlossen.
+Mit CLI: `npx supabase functions deploy konto-passwort` und `npx supabase functions deploy konto-entfernen`.
+Nach einer Änderung an den Dateien muss die Funktion neu bereitgestellt werden.
 
 Secrets sind nicht nötig: `SUPABASE_URL`, `SUPABASE_ANON_KEY` und `SUPABASE_SERVICE_ROLE_KEY` setzt Supabase automatisch.
 Die Option **„Verify JWT"** bleibt an.

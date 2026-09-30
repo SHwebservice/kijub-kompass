@@ -29,6 +29,26 @@ describe('Login', () => {
     expect(anmelden).toHaveBeenCalledWith('anna@kijub.example', 'geheim');
   });
 
+  it('ruft nachAnmeldung nur nach erfolgreicher Anmeldung auf (Sprung zur Startseite)', async () => {
+    const nachAnmeldung = vi.fn();
+    const { anmelden } = aufbau({ nachAnmeldung });
+    await userEvent.type(screen.getByLabelText('Mail-Adresse'), 'anna@kijub.example');
+    await userEvent.type(screen.getByLabelText('Passwort'), 'geheim');
+    await userEvent.click(screen.getByRole('button', { name: 'Anmelden' }));
+    expect(anmelden).toHaveBeenCalled();
+    expect(nachAnmeldung).toHaveBeenCalledTimes(1);
+  });
+
+  it('springt bei falschem Passwort nicht zur Startseite', async () => {
+    const nachAnmeldung = vi.fn();
+    aufbau({ anmelden: vi.fn().mockResolvedValue('Mail-Adresse oder Passwort stimmt nicht.'), nachAnmeldung });
+    await userEvent.type(screen.getByLabelText('Mail-Adresse'), 'anna@kijub.example');
+    await userEvent.type(screen.getByLabelText('Passwort'), 'falsch');
+    await userEvent.click(screen.getByRole('button', { name: 'Anmelden' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(nachAnmeldung).not.toHaveBeenCalled();
+  });
+
   it('das Passwortfeld ist verdeckt und als aktuelles Passwort ausgezeichnet', () => {
     aufbau();
     const feld = screen.getByLabelText('Passwort');

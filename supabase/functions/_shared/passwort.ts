@@ -18,7 +18,7 @@ function zufallsIndex(n: number, zufall: (b: Uint8Array) => Uint8Array): number 
 
 /** Z. B. "Xk7m-Qp4s-Rt9w": 12 Zeichen aus 57 möglichen ≈ 70 Bit Zufall. */
 export function erzeugePasswort(
-  zufall: (b: Uint8Array) => Uint8Array = (b) => { crypto.getRandomValues(b as Uint8Array<ArrayBuffer>); return b; },
+  zufall: (b: Uint8Array) => Uint8Array = (b) => { crypto.getRandomValues(b as never); return b; },
 ): string {
   const gruppen: string[] = [];
   for (let g = 0; g < GRUPPEN; g++) {

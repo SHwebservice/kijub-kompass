@@ -13,10 +13,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ich, setIch] = useState<Ich | null>(null);
   const [rollen, setRollen] = useState<Rollen | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  // Nach erfolgreicher Passwortänderung merkt sich die App das sofort selbst, unabhängig davon,
+  // wann die Sitzung die neuen Kontodaten nachliefert. Gilt nur für das Konto, für das es gesetzt wurde.
+  const [quittiertFuer, setQuittiertFuer] = useState<string | null>(null);
 
   const laden = useCallback(async (s: Session | null) => {
     setSession(s);
-    if (!s) { setIch(null); setRollen(null); setStatus('abgemeldet'); return; }
+    if (!s) { setIch(null); setRollen(null); setStatus('abgemeldet'); setQuittiertFuer(null); return; }
     const { data: person, error } = await supabase
       .from('personen')
       .select('id, vorname, nachname, mail, kategorie, ist_koordination')
@@ -53,13 +56,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const passwortAendern = useCallback(async (neu: string) => {
-    const { error } = await supabase.auth.updateUser({ password: neu, data: { muss_passwort_aendern: false } });
-    return error ? authFehlerText(error.message) : null;
+    const aendern = (daten: { password?: string; data: { muss_passwort_aendern: boolean } }) =>
+      supabase.auth.updateUser(daten);
+
+    let { data, error } = await aendern({ password: neu, data: { muss_passwort_aendern: false } });
+    if (error) return authFehlerText(error.message);
+
+    // Antwort des Servers prüfen: steht das Flag noch auf "muss ändern", einmal gezielt nachsetzen.
+    if (data.user?.user_metadata?.muss_passwort_aendern === true) {
+      ({ data, error } = await aendern({ data: { muss_passwort_aendern: false } }));
+      if (error || data.user?.user_metadata?.muss_passwort_aendern === true) {
+        return 'Das Passwort wurde geändert, aber die Bestätigung konnte nicht gespeichert werden. Bitte abmelden und mit dem neuen Passwort erneut anmelden.';
+      }
+    }
+
+    setQuittiertFuer(data.user?.id ?? null);
+    // Sitzung mit den aktuellen Kontodaten auffrischen (Fehler hier sind unkritisch).
+    await supabase.auth.refreshSession().catch(() => undefined);
+    return null;
   }, []);
 
   const abmelden = useCallback(async () => { await supabase.auth.signOut(); }, []);
 
-  const mussPasswortAendern = session?.user.user_metadata?.muss_passwort_aendern === true;
+  const mussPasswortAendern =
+    session?.user.user_metadata?.muss_passwort_aendern === true && quittiertFuer !== session.user.id;
 
   const wert = useMemo<AuthWert>(
     () => ({ status, session, ich, rollen, fehler, mussPasswortAendern, anmelden, passwortAendern, abmelden }),

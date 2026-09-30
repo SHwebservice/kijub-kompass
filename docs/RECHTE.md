@@ -41,7 +41,8 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Team-Liste (Name, Rolle) | L | L (Team) | L (Team) | L (Treff) | L (Treff) | — |
 | Team-Liste-Kontaktdaten (Mail, Telefon, Ernährung, Notiz, TZK) | L | L (Team) | — | L (Treff) | — | — |
 | Zuordnung Freizeit/Treff (Team-Mitgliedschaft) | L E Ä X | — | — | — | — | — |
-| Zugang einrichten / Passwort zurücksetzen | E Ä X | — | — | — | — | — |
+| Zugang einrichten / Passwort zurücksetzen / Zugang entziehen / Person endgültig löschen | E Ä X |
+| Letzte aktive Koordination löschen, deaktivieren, herabstufen | für niemanden möglich (Datenbank-Schutz) | — | — | — | — | — |
 
 ### Freizeiten
 

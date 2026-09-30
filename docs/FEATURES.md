@@ -160,3 +160,11 @@ Eine rollenabhängige Startseite statt fünf getrennter Dashboard-Fragmente:
 | ~~O6~~ | **Entschieden:** Planer entfällt, Favoriten bleiben. | – |
 | O7 | Soll die **Frist 7 Tage** für Bewerbungen fest bleiben? | Einstellung in der App. |
 | O8 | **Datenschutz:** Gibt es eine Datenschutzfolgenabschätzung/Verarbeitungsverzeichnis beim Träger? Supabase-Auftragsverarbeitung (EU) muss abgeschlossen werden. | Vor Produktivstart klären, nicht blockierend für den Bau. |
+
+---
+
+## Nachtrag: Personen entfernen (2026-09-30)
+
+| ID | Was | Entscheidung |
+|---|---|---|
+| B11 | Die Koordination kann Personen **deaktivieren** (sofort gesperrt, Daten bleiben, umkehrbar), ihnen den **Zugang entziehen** (Login weg, Person bleibt) oder sie **endgültig löschen** (Person, Login und alle zugehörigen Daten; verfasste Hinweise/Absprachen bleiben ohne Namen). Vor dem Löschen zeigt die App, was mitgeht, und verlangt den Nachnamen zur Bestätigung. | **Neu, umgesetzt.** Schutz: nicht sich selbst, nie die letzte aktive Koordination (auch nicht per Dashboard/SQL). Hinweis: Zeitnachweise können aufbewahrungspflichtig sein – im Zweifel deaktivieren statt löschen. |
