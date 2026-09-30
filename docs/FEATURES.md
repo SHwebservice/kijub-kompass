@@ -1,0 +1,162 @@
+# Feature-Liste (Phase 1)
+
+Quelle: Durchsicht von `kijub-marktplatz` (Stand 2026-09-30). Jede Zeile nennt, was der Altcode tut, und
+eine **Entscheidung für den Neubau**:
+
+- **Behalten** – 1:1 fachlich übernehmen
+- **Neu** – Funktion bleibt, Umsetzung ändert sich (Begründung in der Spalte)
+- **Streichen** – entfällt
+- **Offen** – braucht Entscheidung (siehe Schluss)
+
+Begriffe: *Koordination* = Admin (Firebase-Auth-Konto ohne Mitarbeitenden-Verknüpfung). *Leitung* = Freizeitleitung.
+Quellen-Kürzel: `mt` = mitarbeitende.js, `fz` = freizeiten-zugaenge.js, `tf` = treffs.js, `dn` = dienstplan-nachweis.js,
+`ta` = treff-abwesenheiten.js, `tm` = teamermappe.js, `tfm` = treffmappe.js, `kat` = katalog*.js, `bk` = backup-import.js,
+`push` = install-push.js + functions/index.js, `rules` = firestore.rules.
+
+> Hinweis zur Belastbarkeit: Personal, Freizeiten, Treffs, Dienstplan, Nachweis, Abwesenheiten, Mappen, Push-Functions
+> und Rechte wurden im Detail gelesen. Katalog-Filter/-Darstellung, der persönliche Planer (`helpers-planner.js`),
+> CSS und Quiz-Oberfläche wurden nur überblickt. Wo das relevant ist, steht es in der Zeile.
+
+---
+
+## A. Zugang & Anmeldung
+
+| ID | Was der Altcode tut | Quelle | Entscheidung |
+|---|---|---|---|
+| A1 | Mitarbeitende bekommen einen 8-stelligen Code (Alphabet ohne 0/O/1/I) und einen Link `?zugang=CODE`; der Code wird im `localStorage` gemerkt (mehrere Codes pro Gerät möglich). Kein Passwort. | `fz` | **Neu** → Einladung per E-Mail, Anmeldung per Einmalcode/Magic-Link. Keine Codes im Browser. |
+| A2 | Koordination meldet sich mit Firebase-Mail+Passwort an. | `auth-overlays` | **Behalten** (Rolle `koordination`). |
+| A3 | Hauptamtliche können zusätzlich ein Mail+Passwort-Login „einrichten" (zweite Firebase-App-Instanz, Verknüpfung `mitarbeitendeAuth/{uid}`; Reset nur manuell in der Console). | `mt` | **Streichen** – ersetzt durch A1 für alle. |
+| A4 | Legacy-Zugänge (`zugaenge`, befristet, Label statt Person) für bereits verschickte Links. | `mt`, `fz`, `rules` | **Streichen** (keine Altlasten, Neustart). |
+| A5 | „Mein Bereich": Code eingeben, Code entfernen, Info-Tooltip. | `fz` | **Streichen** (Login statt Code). |
+| A6 | Zuletzt geöffnete Ansicht wird gemerkt und beim Start wiederhergestellt. | `helpers-planner` | **Behalten** (Komfort, nur lokal). |
+| A7 | Export der Zugangscodes als JSON für die Offline-Software „KiJuKo2.1" (Platzhalter `{Code}`/`{Zugangslink}` in Mail-Vorlagen). | `mt` | **Streichen** (Entscheidung 2026-09-30: Codes entfallen). Folge: KiJuKo-Mailvorlagen mit `{Code}`/`{Zugangslink}` müssen auf den App-Link umgestellt werden (Änderung in KiJuKo, nicht im Kompass). |
+| A8 | Mail an einzelne Person bzw. **Serienmail** per `mailto:`-Warteschlange (ein Fenster pro Person), filterbar nach Ferienzeitraum (Ostern/Sommer/Herbst). | `mt` | **Neu** → Einladung/Erinnerung aus der App (Supabase-Auth-Mail bzw. Edge Function). Serienmail-Text bleibt Vorlage. |
+
+## B. Personal
+
+| ID | Was der Altcode tut | Quelle | Entscheidung |
+|---|---|---|---|
+| B1 | Stammdaten je Person: Vorname, Nachname, Mail (Pflicht), Telefon, Ernährung (Mischkost/Vegetarisch/Vegan), „Allergien/besondere Fähigkeiten" (Freitext), aktiv/deaktiviert. | `mt` | **Behalten**. |
+| B2 | 7 Kategorien: TeamerIn, Senior-TeamerIn, FSJ, TZK, Praktikum bezahlt, Praktikum unbezahlt, Hauptamtliche\*r. Kategorie bestimmt **abgeleitet** die Rolle: Hauptamtliche\*r ⇒ Leitung, alle anderen ⇒ TeamerIn. | `mt`, `rules` | **Neu** → Rolle je Einsatz wird **gespeichert** (Standard aus Kategorie vorbelegt), damit Ausnahmen möglich sind. Siehe O2. |
+| B3 | TZK-Zusatzfelder: Regeltage, Max.-Stunden/Monat. | `mt` | **Behalten** (werden in Team-Ansicht und Dienstplan sichtbar). |
+| B4 | Zuordnung zu Freizeiten (Rolle `teamer`/`leitung`) und zu Treffs (`treffleitung`/`betreuerin`). Treffs nur für TZK, FSJ, Praktikum unbezahlt, Hauptamtliche\*r. | `mt`, `fz` | **Behalten** (als Zuordnungs-Tabellen statt Map-Feldern). |
+| B5 | Liste mit Suche (Name/Mail/Code), Filtern (Rolle, aktiv/inaktiv, „ohne Freizeit", Freizeit), A–Z-Sprung, Schnell-Statuswechsel per Dropdown. | `mt` | **Behalten**. |
+| B6 | Duplikate finden und zusammenführen (gleicher Name, „reichster" Datensatz gewinnt, Felder werden ergänzt). | `mt` | **Streichen** – Eindeutigkeit über Mail-Adresse als Datenbank-Regel. Import-Duplikate werden beim Import abgefangen. |
+| B7 | Team-Liste einer Freizeit/eines Treffs (Name, Mail, Telefon, Ernährung, Notizen, TZK-Angaben). Wird als **Kopie** im Freizeit-/Treff-Dokument gepflegt, damit Leitungen sie sehen, ohne die Personal-Sammlung lesen zu dürfen. | `fz`, `mt`, `tf` | **Neu** → eine Sicht (View) mit Zeilenrechten statt Kopie. Mail/Telefon/Ernährung sichtbar für Leitung ihres Einsatzes und Koordination, nicht für TeamerInnen untereinander (heute: siehe O3). |
+| B8 | Koordination kann Personen aus dem Team entfernen/hinzufügen (Suche, max. 15 Treffer, nur aktive, Treffs nur zulässige Kategorien). | `fz` | **Behalten**. |
+| B9 | **Bewerbung:** TeamerIn sieht alle kommenden Freizeiten (Start ≥ heute + 7 Tage, noch nicht zugeteilt/beworben), bewirbt sich mit optionaler Notiz, kann bis zur Entscheidung zurückziehen. Koordination nimmt an (⇒ Zuordnung als TeamerIn) oder lehnt ab. Badge mit Anzahl offener Bewerbungen. | `fz`, `mt`, `core` | **Behalten**. Frist „7 Tage" wird konfigurierbar (Einstellung). |
+| B10 | Backup-Import aus „KiJuKo" (Electron-Verwaltungssoftware): Projekte → Freizeiten, Orte, Staff → Personen, Zuteilungen, Leitungen aus „Hauptamtliche". Vorschau vor Import, Übersprungenes wird gelistet. | `bk` | **Behalten und erweitern** (Entscheidung 2026-09-30: KiJuKo bleibt im Einsatz, Import bleibt dauerhaft). Wird **wiederholbar** (Abgleich statt Neuanlage). Details in [IMPORT.md](IMPORT.md). |
+
+## C. Freizeiten
+
+| ID | Was der Altcode tut | Quelle | Entscheidung |
+|---|---|---|---|
+| C1 | Stammdaten: Name, Ferienzeitraum (Ostern/Sommer/Herbst) + Ferienwoche (Ostern 2, Sommer 6, Herbst 2 Wochen), Ort, Adresse, Start/Ende, Arbeitsbeginn/-ende, Alter von/bis, max. Teilnehmende, Leitungsname/-mail, Tags. | `fz` | **Behalten**. `leitungName/-mail` werden aus der Zuordnung abgeleitet statt doppelt getippt. |
+| C2 | 6 Freizeit-Tags: Gelbes T-Shirt, Großfreizeit, Themenfreizeit, Schwimmen/Wasser, Übernachtung/Mehrtägig, Küche – steuern u. a., welche Teamermappe-Kacheln hervorgehoben werden. | `tm` | **Behalten** (Tags als Tabelle, erweiterbar durch Koordination). |
+| C3 | Orte als Stammdaten (Name, Adresse); mehrere Freizeiten können einen Ort teilen; Adresse der Freizeit wird vom Ort übernommen und ist dann schreibgeschützt; Ort kann nur gelöscht werden, wenn keine Freizeit ihn nutzt. | `fz` | **Behalten** (Fremdschlüssel erzwingt das). |
+| C4 | Wochenplan: Tage werden aus Start/Ende erzeugt (Format „Mo 20.7."); Slots standardmäßig Vormittag/Nachmittag, optional „Abend"; Slot-Reihenfolge ändert nur die Leitung. | `fz`, `helpers-planner` | **Neu** → Tage aus echtem Datum berechnet (keine Strings mit Punkten, die in Feldpfaden Probleme machten); Slots als Tabelle. |
+| C5 | Je Tag×Slot **mehrere** Einträge (kein „Ausbuchen"): Katalog-Programmpunkt *oder* Freitext (Freitext nur Leitung/Koordination), Notiz, „eingetragen von" (Vorname). Anzeige: Kategoriefarbe, ab 3 Einträgen „+n weitere". | `fz` | **Behalten**. „eingetragen von" wird eine Personenreferenz. |
+| C6 | **Hinweise** (für alle sichtbar, inkl. TeamerInnen; gelten für die ganze Freizeit oder einen Tag). TeamerInnen können per Daumen „gesehen" bestätigen; Leitung sieht nur Anzahl/Namen. | `fz` | **Behalten**. Bestätigung per Person-ID statt Vorname. |
+| C7 | **Absprachen** (nur Leitung + Koordination; gesamt oder je Tag). Leitung/Koordination bestätigen per Daumen, kommentieren (bearbeiten/löschen). „KO bestätigt"/„Leitung bestätigt". | `fz` | **Behalten**. |
+| C8 | Dashboard „Mein Bereich": laufende/bald startende Freizeiten (≤ 7 Tage), offene Hinweise/Absprachen, kommende Freizeiten zum Bewerben, jüngste Absprachen, knappe Lebensmittel. | `fz` | **Neu** → eine Startseite „Heute" (siehe Abschnitt H). |
+| C9 | Vergangene Freizeiten der Leitung wandern in ein einklappbares Archiv. | `fz` | **Behalten**. |
+| C10 | Farbkennzeichnung je Freizeit (abgeleitet aus ID). | `fz` | **Behalten** (aus ID abgeleitet oder wählbar). |
+| C11 | **Lebensmittel-Inventar** nur für Leitung/Koordination: Eingänge (Name, Menge, Einheit, Datum), Verbrauch (je Tag), Restbestand, Warnung „bald leer" (≤ 25 % von erhalten) / „leer", Hochrechnung „reicht voraussichtlich nicht" (Ø Verbrauch × Resttage). Bestand liegt **am Ort**, so dass aufeinanderfolgende Freizeiten am selben Ort den Bestand fortführen. | `fz` | **Behalten**. Freizeit ohne Ort: Ort ist künftig Pflicht für das Lebensmittel-Modul (Vereinfachung, O4). |
+| C12 | Koordinations-Dashboard: Bewerbungen, Vorschläge, Notizen/Nachrichten (mit „gelesen"-Markierung), Lebensmittel-Übersicht, aktuelle Freizeiten, Saison-Gruppierung. | `fz` | **Neu** → siehe Abschnitt H. |
+| C13 | Gruppierung nach Ferienzeitraum/-woche mit Farbpunkt; Sortierung nach Start, dann Name. | `fz` | **Behalten**. |
+| C14 | Freizeit löschen räumt Zuordnungen auf. | `fz` | **Behalten** (Kaskade in der Datenbank). |
+| C15 | Live-Synchronisierung: Änderungen anderer erscheinen sofort. | `fz` | **Behalten** (Supabase Realtime). |
+
+## D. Treffs
+
+| ID | Was der Altcode tut | Quelle | Entscheidung |
+|---|---|---|---|
+| D1 | Stammdaten: Name, Ort (ein Ort gehört höchstens einem Treff), Adresse, Öffnungstage (Mo–So), **Öffnungszeit je Tag als Freitext** („15:00–19:00 Uhr"). | `tf` | **Neu** → Öffnungszeit strukturiert (von/bis), weil Stunden daraus berechnet werden. |
+| D2 | Wochenprogramm: **ein** Programmpunkt pro Öffnungstag (Katalog oder Freitext), Notiz; wiederkehrend (nicht datiert). | `tf` | **Behalten**. |
+| D3 | Absprachen (nur Treffleitung legt an; BetreuerInnen bestätigen), optional an ein Datum gekoppelt (Badge im Dienstplan). Keine Hinweise-vs.-Absprachen-Trennung. Absprachen-Bereich startet eingeklappt. | `tf` | **Behalten**. |
+| D4 | „Neu seit letztem Besuch" (Punkt am Reiter Dienstplan / bei Absprachen) – rein lokal per Zeitstempel. | `tf` | **Neu** → serverseitiger „gelesen bis"-Stand je Person (funktioniert geräteübergreifend). |
+| D5 | „Heute-Fokus" und Sticky-Anzeige des Dienstplans. | `tf` | **Behalten** (Startseite „Heute"). |
+| D6 | Treff-Team (Treffleitung/BetreuerIn). | `tf`, `mt` | **Behalten**. |
+| D7 | Treff löschen entfernt Zuordnungen, **lässt aber den Dienstplan (Subcollection) zurück** (bekannte Lücke). | `tf` | **Behalten** als Kaskade – Lücke entfällt. |
+
+## E. Dienstplan & Nachweise (Treffs)
+
+| ID | Was der Altcode tut | Quelle | Entscheidung |
+|---|---|---|---|
+| E1 | Dienstplan **je ISO-Kalenderwoche** (`2026-W08`): Wochenansicht mit Karte je Öffnungstag (Datum, Öffnungszeit, zugeteilte Personen als Farb-Chips, Feiertags- und Absprachen-Badge, „Abwesend: …"). Woche blättern/„Heute". Wochendokument entsteht erst, wenn die Treffleitung zuteilt. | `tf` | **Neu** → Dienste als Zeilen je Datum (kein Wochendokument). |
+| E2 | Zuteilen (nur Treffleitung/Koordination): Personalliste, Treffleitung zuerst; zeigt Abwesende. | `tf` | **Behalten**. |
+| E3 | **Wunschdienste:** BetreuerIn wünscht einen Tag (zurücknehmbar), Treffleitung bestätigt/lehnt ab, Antwort wird der Person angezeigt („Wunsch bestätigt/abgelehnt"). Push an Treffleitung bzw. an die Person. | `tf`, `push` | **Behalten**. |
+| E4 | **Sonderdienste** („außerordentlicher Dienst"): Datum, Zeit, Bezeichnung, Personen; eigener Kartenstil mit Warnfarbe; erscheint auch an Tagen ohne Öffnungstag; wird beim Datumswechsel in die richtige Woche verschoben. | `tf` | **Behalten**. |
+| E5 | **Monatsmuster:** je Wochentag Personen wählen → auf alle passenden Tage des Monats anwenden (ersetzt vorhandene Zuteilung dieses Wochentags, Bestätigungsdialog); darunter Kalender zum Nachjustieren einzelner Tage. | `tf` | **Behalten** (Massen-Einfügen). |
+| E6 | Kalender- und Agenda-Ansicht für Monat; Wochen- und Monatsansicht umschaltbar. | `tf` | **Behalten**. |
+| E7 | **Statistik:** je Person im Monat Anzahl Dienste und Stunden (Stunden aus Öffnungszeit; Sonderdienste aus Zeit). Zeigt auch Personen mit 0 Diensten. | `tf` | **Behalten**. |
+| E8 | Dienstplan-Kommentare je Woche (Liste, anlegen/löschen); Push an alle im Treff. | `tf`, `push` | **Behalten**. |
+| E9 | **Abwesenheiten** Urlaub/Krank je Person und Tag (Zeitraum wird in Einzeltage aufgelöst; nur Treffleitung/Koordination tragen ein). | `ta` | **Neu** → Abwesenheit gehört zur **Person** (gilt für alle Treffs/Freizeiten), nicht zum Treff. |
+| E10 | **Feiertage** je Treff (Datum, Name), im Dienstplan sichtbar, im Nachweis vermerkt. | `ta` | **Neu** → Feiertage zentral pflegbar (gelten für alle Treffs), Einzelfall je Treff möglich. |
+| E11 | **Nachweis der Teilzeitkräfte** (digitaler Nachbau von `Nachweis_Teilzeitkraefte.pdf`): je Treff/Monat/Person; Zeilen werden aus Dienstplan (reguläre + Sonderdienste, mit Feiertagsvermerk) und Abwesenheiten (Stunden aus üblicher Öffnungszeit) automatisch befüllt, „Aus Dienstplan aktualisieren"; Zeiten „14:00 - 17:30" berechnen Stunden; Zeilen frei änderbar; Summe; Unterschrift als Text; PDF-Export (A4, `JJ_MM_Nachname_Vorname`). **Gespeichert nur im localStorage des Geräts.** | `dn` | **Neu** → in der Datenbank, mit Status (Entwurf → eingereicht → von Treffleitung freigegeben). PDF-Export behalten. |
+
+## F. Mappen & Lernen
+
+| ID | Was der Altcode tut | Quelle | Entscheidung |
+|---|---|---|---|
+| F1 | **Teamermappe:** bis zu 10 Kacheln (Titel, Beschreibung, Icon/Farbe aus 10 Vorgaben, Stichpunkte, Freizeit-Tags), 3 Qualitäts-Standards, FAQ (10 Einträge als Start), Notfall-Text mit Nummern; Volltextsuche mit Hervorhebung; Kacheln einklappbar; Kacheln ohne passenden Tag werden für betroffene TeamerInnen **zurückgestuft** (nicht ausgeblendet). Admin bearbeitet im Edit-Modus (hoch/runter, hinzufügen/entfernen, Speichern). | `tm` | **Behalten**. Standardtexte bleiben als Seed-Inhalt. |
+| F2 | **Treffmappe:** wie F1, aber ohne Tags und ohne Formulare; Sichtbarkeit: Koordination, Treffleitung, Kategorie TZK. | `tfm` | **Behalten**. Sichtbarkeit künftig serverseitig. |
+| F3 | **Formulare** (5 Vordrucke): Anwesenheitsliste, Tagesbericht, Unfallbericht, Bescheinigung Abholen, Stundenmeldung. Jeweils ausfüllbar, als PDF exportierbar, Original-PDF (leer) zum Download, Entwurf lokal gespeichert, „auf Beispiel zurücksetzen". Die **Beispiele** (mit Musternamen) sind von der Koordination bearbeitbar. | `tm` | **Behalten**. Entwürfe optional in der Datenbank (O5). Hinweis: Anwesenheitsliste enthält Kindernamen → nur lokal/PDF, nicht speichern. |
+| F4 | **Quiz** (`quiz.html`, eigene Seite): 6 Themen (Aufsicht & Abholung, Datenschutz, Tagesablauf, Kleidung/Verhalten/Regeln, Schwimmen & Wasser, Gesundheit & Auffälligkeiten), Fragen mit mehreren Antworten (Einzel- oder Mehrfachwahl), Erklärung, Fortschrittsbalken, Bestwert lokal; Koordination pflegt Fragen (Fallback-Fragen, wenn Datenbank leer). | `quiz.html` | **Behalten** als Modul „Lernen" in der App (nicht eigene Seite). Bestwerte je Person in DB (O5). Quiz-Oberfläche nur überblickt. |
+
+## G. Katalog (Programmpunkte)
+
+| ID | Was der Altcode tut | Quelle | Entscheidung |
+|---|---|---|---|
+| G1 | Programmpunkt: Name, Kategorie (Kennenlernspiele, Bewegungsspiele, Wasserspiele, Plan-B-Spiele, Kreativangebote, Highlights), Dauer, Gruppengröße, Alter (Mehrfach: 6–8, 9–12, …), Personalbedarf, Wetter (indoor/outdoor/beides), Raum, Material, Vorbereitung, Umsetzung, Nachbereitung, Autor. | `kat` | **Behalten**. |
+| G2 | Filter (Kategorie, Wetter, Alter), Suche (Name, Umsetzung, Material, …), Karten-/Listenansicht, einklappbare Kategorien, Schnellzugriff-Chips. | `kat` | **Behalten**. |
+| G3 | Favoriten (nur lokal), Teilen per Link `#id`, Druckansicht. | `kat` | **Neu** → Favoriten je Person in der DB; Teilen/Druck behalten. |
+| G4 | „Ähnliche Programmpunkte" per Textvektor (TF-IDF/Kosinus, clientseitig). | `kat` | **Behalten**, später ggf. per Postgres-Volltextsuche. |
+| G5 | Bewertungen (1–5 Sterne, **anonym je Gerät**), Kommentare (anonym), Durchschnitt/Anzahl als Badge. | `kat`, `rules` | **Neu** → je Person (eine Bewertung pro Person und Angebot). Kommentare mit Namen, Löschen durch Koordination/Autor. |
+| G6 | Vorschläge: TeamerIn/Leitung reicht Programmpunkt ein (Status offen) → Koordination bearbeitet, übernimmt (Kopie in Katalog) oder lehnt ab (bleibt dokumentiert); Badge offene Vorschläge; Push an Koordination. | `kat`, `mt`, `push` | **Behalten**. |
+| G7 | Katalog als PDF exportieren (alle/einzelne Einträge); Word-Import (.docx via mammoth) füllt das Formular vor. | `kat-export-import` | **Behalten** (beides selten, aber genutzt). |
+| G8 | Persönlicher **Planer**: lokale „Vorlagen" (Pläne mit Tagen/Slots/Abend), Programmpunkte zuweisen, Materialübersicht, Drucken; im Picker „Aus meinen Vorlagen". Lokal (`localStorage`). | `helpers-planner` | **Streichen** (Entscheidung 2026-09-30: Planer wird nicht benötigt). **Favoriten (G3) bleiben.** |
+| G9 | Katalog war **öffentlich lesbar** (kein Login). | `rules` | **Neu** → nur für Angemeldete (intern). |
+
+## H. Mitteilungen
+
+| ID | Was der Altcode tut | Quelle | Entscheidung |
+|---|---|---|---|
+| H1 | Push (FCM, nur Daten-Payload, damit nicht doppelt angezeigt): **neuer Hinweis** (alle der Freizeit) / **neue Absprache** (Leitung der Freizeit + Koordination); **Treff: neue Absprache** (alle), **Dienstplan geändert**, **neuer Kommentar**, **neuer Wunschdienst** (→ Treffleitung), **Wunsch beantwortet** (→ Person); **neue Bewerbung** und **neuer Vorschlag** (→ Koordination). | `push` (Functions) | **Behalten** → Web-Push (VAPID) über Edge Function/DB-Trigger. |
+| H2 | Manueller Push der Koordination an: Freizeit (optional nach Rolle), Treff (optional nach Rolle), Kategorie (Leitung/TeamerInnen), Koordination, alle; mit Empfängervorschau. | `push` | **Behalten**. |
+| H3 | Aktivierungs-Banner Push und Installations-Banner (Android-Prompt / iOS-Anleitung). Ungültige Tokens werden automatisch entfernt. | `push` | **Behalten**. iOS: Web-Push nur bei installierter Home-Screen-App (wie bisher). |
+
+## I. Betrieb & Sonstiges
+
+| ID | Was der Altcode tut | Quelle | Entscheidung |
+|---|---|---|---|
+| I1 | Offline-Caching per Service Worker (zugleich Messaging-SW). | `firebase-messaging-sw.js` | **Behalten** (PWA). |
+| I2 | Impressum (`impressum.html`). | | **Behalten** + Datenschutzerklärung (neu). |
+| I3 | Datenpflege-Overlay (Backup-Import / Duplikate / Katalog-Export). | `bk` | **Neu** → Admin-Bereich „Daten": Export (Personen, Freizeiten …), Import nach Bedarf; automatische DB-Backups per GitHub-Action. |
+| I4 | Firestore-Rules-Datei musste manuell in die Konsole kopiert werden. | `rules` | **Streichen** – Migrationsdateien im Repo, per CLI ausgerollt. |
+
+---
+
+## Startseite „Heute" (neu, ersetzt die Dashboards C8/C12/D5)
+
+Eine rollenabhängige Startseite statt fünf getrennter Dashboard-Fragmente:
+
+- **Alle:** „Was läuft heute/diese Woche bei mir?" (meine Freizeit/mein Treff, Dienste), ungelesene Hinweise/Absprachen
+- **Leitung/Treffleitung zusätzlich:** offene Wunschdienste, knappe Lebensmittel, nicht bestätigte Hinweise im Team
+- **TeamerIn ohne Zuordnung:** kommende Freizeiten zum Bewerben
+- **Koordination zusätzlich:** offene Bewerbungen, Vorschläge, neue Absprachen-Kommentare, Saison-Überblick
+
+---
+
+## Offene Entscheidungen (mit Empfehlung)
+
+| # | Frage | Empfehlung |
+|---|---|---|
+| ~~O1~~ | **Entschieden:** KiJuKo2.1 bleibt im Einsatz, der Import bleibt und wird erweitert. | Siehe [IMPORT.md](IMPORT.md). |
+| ~~O2~~ | **Entschieden:** Koordination darf die Rolle je Einsatz frei ändern (Kategorie nur als Vorbelegung). | – |
+| ~~O3~~ | **Entschieden:** Kontaktdaten/Ernährung/Notizen nur für Leitung (+ Koordination); TeamerInnen sehen Namen und Rollen. | – |
+| O4 | Lebensmittel-Bestand nur **am Ort** (Ort wird für das Modul Pflicht)? Heute gibt es zusätzlich den Sonderfall „Freizeit ohne Ort". | Ja, Pflicht-Ort. Einfacher und fachlich sauberer. |
+| O5 | Sollen **Formular-Entwürfe** und **Quiz-Bestwerte** je Person gespeichert werden (geräteübergreifend) oder weiter nur lokal? | Quiz: ja (leicht). Formulare: Entwürfe ja, aber Anwesenheitslisten mit Kindernamen nie serverseitig. |
+| ~~O6~~ | **Entschieden:** Planer entfällt, Favoriten bleiben. | – |
+| O7 | Soll die **Frist 7 Tage** für Bewerbungen fest bleiben? | Einstellung in der App. |
+| O8 | **Datenschutz:** Gibt es eine Datenschutzfolgenabschätzung/Verarbeitungsverzeichnis beim Träger? Supabase-Auftragsverarbeitung (EU) muss abgeschlossen werden. | Vor Produktivstart klären, nicht blockierend für den Bau. |
