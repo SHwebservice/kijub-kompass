@@ -1,0 +1,6 @@
+# Einheitliche Zeilenenden (LF) im Repository und in der Arbeitskopie – auch unter Windows.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.webmanifest text eol=lf

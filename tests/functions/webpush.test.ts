@@ -195,7 +195,9 @@ describe('sendePush', () => {
 
 describe('Edge Function push-senden', () => {
   const block = (datei: string) => {
-    const t = readFileSync(join(FUNKTIONEN, datei), 'utf8');
+    const t = readFileSync(join(FUNKTIONEN, datei), 'utf8').replace(/
+/g, '
+');   // Zeilenenden egal
     const a = t.indexOf('// >>> webpush');
     const b = t.indexOf('// <<< webpush');
     expect(a).toBeGreaterThan(-1);
