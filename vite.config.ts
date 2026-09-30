@@ -11,4 +11,6 @@ export default defineConfig({
   plugins: [react()],
   define: { __BUILD_VERSION__: JSON.stringify(version) },
   build: { sourcemap: false },
+  // Änderungen an Dateien werden unter Windows (z. B. in synchronisierten Ordnern) sonst manchmal nicht bemerkt; die Vorschau zeigt dann veraltete Stände.
+  server: { watch: { usePolling: true, interval: 300 } },
 });
