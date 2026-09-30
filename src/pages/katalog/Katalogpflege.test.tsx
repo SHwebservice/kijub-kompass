@@ -3,6 +3,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../katalog/api';
 import * as wort from '../../katalog/word';
+import { sendePush } from '../../mitteilungen/senden';
 import { AngebotForm } from './AngebotForm';
 import { Vorschlaege } from './Vorschlaege';
 import { KatalogImport } from './KatalogImport';
@@ -20,7 +21,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.listeKatalog).mockResolvedValue([fangen]);
   vi.mocked(api.speichereAngebot).mockResolvedValue('neu-id');
-  vi.mocked(api.reicheVorschlagEin).mockResolvedValue(undefined);
+  vi.mocked(api.reicheVorschlagEin).mockResolvedValue('v-neu');
   vi.mocked(api.listeVorschlaege).mockResolvedValue([]);
   vi.mocked(api.importiereAngebote).mockImplementation(async (l) => l.length);
   for (const fn of [api.aendereVorschlag, api.lehneVorschlagAb] as const) vi.mocked(fn as (...x: never[]) => Promise<void>).mockResolvedValue(undefined);
@@ -79,6 +80,7 @@ describe('Programmpunkt anlegen und bearbeiten', () => {
     await userEvent.type(screen.getByLabelText('Name'), 'Kimspiel');
     await userEvent.click(screen.getByRole('button', { name: 'Vorschlag einreichen' }));
     expect(api.reicheVorschlagEin).toHaveBeenCalledWith('ich', expect.objectContaining({ name: 'Kimspiel' }));
+    expect(sendePush).toHaveBeenCalledWith('vorschlag', 'v-neu');                    // die Koordination erfährt vom Vorschlag
     expect(api.speichereAngebot).not.toHaveBeenCalled();
   });
 

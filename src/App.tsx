@@ -27,6 +27,7 @@ import { TreffeListe } from './pages/treffs/TreffeListe';
 import { TreffDetail } from './pages/treffs/TreffDetail';
 import { TreffForm } from './pages/treffs/TreffForm';
 import { Bewerbungen } from './pages/Bewerbungen';
+import { MitteilungSenden } from './pages/MitteilungSenden';
 import { Impressum } from './pages/recht/Impressum';
 import { Datenschutz } from './pages/recht/Datenschutz';
 
@@ -95,6 +96,7 @@ function Geschuetzt() {
         <Route path="treffmappe" element={rollen?.darfTreffmappe ? <MappeSeite schluessel="treffmappe" titel="Treffmappe" mitSchlagworten={false}
           untertitel="Regeln, Abläufe und Antworten für die Arbeit in den Treffs." /> : <Navigate to="/" replace />} />
         <Route path="mehr" element={<Mehr />} />
+        <Route path="mitteilungen" element={rollen?.koordination ? <MitteilungSenden /> : <Navigate to="/" replace />} />
         <Route path="personen" element={rollen?.koordination ? <Personen /> : <Navigate to="/" replace />} />
         <Route path="orte" element={rollen?.koordination ? <Orte /> : <Navigate to="/" replace />} />
         <Route path="bewerbungen" element={rollen?.koordination ? <Bewerbungen /> : <Navigate to="/" replace />} />

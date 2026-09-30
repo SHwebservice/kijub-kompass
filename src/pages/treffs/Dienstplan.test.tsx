@@ -3,6 +3,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
 import { ApiFehler } from '../../lib/fehler';
+import { sendePush } from '../../mitteilungen/senden';
 import { DienstplanTab } from './DienstplanTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
@@ -254,5 +255,77 @@ describe('Dienstplan: Kommentare', () => {
     await userEvent.type(screen.getByLabelText('Kommentar schreiben'), '  Bitte Schlüssel holen ');
     await userEvent.click(screen.getByRole('button', { name: 'Kommentar senden' }));
     expect(api.legeDienstplanKommentarAn).toHaveBeenCalledWith('t1', mo, 'ich', '  Bitte Schlüssel holen ');
+  });
+});
+
+describe('Dienstplan: Mitteilungen werden ausgelöst', () => {
+  it('Dienstwunsch: die Treffleitung bekommt eine Mitteilung (mit dem Tag)', async () => {
+    await zeige(betreuerin);
+    await userEvent.click(within(tag(mi)).getByRole('button', { name: 'Dienst wünschen' }));
+    expect(sendePush).toHaveBeenCalledWith('wunsch_neu', 't1', { datum: mi });
+    expect(sendePush).toHaveBeenCalledTimes(1);
+  });
+
+  it('gescheiterter Wunsch: keine Mitteilung', async () => {
+    vi.mocked(api.wuenscheDienst).mockRejectedValue(new ApiFehler({ code: '23514', message: 'Du bist an diesem Tag schon eingeteilt' }));
+    await zeige(betreuerin);
+    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Dienst wünschen' }));
+    await screen.findByText(/schon eingeteilt/);
+    expect(sendePush).not.toHaveBeenCalled();
+  });
+
+  it('Wunsch bestätigt oder abgelehnt: die Person bekommt eine Mitteilung', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, wuensche: [{ person_id: 'ben', status: 'offen' }] })]);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(screen.getByRole('button', { name: 'Wunsch von Ben Baum bestätigen' }));
+    expect(sendePush).toHaveBeenCalledWith('wunsch_antwort', 'd1', { person: 'ben' });
+    await userEvent.click(screen.getByRole('button', { name: 'Wunsch von Ben Baum ablehnen' }));
+    expect(sendePush).toHaveBeenCalledTimes(2);
+  });
+
+  it('Zuteilung: nur wer neu eingeteilt oder herausgenommen wurde, wird benachrichtigt', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea', 'ben'] })]);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Zuteilen' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));          // heraus
+    await userEvent.click(within(dialog).getByLabelText(/Anna Adler/));        // neu
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ich', 'ben'] }));
+  });
+
+  it('Zuteilung ohne Änderung: keine Mitteilung', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea'] })]);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Zuteilen' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await vi.waitFor(() => expect(api.setzeZuteilung).toHaveBeenCalled());
+    expect(sendePush).not.toHaveBeenCalled();
+  });
+
+  it('Sonderdienst anlegen: die Eingeteilten werden benachrichtigt; löschen: die bisher Eingeteilten', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 's', datum: sa, ist_sonder: true, bezeichnung: 'Fest', von: '10:00', bis: '12:00', personen: ['ben'] })]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(screen.getByRole('button', { name: '+ Sonderdienst' }));
+    const neu = await screen.findByRole('dialog', { name: 'Neuer Sonderdienst' });
+    await userEvent.type(within(neu).getByLabelText('Bezeichnung'), 'Aufbau');
+    await userEvent.click(within(neu).getByLabelText(/Anna Adler/));
+    await userEvent.click(within(neu).getByRole('button', { name: 'Speichern' }));
+    await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ich'] }));
+
+    await userEvent.click(within(tag(sa)).getByRole('button', { name: 'Bearbeiten' }));
+    const bearbeiten = await screen.findByRole('dialog', { name: 'Sonderdienst bearbeiten' });
+    await userEvent.click(within(bearbeiten).getByRole('button', { name: 'Löschen' }));
+    await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben'] }));
+  });
+
+  it('Kommentar: das Team bekommt eine Mitteilung', async () => {
+    vi.mocked(api.legeDienstplanKommentarAn).mockResolvedValue('k-neu');
+    await zeige(betreuerin);
+    await userEvent.type(screen.getByLabelText('Kommentar schreiben'), 'Hallo');
+    await userEvent.click(screen.getByRole('button', { name: 'Kommentar senden' }));
+    await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan_kommentar', 'k-neu'));
   });
 });

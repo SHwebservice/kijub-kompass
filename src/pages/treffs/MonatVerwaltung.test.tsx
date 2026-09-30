@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
+import { sendePush } from '../../mitteilungen/senden';
 import { MonatTab } from './MonatTab';
 import { VerwaltungTab } from './VerwaltungTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
@@ -93,6 +94,7 @@ describe('Monat: Monatsmuster', () => {
     expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/Die Zuteilung an \d+ Tagen im .* wird ersetzt/));
     expect(api.wendeMonatsmusterAn).toHaveBeenCalledWith('t1', monat, { 1: ['ben', 'lea'] });
     expect(await screen.findByText('Das Muster wurde auf 8 Tage angewendet.')).toBeInTheDocument();
+    expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben', 'lea'] });      // wer im Muster steht, erfährt es
   });
 
   it('bricht ohne Rückfrage-Zustimmung ab', async () => {
@@ -114,6 +116,7 @@ describe('Monat: Monatsmuster', () => {
     await userEvent.click(screen.getByLabelText(/An allen Montagen einteilen/));     // Montag wieder weg
     await userEvent.click(screen.getByRole('button', { name: /^Auf \d+ Tage anwenden$/ }));
     expect(api.wendeMonatsmusterAn).toHaveBeenCalledWith('t1', monat, { 3: ['ben'] });
+    expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben'] });
   });
 
   it('zeigt Fehler der Datenbank', async () => {

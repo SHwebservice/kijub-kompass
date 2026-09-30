@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { fehlerText } from '../../lib/fehler';
+import { sendePush } from '../../mitteilungen/senden';
 import { formatDatum, wochentagLang } from '../../freizeiten/logik';
 import { dienstSicherstellen, setzeZuteilung, speichereSonderdienst, loescheDienst, type TreffTeamMitglied } from '../../treffs/api';
 import { abwesendeAm, validiereSonderdienst, zuteilungsAenderung, type Abwesenheit, type Dienst, type Feiertag } from '../../treffs/dienstplan';
@@ -67,6 +68,7 @@ export function ZuteilenSheet({ treffId, datum, dienst, team, abwesenheiten, fei
       const id = dienst?.id ?? await dienstSicherstellen(treffId, datum);
       const { hinzu, weg } = zuteilungsAenderung(alt, gewaehlt);
       await setzeZuteilung(id, hinzu, weg);
+      if (hinzu.length + weg.length > 0) sendePush('dienstplan', treffId, { personen: [...hinzu, ...weg] });     // wer neu eingeteilt oder herausgenommen wurde, erfährt es
       geaendert(); schliessen();
     } catch (e) { setFehler(fehlerText(e, 'Die Zuteilung konnte nicht gespeichert werden.')); setArbeitet(false); }
   }
@@ -117,7 +119,11 @@ export function SonderdienstSheet({ treffId, dienst, startDatum, team, abwesenhe
     const f = validiereSonderdienst({ datum, von, bis, bezeichnung });
     setFeld(f);
     if (f.datum || f.zeit || f.bezeichnung) return;
-    void ausfuehren(() => speichereSonderdienst(treffId, dienst?.id ?? null, { datum, von, bis, bezeichnung }, gewaehlt, alt));
+    const { hinzu, weg } = zuteilungsAenderung(alt, gewaehlt);
+    void ausfuehren(async () => {
+      await speichereSonderdienst(treffId, dienst?.id ?? null, { datum, von, bis, bezeichnung }, gewaehlt, alt);
+      if (hinzu.length + weg.length > 0) sendePush('dienstplan', treffId, { personen: [...hinzu, ...weg] });
+    });
   }
 
   return (
@@ -136,7 +142,7 @@ export function SonderdienstSheet({ treffId, dienst, startDatum, team, abwesenhe
         <Button onClick={schliessen}>Abbrechen</Button>
         {dienst && (
           <Button variante="danger" disabled={arbeitet}
-            onClick={() => { if (window.confirm('Diesen Sonderdienst löschen?')) void ausfuehren(() => loescheDienst(dienst.id)); }}>Löschen</Button>
+            onClick={() => { if (window.confirm('Diesen Sonderdienst löschen?')) void ausfuehren(async () => { await loescheDienst(dienst.id); if (alt.length) sendePush('dienstplan', treffId, { personen: alt }); }); }}>Löschen</Button>
         )}
       </div>
     </Sheet>

@@ -31,6 +31,7 @@ export function Mehr() {
               <li><Link className="list__item" to="/bewerbungen">Bewerbungen</Link></li>
               <li><Link className="list__item" to="/personen">Personen &amp; Zugänge</Link></li>
               <li><Link className="list__item" to="/orte">Orte</Link></li>
+              <li><Link className="list__item" to="/mitteilungen">Mitteilung senden</Link></li>
               <li><Link className="list__item" to="/import">KiJuKo-Import</Link></li>
             </ul>
           </Card>

@@ -11,7 +11,7 @@ self.addEventListener('install', () => { self.skipWaiting(); });
 self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
 
 self.addEventListener('push', (e) => {
-  let daten = {};
+  let daten;
   try { daten = e.data ? e.data.json() : {}; } catch { daten = {}; }
   const titel = typeof daten.titel === 'string' && daten.titel ? daten.titel.slice(0, 100) : 'KiJuB-Kompass';
   const text = typeof daten.text === 'string' ? daten.text.slice(0, 300) : '';

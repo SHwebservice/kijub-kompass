@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../freizeiten/api';
+import { sendePush } from '../../mitteilungen/senden';
 import { FreizeitenListe } from './FreizeitenListe';
 import { renderMitAuth } from '../../test-utils';
 import { freizeit, inTagen } from '../../test-daten';
@@ -68,11 +69,12 @@ describe('Freizeiten-Liste: Teamer mit Zuordnung', () => {
     await userEvent.type(screen.getByLabelText(/Nachricht an die Koordination/), 'Gern in Woche 2');
     await userEvent.click(screen.getByRole('button', { name: 'Bewerbung senden' }));
     expect(api.bewerben).toHaveBeenCalledWith('fremd', 'ich', 'Gern in Woche 2');
+    expect(sendePush).toHaveBeenCalledWith('bewerbung', 'fremd');                   // die Koordination erfährt von der Bewerbung
     expect(await screen.findByText(/Bewerbung für „Fremde Freizeit" ist eingegangen/)).toBeInTheDocument();
   });
 
   it('zeigt Fehler der Bewerbung verständlich', async () => {
-    vi.mocked(api.bewerben).mockRejectedValue({ code: '23505', message: 'duplicate key' });
+    vi.mocked(api.bewerben).mockRejectedValue({ code: '23505', message: 'duplicate key' });      // misslungene Bewerbung: keine Mitteilung
     renderMitAuth(<FreizeitenListe />, teamerMitZuordnung);
     await userEvent.click(await screen.findByRole('tab', { name: 'Alle kommenden' }));
     await userEvent.click(within(screen.getByText('Fremde Freizeit').closest('li')!).getByRole('button', { name: 'Bewerben' }));

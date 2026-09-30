@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { fehlerText } from '../../lib/fehler';
+import { sendePush } from '../../mitteilungen/senden';
 import {
   bewerben, bewerbungZurueckziehen, holeVorlaufTage, listeFreizeiten, meineBewerbungen, type FreizeitZeile,
 } from '../../freizeiten/api';
@@ -48,6 +49,7 @@ export function FreizeitenListe() {
     setArbeitet(true); setMeldung(null);
     try {
       await bewerben(bewerbenFuer.id, ich.id, notiz);
+      sendePush('bewerbung', bewerbenFuer.id);
       setMeldung({ ton: 'success', text: `Deine Bewerbung für „${bewerbenFuer.name}" ist eingegangen.` });
       setBewerbenFuer(null); setNotiz('');
       bewerbungen.neuLaden();

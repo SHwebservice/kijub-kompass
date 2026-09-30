@@ -3,6 +3,7 @@ import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
+import { sendePush } from '../../mitteilungen/senden';
 import { formatKurz, heuteIso } from '../../freizeiten/logik';
 import { dienstStatistik, holeTreffTeam, listeDienste, listeFeiertage, wendeMonatsmusterAn, type TreffDetailDaten } from '../../treffs/api';
 import {
@@ -55,6 +56,8 @@ export function MonatTab({ treff: t, rolle }: { treff: TreffDetailDaten; rolle: 
     try {
       const n = await wendeMonatsmusterAn(t.id, monat, muster);
       setErfolg(`Das Muster wurde auf ${n} ${n === 1 ? 'Tag' : 'Tage'} angewendet.`);
+      const betroffene = [...new Set(Object.values(muster).flat())];
+      if (betroffene.length) sendePush('dienstplan', t.id, { personen: betroffene });
       setMuster({});
       dienste.neuLaden(); statistik.neuLaden();
     } catch (e) { setFehler(fehlerText(e, 'Das Muster konnte nicht angewendet werden.')); } finally { setArbeitet(false); }

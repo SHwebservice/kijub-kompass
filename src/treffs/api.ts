@@ -142,10 +142,10 @@ export async function listeTreffAbsprachen(treffId: string): Promise<Notiz[]> {
   return r.map(({ notiz_bestaetigungen, ...n }) => ({ ...n, bestaetigungen: notiz_bestaetigungen ?? [], kommentare: [] }));
 }
 
-export async function legeTreffAbspracheAn(treffId: string, w: NotizWerte): Promise<void> {
-  pruefe(await supabase.from('notizen').insert({
+export async function legeTreffAbspracheAn(treffId: string, w: NotizWerte): Promise<string> {
+  return (pruefe(await supabase.from('notizen').insert({
     treff_id: treffId, art: 'absprache', geltung: w.geltung, datum: w.geltung === 'tag' ? w.datum : null, text: w.text.trim(),
-  }));
+  }).select('id').single()) as { id: string }).id;
 }
 
 /* ───── Dienstplan ───── */
@@ -223,8 +223,8 @@ export async function listeDienstplanKommentare(treffId: string, wocheStart: str
     .eq('treff_id', treffId).eq('woche_start', wocheStart).order('created_at')) as DienstplanKommentar[];
 }
 
-export async function legeDienstplanKommentarAn(treffId: string, wocheStart: string, personId: string, text: string): Promise<void> {
-  pruefe(await supabase.from('dienstplan_kommentare').insert({ treff_id: treffId, woche_start: wocheStart, person_id: personId, text: text.trim() }));
+export async function legeDienstplanKommentarAn(treffId: string, wocheStart: string, personId: string, text: string): Promise<string> {
+  return (pruefe(await supabase.from('dienstplan_kommentare').insert({ treff_id: treffId, woche_start: wocheStart, person_id: personId, text: text.trim() }).select('id').single()) as { id: string }).id;
 }
 
 export async function loescheDienstplanKommentar(id: string): Promise<void> {

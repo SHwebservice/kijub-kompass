@@ -36,7 +36,7 @@ Variante B – ohne CLI: Im Dashboard unter **SQL Editor** den Inhalt von `supab
 
 **Projekt läuft schon und es kommen neue Migrationen dazu?** Dann nur die neue Datei aus `supabase/migrations/` (z. B. `0009_person_entfernen.sql`)
 im SQL Editor ausführen – nicht die Sammeldatei, die ist nur für leere Projekte.
-Aktueller Stand der Migrationen: `0001` bis `0014` (`0010` = KiJuKo-Import, `0011` = Live-Aktualisierung der Freizeiten, `0012` = Dienstplan der Treffs, `0013` = Katalog-Kommentare mit Namen, `0014` = Lebenszeichen).
+Aktueller Stand der Migrationen: `0001` bis `0015` (`0010` = KiJuKo-Import, `0011` = Live-Aktualisierung der Freizeiten, `0012` = Dienstplan der Treffs, `0013` = Katalog-Kommentare mit Namen, `0014` = Lebenszeichen, `0015` = Mitteilungen).
 
 ### Erste Koordination anlegen **[du]**
 
@@ -62,10 +62,11 @@ Zwei Funktionen brauchen den Service-Schlüssel, den die App nie sieht:
 |---|---|---|
 | `konto-passwort` | `supabase/functions/konto-passwort/index.ts` | Zugang einrichten, Passwort zurücksetzen |
 | `konto-entfernen` | `supabase/functions/konto-entfernen/index.ts` | Zugang entziehen, Person endgültig löschen |
+| `push-senden` | `supabase/functions/push-senden/index.ts` | Mitteilungen (Web-Push) verschicken – braucht zusätzlich die Secrets aus `docs/BETRIEB.md` Abschnitt 2b |
 
-Ohne CLI, für **jede** der beiden Funktionen: Dashboard → **Edge Functions → Deploy a new function → „Via Editor"**, Name genau wie in der
+Ohne CLI, für **jede** der Funktionen: Dashboard → **Edge Functions → Deploy a new function → „Via Editor"**, Name genau wie in der
 Tabelle, Beispielcode löschen, Inhalt der Datei einfügen und bereitstellen. Die Dateien sind in sich geschlossen.
-Mit CLI: `npx supabase functions deploy konto-passwort` und `npx supabase functions deploy konto-entfernen`.
+Mit CLI: `npx supabase functions deploy <name>` (für `konto-passwort`, `konto-entfernen`, `push-senden`).
 Nach einer Änderung an den Dateien muss die Funktion neu bereitgestellt werden.
 
 Secrets sind nicht nötig: `SUPABASE_URL`, `SUPABASE_ANON_KEY` und `SUPABASE_SERVICE_ROLE_KEY` setzt Supabase automatisch.

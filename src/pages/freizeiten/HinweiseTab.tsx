@@ -3,6 +3,7 @@ import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
+import { sendePush } from '../../mitteilungen/senden';
 import {
   aendereNotiz, bestaetige, bestaetigungZurueck, holeNamen, holeTeam, kommentiere, legeNotizAn, listeNotizen, loescheKommentar, loescheNotiz,
   type FreizeitDetailDaten, type NotizWerte,
@@ -67,9 +68,9 @@ export function HinweiseTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDa
   const namen = { ...(namenL.daten ?? {}), ...teamNamen };
   const teamListe = (team.daten ?? []).map((t) => ({ person_id: t.person_id, rolle: t.rolle }));
 
-  async function lauf(aktion: () => Promise<void>) {
+  async function lauf<T>(aktion: () => Promise<T>): Promise<T> {
     setFehler(null);
-    try { await aktion(); notizen.neuLaden(); } catch (e) { setFehler(fehlerText(e)); throw e; }
+    try { const r = await aktion(); notizen.neuLaden(); return r; } catch (e) { setFehler(fehlerText(e)); throw e; }
   }
   // Fehler werden oben angezeigt; die Formulare bleiben dabei mit ihren Eingaben stehen.
   const still = (p: Promise<void>) => p.catch(() => undefined);
@@ -81,7 +82,11 @@ export function HinweiseTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDa
     kommentieren: (id, text) => still(lauf(() => kommentiere(id, ich.id, text))),
     kommentarLoeschen: (id) => still(lauf(() => loescheKommentar(id))),
   };
-  const anlegen = (art: NotizArt, w: NotizWerte) => lauf(() => legeNotizAn(f.id, art, w));
+  const anlegen = async (art: NotizArt, w: NotizWerte) => {
+    const id = await lauf(() => legeNotizAn(f.id, art, w));
+    // Mitteilung an das Team (Hinweis) bzw. an Leitung und Koordination (Absprache) – ohne zu warten
+    if (id) sendePush(art === 'hinweis' ? 'hinweis' : 'absprache_freizeit', id);
+  };
 
   const alle = notizen.daten ?? [];
   const absprachenSichtbar = rolle === 'leitung' || rolle === 'koordination';

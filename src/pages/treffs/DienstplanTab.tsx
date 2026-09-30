@@ -3,6 +3,7 @@ import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
+import { sendePush } from '../../mitteilungen/senden';
 import { formatDatum, formatKurz, heuteIso } from '../../freizeiten/logik';
 import {
   entscheideWunsch, holeTreffTeam, legeDienstplanKommentarAn, listeAbwesenheiten, listeDienste, listeDienstplanKommentare, listeFeiertage,
@@ -65,7 +66,11 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
     e.preventDefault();
     if (!kommentarText.trim() || !ich) return;
     setFehler(null);
-    try { await legeDienstplanKommentarAn(t.id, montag, ich.id, kommentarText); setKommentarText(''); kommentare.neuLaden(); }
+    try {
+      const id = await legeDienstplanKommentarAn(t.id, montag, ich.id, kommentarText);
+      setKommentarText(''); kommentare.neuLaden();
+      if (id) sendePush('dienstplan_kommentar', id);
+    }
     catch (err) { setFehler(fehlerText(err)); }
   }
 
@@ -103,9 +108,9 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
                     <div className="list__main"><strong>{name(x.person_id)}</strong> wünscht diesen Dienst</div>
                     <div className="row" style={{ gap: 'var(--space-2)' }}>
                       <Button klein variante="primary" disabled={arbeitet} aria-label={`Wunsch von ${name(x.person_id)} bestätigen`}
-                        onClick={() => void aktion(() => entscheideWunsch(k.regulaer!.id, x.person_id, true))}>Bestätigen</Button>
+                        onClick={() => void aktion(async () => { await entscheideWunsch(k.regulaer!.id, x.person_id, true); sendePush('wunsch_antwort', k.regulaer!.id, { person: x.person_id }); })}>Bestätigen</Button>
                       <Button klein disabled={arbeitet} aria-label={`Wunsch von ${name(x.person_id)} ablehnen`}
-                        onClick={() => void aktion(() => entscheideWunsch(k.regulaer!.id, x.person_id, false))}>Ablehnen</Button>
+                        onClick={() => void aktion(async () => { await entscheideWunsch(k.regulaer!.id, x.person_id, false); sendePush('wunsch_antwort', k.regulaer!.id, { person: x.person_id }); })}>Ablehnen</Button>
                     </div>
                   </li>
                 ))}
@@ -115,7 +120,7 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
               {verwaltung && <Button klein onClick={() => setZiel({ art: 'zuteilen', datum: k.datum, dienst: k.regulaer })}>Zuteilen</Button>}
               {w && rolle === 'betreuerin' && <Badge ton={WUNSCH_TON[w]}>{WUNSCH_LABEL[w]}</Badge>}
               {darfWuenschen(rolle, k, ich!.id, heute) && (
-                <Button klein disabled={arbeitet} onClick={() => void aktion(() => wuenscheDienst(t.id, k.datum))}>Dienst wünschen</Button>
+                <Button klein disabled={arbeitet} onClick={() => void aktion(async () => { await wuenscheDienst(t.id, k.datum); sendePush('wunsch_neu', t.id, { datum: k.datum }); })}>Dienst wünschen</Button>
               )}
               {rolle === 'betreuerin' && w === 'offen' && (
                 <Button klein variante="ghost" disabled={arbeitet} onClick={() => void aktion(() => wunschZuruecknehmen(k.regulaer!.id, ich!.id))}>Wunsch zurücknehmen</Button>

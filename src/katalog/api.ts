@@ -109,8 +109,8 @@ export async function listeVorschlaege(): Promise<Vorschlag[]> {
   return r.map(vorschlag);
 }
 
-export async function reicheVorschlagEin(personId: string, f: AngebotFormular): Promise<void> {
-  pruefe(await supabase.from('angebot_vorschlaege').insert({ eingereicht_von: personId, daten: inDatenbankform(f) }));
+export async function reicheVorschlagEin(personId: string, f: AngebotFormular): Promise<string> {
+  return (pruefe(await supabase.from('angebot_vorschlaege').insert({ eingereicht_von: personId, daten: inDatenbankform(f) }).select('id').single()) as { id: string }).id;
 }
 
 /** Koordination korrigiert die Angaben eines offenen Vorschlags, bevor er übernommen wird. */

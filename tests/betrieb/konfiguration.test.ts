@@ -89,6 +89,10 @@ describe('Projektdateien', () => {
     expect(ignorieren).toContain('.env');
     expect(ignorieren).toContain('.env.local');
   });
+  it('der Service Worker wird nicht zwischengespeichert und liegt an der Wurzel (Geltungsbereich „/“)', () => {
+    expect(lies('public/_headers')).toMatch(/\/sw\.js\n\s+Cache-Control: no-cache/);
+    expect(lies('public/sw.js')).toContain('addEventListener');
+  });
   it('SPA-Fallback: alle Adressen liefern die App', () => {
     expect(lies('public/_redirects')).toMatch(/^\/\*\s+\/index\.html\s+200/m);
   });

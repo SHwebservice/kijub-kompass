@@ -3,6 +3,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
 import * as fzApi from '../../freizeiten/api';
+import { sendePush } from '../../mitteilungen/senden';
 import { TreffeListe } from './TreffeListe';
 import { TreffDetail } from './TreffDetail';
 import { TreffForm } from './TreffForm';
@@ -228,8 +229,10 @@ describe('Treff-Absprachen', () => {
     await screen.findByText('Schlüssel bitte zurückgeben');
     await userEvent.type(screen.getByLabelText('Neue Absprache'), 'Elterncafé am Freitag');
     await userEvent.type(screen.getByLabelText('Gilt für einen bestimmten Tag (optional)'), '2027-07-09');
+    vi.mocked(api.legeTreffAbspracheAn).mockResolvedValue('n-treff');
     await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
     expect(api.legeTreffAbspracheAn).toHaveBeenCalledWith('t1', { geltung: 'tag', datum: '2027-07-09', text: 'Elterncafé am Freitag' });
+    expect(sendePush).toHaveBeenCalledWith('absprache_treff', 'n-treff');
   });
 
   it('verlangt einen Text', async () => {

@@ -3,6 +3,7 @@ import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
+import { sendePush } from '../../mitteilungen/senden';
 import { aendereNotiz, bestaetige, bestaetigungZurueck, holeNamen, loescheNotiz } from '../../freizeiten/api';
 import { formatDatum } from '../../freizeiten/logik';
 import { istBestaetigtVon, namenListe, type Notiz } from '../../freizeiten/notizen';
@@ -70,9 +71,9 @@ export function TreffAbsprachenTab({ treff: t, rolle }: { treff: TreffDetailDate
   const schreiben = darfTreffVerwalten(rolle);
   const bestaetigen = darfTreffAbspracheBestaetigen(rolle);
 
-  async function lauf(aktion: () => Promise<void>) {
+  async function lauf<T>(aktion: () => Promise<T>): Promise<T> {
     setFehler(null);
-    try { await aktion(); absprachen.neuLaden(); } catch (e) { setFehler(fehlerText(e)); throw e; }
+    try { const r = await aktion(); absprachen.neuLaden(); return r; } catch (e) { setFehler(fehlerText(e)); throw e; }
   }
   const still = (p: Promise<void>) => p.catch(() => undefined);
 
@@ -122,7 +123,10 @@ export function TreffAbsprachenTab({ treff: t, rolle }: { treff: TreffDetailDate
       {absprachen.laedt && <Spinner />}
       {schreiben && (
         <Card>
-          <AbspracheFormular beschriftung="Neue Absprache" speichern={(text, datum) => lauf(() => legeTreffAbspracheAn(t.id, { geltung: datum ? 'tag' : 'gesamt', datum, text }))} />
+          <AbspracheFormular beschriftung="Neue Absprache" speichern={async (text, datum) => {
+            const id = await lauf(() => legeTreffAbspracheAn(t.id, { geltung: datum ? 'tag' : 'gesamt', datum, text }));
+            if (id) sendePush('absprache_treff', id);
+          }} />
         </Card>
       )}
       {!absprachen.laedt && (absprachen.daten?.length ?? 0) === 0 && <EmptyState icon="🤝" titel="Noch keine Absprachen" />}

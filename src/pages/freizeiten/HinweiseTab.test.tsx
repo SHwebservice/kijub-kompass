@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../freizeiten/api';
+import { sendePush } from '../../mitteilungen/senden';
 import { HinweiseTab } from './HinweiseTab';
 import { renderMitAuth } from '../../test-utils';
 import { freizeitDetail, inTagen, mitglied } from '../../test-daten';
@@ -122,9 +123,12 @@ describe('Hinweise und Absprachen: Leitung', () => {
     await userEvent.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(within(form).getByText('Bitte einen Text eingeben.')).toBeInTheDocument();
     expect(api.legeNotizAn).not.toHaveBeenCalled();
+    vi.mocked(api.legeNotizAn).mockResolvedValue('n-hinweis');
     await userEvent.type(within(form).getByLabelText('Neuer Hinweis'), '  Regenkleidung  ');
     await userEvent.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(api.legeNotizAn).toHaveBeenCalledWith('f1', 'hinweis', { text: '  Regenkleidung  ', geltung: 'gesamt', datum: null });
+    expect(sendePush).toHaveBeenCalledTimes(1);
+    expect(sendePush).toHaveBeenCalledWith('hinweis', 'n-hinweis');                 // Mitteilung an das Team
   });
 
   it('eine Tagesnotiz braucht einen Tag', async () => {
@@ -135,9 +139,12 @@ describe('Hinweise und Absprachen: Leitung', () => {
     await userEvent.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(within(form).getByText('Bitte einen Tag wählen.')).toBeInTheDocument();
     expect(api.legeNotizAn).not.toHaveBeenCalled();
+    vi.mocked(api.legeNotizAn).mockResolvedValue('n-absprache');
     await userEvent.selectOptions(within(form).getByLabelText('Tag'), tag2);
     await userEvent.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(api.legeNotizAn).toHaveBeenCalledWith('f1', 'absprache', { text: 'Schlüssel abholen', geltung: 'tag', datum: tag2 });
+    expect(sendePush).toHaveBeenCalledWith('absprache_freizeit', 'n-absprache');     // Mitteilung an Leitung und Koordination
+    expect(sendePush).toHaveBeenCalledTimes(1);
   });
 
   it('bearbeitet eine Notiz mit vorbelegtem Formular', async () => {
@@ -219,7 +226,7 @@ describe('Fehlerfälle', () => {
   });
 
   it('ein Fehler beim Speichern zeigt Hinweis, die Eingabe bleibt erhalten', async () => {
-    vi.mocked(api.legeNotizAn).mockRejectedValue({ code: '42501', message: 'rls' });
+    vi.mocked(api.legeNotizAn).mockRejectedValue({ code: '42501', message: 'rls' });          // schlägt das Anlegen fehl, gibt es auch keine Mitteilung
     zeige('leitung', leitung);
     const feld = await screen.findByLabelText('Neuer Hinweis');
     await userEvent.type(feld, 'Wichtig');

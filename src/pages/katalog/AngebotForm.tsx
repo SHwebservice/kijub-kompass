@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { fehlerText } from '../../lib/fehler';
+import { sendePush } from '../../mitteilungen/senden';
 import { listeKatalog, reicheVorschlagEin, speichereAngebot } from '../../katalog/api';
 import { ausWordHtml } from '../../katalog/import';
 import { formularAus, leeresAngebot, validiereAngebot, type AngebotFormular } from '../../katalog/logik';
@@ -46,7 +47,8 @@ function FormInhalt({ modus, id, start }: { modus: Modus; id: string | null; sta
     setArbeitet(true);
     try {
       if (modus === 'vorschlag') {
-        await reicheVorschlagEin(ich!.id, w);
+        const vorschlagId = await reicheVorschlagEin(ich!.id, w);
+        if (vorschlagId) sendePush('vorschlag', vorschlagId);
         navigate('/katalog/vorschlaege', { replace: true, state: { eingereicht: true } });
       } else {
         const neu = await speichereAngebot(id, w);

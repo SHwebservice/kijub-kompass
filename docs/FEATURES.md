@@ -258,3 +258,21 @@ Impressum und Datenschutzhinweise, Betriebsanleitung mit Checkliste und Wiederhe
 **Nicht erprobt:** Die Datensicherung und die Wiederherstellung konnten nicht gegen ein echtes Supabase-Projekt laufen (brauchen deine Zugangsdaten); die Schritte sind in `docs/BETRIEB.md` beschrieben und sollten einmal als Probe durchgespielt werden.
 
 **Noch offen:** Mitteilungen per Web-Push, vollständige Startseite „Heute“.
+
+## Stand der Umsetzung: Mitteilungen (Phase 5, 2026-09-30)
+
+**Umgesetzt und getestet:** H1 (Mitteilungen bei neuem Hinweis – an das Team der Freizeit; neuer Absprache – an Leitung und Koordination; Treff-Absprache – an alle im Treff; Dienstplan geändert – an die betroffenen Personen
+(auch beim Monatsmuster und bei Sonderdiensten); neuem Dienstplan-Kommentar; neuem Dienstwunsch – an die Treffleitung; beantwortetem Wunsch – an die Person; neuer Bewerbung und neuem Katalog-Vorschlag – an die Koordination),
+H2 (manuelle Mitteilung der Koordination an alle, Koordination, alle Leitungen, alle TeamerInnen/BetreuerInnen, eine Freizeit oder einen Treff – jeweils optional nur Leitung bzw. nur TeamerInnen – mit Vorschau, wer erreicht wird und wie viele ein Gerät eingeschaltet haben),
+H3 (Einschalten, Testen und Ausschalten je Gerät unter „Mehr“; Hinweis für iPhone/iPad; ungültige Geräte werden automatisch entfernt), Testmitteilung an sich selbst.
+
+**Bewusste Entscheidungen:**
+- Empfänger, Text und Zulässigkeit entscheidet die **Datenbank** (nicht die Edge Function und nie die Oberfläche): nur eigene, frische Vorgänge (höchstens 10 Minuten alt), Bremse gegen Wiederholung (2 Minuten) und Massenversand (60 pro Stunde). Die Logik ist mit Datenbank-Tests abgesichert.
+- Der Versand nutzt keine Fremdbibliothek, sondern den Web-Push-Standard (RFC 8291/8292) direkt; Verschlüsselung und Anmeldung sind gegen den Testvektor der RFC geprüft.
+- Mitteilungen sind „best effort“: Scheitert nur die Mitteilung, bleibt die eigentliche Handlung (Hinweis, Wunsch …) gespeichert und die Bedienung ungestört.
+- Wer sich abmeldet, meldet das Gerät für Mitteilungen ab. Wer die Mitteilungen einschaltet, bekommt immer ein frisches Abonnement.
+- Keine Einstellung je Mitteilungsart (alles oder nichts je Gerät).
+
+**Nicht erprobt:** Der Versand an echte Push-Dienste (Google, Mozilla, Apple) und die Anzeige auf echten Geräten konnten nicht getestet werden (brauchen die gehostete Seite und eure Schlüssel) – nach dem Einrichten bitte mit *Testmitteilung senden* prüfen, auch auf einem iPhone.
+
+**Noch offen:** „Neu seit letztem Besuch“ (D4) und Ungelesen-Punkte, Einstellung je Mitteilungsart, vollständige Startseite „Heute“.

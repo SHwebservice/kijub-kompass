@@ -307,8 +307,9 @@ export async function listeNotizen(freizeitId: string): Promise<Notiz[]> {
 
 export interface NotizWerte { geltung: Geltung; datum: string | null; text: string }
 
-export async function legeNotizAn(freizeitId: string, art: NotizArt, w: NotizWerte): Promise<void> {
-  pruefe(await supabase.from('notizen').insert({ freizeit_id: freizeitId, art, geltung: w.geltung, datum: w.geltung === 'tag' ? w.datum : null, text: w.text.trim() }));
+/** Legt einen Hinweis oder eine Absprache an und gibt die ID zurück (für die Mitteilung an das Team). */
+export async function legeNotizAn(freizeitId: string, art: NotizArt, w: NotizWerte): Promise<string> {
+  return (pruefe(await supabase.from('notizen').insert({ freizeit_id: freizeitId, art, geltung: w.geltung, datum: w.geltung === 'tag' ? w.datum : null, text: w.text.trim() }).select('id').single()) as { id: string }).id;
 }
 
 export async function aendereNotiz(id: string, w: NotizWerte): Promise<void> {
