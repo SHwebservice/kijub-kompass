@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { ApiFehler } from '../lib/fehler';
 import type { Ferienzeitraum } from './logik';
 import type { AngebotKurz, PlanEintrag, Slot } from './plan';
+import type { Geltung, Notiz, NotizArt } from './notizen';
 
 /** Dünne Schicht über Supabase für die Freizeiten. Rechte entscheidet die Datenbank (RLS), nicht diese Datei. */
 
@@ -287,4 +288,48 @@ export async function holeNamen(ids: string[]): Promise<Record<string, string>> 
   if (!ids.length) return {};
   const r = pruefe(await supabase.from('v_personen_namen').select('id, vorname, nachname').in('id', ids)) as { id: string; vorname: string; nachname: string }[];
   return Object.fromEntries(r.map((p) => [p.id, `${p.vorname} ${p.nachname}`]));
+}
+
+/* ───── Hinweise und Absprachen ───── */
+
+
+export async function listeNotizen(freizeitId: string): Promise<Notiz[]> {
+  const r = pruefe(await supabase.from('notizen')
+    .select('id, art, geltung, datum, text, erstellt_von, created_at, notiz_bestaetigungen(person_id, at), notiz_kommentare(id, person_id, text, created_at)')
+    .eq('freizeit_id', freizeitId).order('created_at', { ascending: false })) as unknown as
+    (Omit<Notiz, 'bestaetigungen' | 'kommentare'> & { notiz_bestaetigungen: Notiz['bestaetigungen']; notiz_kommentare: Notiz['kommentare'] })[];
+  return r.map(({ notiz_bestaetigungen, notiz_kommentare, ...n }) => ({
+    ...n, bestaetigungen: notiz_bestaetigungen ?? [],
+    kommentare: [...(notiz_kommentare ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at)),
+  }));
+}
+
+export interface NotizWerte { geltung: Geltung; datum: string | null; text: string }
+
+export async function legeNotizAn(freizeitId: string, art: NotizArt, w: NotizWerte): Promise<void> {
+  pruefe(await supabase.from('notizen').insert({ freizeit_id: freizeitId, art, geltung: w.geltung, datum: w.geltung === 'tag' ? w.datum : null, text: w.text.trim() }));
+}
+
+export async function aendereNotiz(id: string, w: NotizWerte): Promise<void> {
+  pruefe(await supabase.from('notizen').update({ geltung: w.geltung, datum: w.geltung === 'tag' ? w.datum : null, text: w.text.trim() }).eq('id', id));
+}
+
+export async function loescheNotiz(id: string): Promise<void> {
+  pruefe(await supabase.from('notizen').delete().eq('id', id));
+}
+
+export async function bestaetige(notizId: string, personId: string): Promise<void> {
+  pruefe(await supabase.from('notiz_bestaetigungen').insert({ notiz_id: notizId, person_id: personId }));
+}
+
+export async function bestaetigungZurueck(notizId: string, personId: string): Promise<void> {
+  pruefe(await supabase.from('notiz_bestaetigungen').delete().eq('notiz_id', notizId).eq('person_id', personId));
+}
+
+export async function kommentiere(notizId: string, personId: string, text: string): Promise<void> {
+  pruefe(await supabase.from('notiz_kommentare').insert({ notiz_id: notizId, person_id: personId, text: text.trim() }));
+}
+
+export async function loescheKommentar(id: string): Promise<void> {
+  pruefe(await supabase.from('notiz_kommentare').delete().eq('id', id));
 }
