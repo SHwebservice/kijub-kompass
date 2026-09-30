@@ -57,6 +57,9 @@ export function Login({ anmelden, konfiguriert, nachAnmeldung }: Props) {
         <p className="center" style={{ color: 'var(--text-hint)', fontSize: 'var(--fs-sm)', marginTop: 'var(--space-4)' }}>
           Noch keinen Zugang oder Passwort vergessen? Bitte bei der Koordination melden.
         </p>
+        <p className="center" style={{ color: 'var(--text-hint)', fontSize: 'var(--fs-sm)' }}>
+          <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+        </p>
       </div>
     </div>
   );

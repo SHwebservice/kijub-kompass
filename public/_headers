@@ -1,0 +1,20 @@
+# Sicherheits- und Cache-Einstellungen für Cloudflare Pages (siehe docs/BETRIEB.md).
+# Die Seite lädt nur Eigenes und spricht nur mit Supabase. Die Datenbank-Adresse ist ein Supabase-Projekt unter *.supabase.co.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# Dateien mit Hash im Namen ändern sich nie: lange zwischenspeichern
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Die Startseite und die Web-App-Beschreibung immer frisch prüfen, damit neue Versionen sofort ankommen
+/index.html
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache

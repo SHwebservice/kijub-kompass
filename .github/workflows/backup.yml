@@ -1,0 +1,69 @@
+name: Datensicherung
+
+# Sichert die Datenbank wöchentlich (und auf Knopfdruck) und legt die Sicherung VERSCHLÜSSELT als Artefakt ab.
+# Wichtig: Artefakte in öffentlichen Repositories kann jede angemeldete Person herunterladen – deshalb wird immer verschlüsselt,
+# und der Lauf bricht ab, wenn kein Passwort hinterlegt ist. Wiederherstellen: docs/BETRIEB.md.
+
+on:
+  schedule:
+    - cron: '43 3 * * 0'       # sonntags, 03:43 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sichern:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Voraussetzungen prüfen
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then echo "::error::Secret SUPABASE_DB_URL fehlt (Verbindungsadresse des Session-Poolers, siehe docs/BETRIEB.md)."; exit 1; fi
+          if [ ${#BACKUP_PASSPHRASE} -lt 20 ]; then echo "::error::Secret BACKUP_PASSPHRASE fehlt oder ist kürzer als 20 Zeichen."; exit 1; fi
+
+      - name: PostgreSQL-Client installieren (passend zur Supabase-Version)
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Sichern
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir sicherung
+          PGDUMP=/usr/lib/postgresql/17/bin/pg_dump
+          # Daten der eigenen Tabellen (zum Zurückspielen in ein Projekt, das mit alle-migrationen.sql aufgebaut wurde)
+          $PGDUMP "$SUPABASE_DB_URL" --schema=public --data-only --no-owner --no-privileges --file=sicherung/daten.sql
+          # Aufbau der Tabellen, Regeln und Funktionen (nur zum Nachschlagen und Vergleichen)
+          $PGDUMP "$SUPABASE_DB_URL" --schema=public --schema-only --no-owner --no-privileges --file=sicherung/struktur.sql
+          # Anmeldekonten (nur Daten): erlauben, die Logins nach einem Totalausfall wiederherzustellen
+          $PGDUMP "$SUPABASE_DB_URL" --data-only --no-owner --no-privileges --table=auth.users --table=auth.identities --file=sicherung/auth.sql
+          ls -l sicherung
+          # Plausibilität: die Sicherung darf nicht leer sein
+          grep -q "COPY public.personen" sicherung/daten.sql
+          grep -q "CREATE TABLE public.personen" sicherung/struktur.sql
+          grep -q "COPY auth.users" sicherung/auth.sql
+
+      - name: Verschlüsseln
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          tar -czf sicherung.tar.gz sicherung
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" --symmetric --cipher-algo AES256 \
+            --output "kijub-kompass-$(date -u +%Y-%m-%d).tar.gz.gpg" sicherung.tar.gz
+          rm -rf sicherung sicherung.tar.gz
+          ls -l
+
+      - name: Ablegen
+        uses: actions/upload-artifact@v4
+        with:
+          name: datensicherung
+          path: kijub-kompass-*.tar.gz.gpg
+          retention-days: 60
+          if-no-files-found: error

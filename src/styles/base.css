@@ -258,3 +258,9 @@ mark { background: var(--warning-bg); color: inherit; padding: 0 2px; border-rad
 .quiz__antwort--verpasst { border-color: var(--success); border-style: dashed; }
 .quiz__symbol { width: 1.2em; font-weight: 700; }
 .quiz__erklaerung { margin-top: var(--space-3); padding: var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); }
+
+/* Impressum und Datenschutz (ohne Anmeldung erreichbar) */
+.recht { max-width: 680px; margin: 0 auto; padding: var(--space-5) var(--space-4) var(--space-7); line-height: 1.6; }
+.recht h2 { font-size: var(--fs-lg); margin-top: var(--space-5); }
+.recht address { font-style: normal; margin-bottom: var(--space-3); }
+.recht__fuss { margin-top: var(--space-6); color: var(--text-hint); font-size: var(--fs-sm); }

@@ -1,0 +1,29 @@
+name: Lebenszeichen
+
+# Kostenlose Supabase-Projekte werden nach 7 Tagen ohne Zugriffe pausiert. Dieser Lauf ruft zweimal pro Woche eine
+# Funktion auf, die nur "ok" zurückgibt (Migration 0014). Schlägt der Aufruf fehl, meldet GitHub per E-Mail einen fehlgeschlagenen Lauf.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1,4'     # montags und donnerstags, 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Datenbank anpingen
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Die Secrets SUPABASE_URL und SUPABASE_ANON_KEY fehlen (Repository → Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          antwort=$(curl --silent --show-error --fail --max-time 30 --retry 3 --retry-delay 10 \
+            -X POST "${SUPABASE_URL%/}/rest/v1/rpc/fn_ping" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" -d '{}')
+          echo "Antwort: $antwort"
+          test "$antwort" = '"ok"'

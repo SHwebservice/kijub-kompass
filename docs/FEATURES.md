@@ -131,7 +131,7 @@ Quellen-Kürzel: `mt` = mitarbeitende.js, `fz` = freizeiten-zugaenge.js, `tf` = 
 | ID | Was der Altcode tut | Quelle | Entscheidung |
 |---|---|---|---|
 | I1 | Offline-Caching per Service Worker (zugleich Messaging-SW). | `firebase-messaging-sw.js` | **Behalten** (PWA). |
-| I2 | Impressum (`impressum.html`). | | **Behalten** + Datenschutzerklärung (neu). |
+| I2 | Impressum (`impressum.html`). | | **Behalten** + Datenschutzerklärung (neu). **Umgesetzt** (Phase 4): `/impressum` und `/datenschutz`, ohne Anmeldung erreichbar, Texte in `src/pages/recht/`. |
 | I3 | Datenpflege-Overlay (Backup-Import / Duplikate / Katalog-Export). | `bk` | **Neu** → Admin-Bereich „Daten": Export (Personen, Freizeiten …), Import nach Bedarf; automatische DB-Backups per GitHub-Action. |
 | I4 | Firestore-Rules-Datei musste manuell in die Konsole kopiert werden. | `rules` | **Streichen** – Migrationsdateien im Repo, per CLI ausgerollt. |
 
@@ -242,3 +242,19 @@ G9 (nur für Angemeldete). Die Koordination legt Programmpunkte an, ändert und 
 - Wird ein Programmpunkt gelöscht, der in einem Wochenplan (Freizeit oder Treff) steht, bleibt der Eintrag dort mit dem Namen als Freitext erhalten (Migration `0013`).
 
 **Noch offen (bewusst später):** „Teilen“ als fertiger Nachrichtentext, Push bei neuen Vorschlägen an die Koordination (Bereich Mitteilungen), Volltextsuche in der Datenbank statt im Browser (erst bei sehr großem Katalog nötig).
+
+## Stand der Umsetzung: Betrieb (Phase 4, 2026-09-30)
+
+**Umgesetzt und getestet:** Sicherheitsköpfe und Zwischenspeicher für Cloudflare Pages (`public/_headers`, u. a. Content-Security-Policy ohne `unsafe-eval` und ohne fremde Skripte), Prüfung der veröffentlichten Seite (`npm run check:site`),
+Lebenszeichen gegen das Pausieren von Supabase (Migration `0014`, `keepalive.yml`), wöchentliche verschlüsselte Datensicherung (`backup.yml`), Fehlerseite statt weißer Seite (`FehlerGrenze`), Versionsanzeige unter „Mehr“,
+Impressum und Datenschutzhinweise, Betriebsanleitung mit Checkliste und Wiederherstellung (`docs/BETRIEB.md`).
+
+**Bewusste Entscheidungen:**
+- Sicherungen werden immer verschlüsselt (AES-256) und nur so abgelegt; ohne Passwort bricht der Lauf ab, weil Artefakte in öffentlichen Repositories für angemeldete GitHub-Nutzer abrufbar wären.
+- Gesichert wird per Session-Pooler-Adresse (GitHub Actions hat nur IPv4; die direkte Datenbankadresse ist IPv6).
+- Die Source-Maps werden nicht mehr veröffentlicht.
+- Die einzige ohne Anmeldung ausführbare Datenbankfunktion ist `fn_ping` (Test stellt das sicher). Dabei wurde eine Trigger-Funktion aus Migration `0009` nachträglich für „public“ gesperrt.
+
+**Nicht erprobt:** Die Datensicherung und die Wiederherstellung konnten nicht gegen ein echtes Supabase-Projekt laufen (brauchen deine Zugangsdaten); die Schritte sind in `docs/BETRIEB.md` beschrieben und sollten einmal als Probe durchgespielt werden.
+
+**Noch offen:** Mitteilungen per Web-Push, vollständige Startseite „Heute“.

@@ -10,7 +10,8 @@ React + TypeScript + Vite (PWA), Backend: Supabase (Postgres mit Row Level Secur
 | [docs/DATENMODELL.md](docs/DATENMODELL.md) | Datenmodell (maßgeblich sind `supabase/migrations/`) |
 | [docs/RECHTE.md](docs/RECHTE.md) | Rechte-Matrix (umgesetzt in `0005`/`0006`, geprüft in `tests/db/`) |
 | [docs/IMPORT.md](docs/IMPORT.md) | Import aus KiJuKo |
-| [docs/SETUP.md](docs/SETUP.md) | Supabase, Hosting, erster Zugang |
+| [docs/SETUP.md](docs/SETUP.md) | Supabase, erster Zugang, lokal entwickeln |
+| [docs/BETRIEB.md](docs/BETRIEB.md) | Veröffentlichen, Lebenszeichen, verschlüsselte Datensicherung, Wiederherstellen |
 
 ## Entwickeln
 

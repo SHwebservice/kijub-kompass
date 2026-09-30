@@ -26,6 +26,14 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: 'betrieb',
+          environment: 'node',
+          include: ['tests/betrieb/**/*.test.ts'],
+        },
+      },
+      {
+        extends: true,
+        test: {
           name: 'unit',
           environment: 'jsdom',
           include: ['src/**/*.test.{ts,tsx}'],

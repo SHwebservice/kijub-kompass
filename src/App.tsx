@@ -27,6 +27,8 @@ import { TreffeListe } from './pages/treffs/TreffeListe';
 import { TreffDetail } from './pages/treffs/TreffDetail';
 import { TreffForm } from './pages/treffs/TreffForm';
 import { Bewerbungen } from './pages/Bewerbungen';
+import { Impressum } from './pages/recht/Impressum';
+import { Datenschutz } from './pages/recht/Datenschutz';
 
 function Zugang() {
   const { status, fehler, mussPasswortAendern, anmelden, passwortAendern, abmelden } = useAuth();
@@ -107,7 +109,12 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Zugang />
+        <Routes>
+          {/* Ohne Anmeldung erreichbar */}
+          <Route path="impressum" element={<Impressum />} />
+          <Route path="datenschutz" element={<Datenschutz />} />
+          <Route path="*" element={<Zugang />} />
+        </Routes>
       </BrowserRouter>
     </AuthProvider>
   );

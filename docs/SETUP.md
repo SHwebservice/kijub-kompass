@@ -36,7 +36,7 @@ Variante B – ohne CLI: Im Dashboard unter **SQL Editor** den Inhalt von `supab
 
 **Projekt läuft schon und es kommen neue Migrationen dazu?** Dann nur die neue Datei aus `supabase/migrations/` (z. B. `0009_person_entfernen.sql`)
 im SQL Editor ausführen – nicht die Sammeldatei, die ist nur für leere Projekte.
-Aktueller Stand der Migrationen: `0001` bis `0013` (`0010` = KiJuKo-Import, `0011` = Live-Aktualisierung der Freizeiten, `0012` = Dienstplan der Treffs, `0013` = Katalog-Kommentare mit Namen).
+Aktueller Stand der Migrationen: `0001` bis `0014` (`0010` = KiJuKo-Import, `0011` = Live-Aktualisierung der Freizeiten, `0012` = Dienstplan der Treffs, `0013` = Katalog-Kommentare mit Namen, `0014` = Lebenszeichen).
 
 ### Erste Koordination anlegen **[du]**
 
@@ -76,13 +76,8 @@ Die Option **„Verify JWT"** bleibt an.
 
 ## 4. App veröffentlichen
 
-**Empfehlung: Cloudflare Pages** (kostenlos, SPA-Fallback über `public/_redirects`, schnelle Auslieferung).
-
-1. Repository auf GitHub ablegen **[du]** (privat möglich).
-2. Cloudflare Pages → „Create project" → mit GitHub verbinden.
-3. Build-Befehl `npm run build`, Ausgabeordner `dist`.
-4. Umgebungsvariablen (Production): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-5. Danach in Supabase die **Site URL** auf die neue Adresse stellen.
+Ausführlich in **[docs/BETRIEB.md](BETRIEB.md)**: Cloudflare Pages (Build `npm run build`, Ausgabe `dist`, Variablen `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`),
+Supabase-Adresse eintragen, Prüfung mit `npm run check:site -- <Adresse>`, dazu Lebenszeichen gegen das Pausieren und die verschlüsselte wöchentliche Datensicherung.
 
 Der anon-Schlüssel ist dafür gedacht, öffentlich zu sein; geschützt sind die Daten durch die Zugriffsregeln (RLS).
 **Niemals** den `service_role`-Schlüssel in `VITE_…`-Variablen oder ins Repository legen.

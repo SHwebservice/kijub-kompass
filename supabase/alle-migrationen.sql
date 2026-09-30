@@ -1,7 +1,7 @@
 -- KiJuB-Kompass · alle Migrationen in einer Datei (GENERIERT – nicht von Hand ändern)
 -- Erzeugt mit: npm run sql:bundle
 -- Nur für ein LEERES Projekt gedacht: einmal komplett im SQL Editor ausführen.
--- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql
+-- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql, 0014_betrieb.sql
 
 -- ════════ 0001_stammdaten.sql ════════
 -- KiJuB-Kompass · 0001 Stammdaten
@@ -1897,3 +1897,18 @@ begin
 end $$;
 create trigger angebot_loeschen before delete on angebote for each row execute function fn_angebot_loeschen();
 revoke execute on function fn_angebot_loeschen() from public, anon;
+
+-- ════════ 0014_betrieb.sql ════════
+-- KiJuB-Kompass · 0014 Betrieb: Lebenszeichen für die Datenbank
+--
+-- Kostenlose Supabase-Projekte werden nach einer Woche ohne Zugriffe pausiert. Ein geplanter Aufruf (GitHub Actions,
+-- siehe .github/workflows/keepalive.yml) ruft diese Funktion auf: Sie berührt die Datenbank, gibt aber nur „ok“ zurück –
+-- keine Daten, keine Uhrzeit, kein Hinweis auf Inhalte. Sie ist die einzige Funktion, die ohne Anmeldung ausführbar ist.
+create function fn_ping() returns text
+language sql stable as $$ select 'ok'::text $$;
+
+grant execute on function fn_ping() to anon, authenticated;
+
+-- Aufräumen: Die Schutzfunktion aus 0009 (nur als Trigger gedacht, nicht direkt aufrufbar) war noch für „public“ ausführbar.
+-- Damit ist fn_ping die einzige Funktion, die ohne Anmeldung ausgeführt werden darf.
+revoke execute on function fn_letzte_koordination_schuetzen() from public, anon;

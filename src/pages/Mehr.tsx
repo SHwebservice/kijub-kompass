@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button, Card, PageHeader } from '../components/ui';
 import { useAuth } from '../lib/auth-kontext';
 import { PasswortAendern } from './PasswortAendern';
+import { VERSION } from '../version';
 
 export function Mehr() {
   const { ich, rollen, abmelden, passwortAendern } = useAuth();
@@ -35,6 +36,9 @@ export function Mehr() {
         )}
         <PasswortAendern speichern={passwortAendern} />
         <Button block onClick={() => void abmelden()}>Abmelden</Button>
+        <p className="field__hint" style={{ textAlign: 'center' }}>
+          <Link to="/impressum">Impressum</Link> · <Link to="/datenschutz">Datenschutz</Link><br />KiJuB-Kompass · Version {VERSION}
+        </p>
       </div>
     </>
   );
