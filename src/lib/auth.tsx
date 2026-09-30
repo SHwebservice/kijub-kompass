@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, konfiguriert } from './supabase';
 import { AuthKontext, type AuthWert, type AuthStatus } from './auth-kontext';
 import { authFehlerText } from './auth-fehler';
+import { schalteAus } from '../mitteilungen/geraet';
 import {
   berechneRollen, type FreizeitZuordnung, type Ich, type Rollen, type TreffZuordnung,
 } from './rollen';
@@ -76,7 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   }, []);
 
-  const abmelden = useCallback(async () => { await supabase.auth.signOut(); }, []);
+  // Beim Abmelden wird dieses Gerät für Mitteilungen der Person abgemeldet, damit sie nach einem Wechsel der Anmeldung nicht bei der nächsten Person ankommen.
+  const ichRef = useRef<Ich | null>(null);
+  useEffect(() => { ichRef.current = ich; }, [ich]);
+  const abmelden = useCallback(async () => {
+    if (ichRef.current) await schalteAus(ichRef.current.id);
+    await supabase.auth.signOut();
+  }, []);
 
   const mussPasswortAendern =
     session?.user.user_metadata?.muss_passwort_aendern === true && quittiertFuer !== session.user.id;

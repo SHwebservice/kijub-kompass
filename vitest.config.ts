@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // Die Edge Functions importieren Supabase mit Deno-Schreibweise (npm:…); in den Tests kommt das Paket aus node_modules.
+  resolve: { alias: { 'npm:@supabase/supabase-js@2': '@supabase/supabase-js' } },
   test: {
     projects: [
       {

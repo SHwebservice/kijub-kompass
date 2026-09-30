@@ -3,6 +3,7 @@ import { Button, Card, PageHeader } from '../components/ui';
 import { useAuth } from '../lib/auth-kontext';
 import { PasswortAendern } from './PasswortAendern';
 import { VERSION } from '../version';
+import { MitteilungenKarte } from './MitteilungenKarte';
 
 export function Mehr() {
   const { ich, rollen, abmelden, passwortAendern } = useAuth();
@@ -34,6 +35,7 @@ export function Mehr() {
             </ul>
           </Card>
         )}
+        <MitteilungenKarte />
         <PasswortAendern speichern={passwortAendern} />
         <Button block onClick={() => void abmelden()}>Abmelden</Button>
         <p className="field__hint" style={{ textAlign: 'center' }}>

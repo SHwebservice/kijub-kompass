@@ -14,7 +14,8 @@
     "test:unit": "vitest run --project unit",
     "sql:bundle": "node scripts/sql-bundle.mjs",
     "check:live": "node scripts/live-check.mjs",
-    "check:site": "node scripts/site-check.mjs"
+    "check:site": "node scripts/site-check.mjs",
+    "vapid": "node scripts/vapid.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
