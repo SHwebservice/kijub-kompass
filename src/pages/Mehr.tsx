@@ -13,6 +13,13 @@ export function Mehr() {
           <strong>{ich?.vorname} {ich?.nachname}</strong>
           <p style={{ marginBottom: 0, color: 'var(--text-muted)' }}>{ich?.mail}</p>
         </Card>
+        <Card>
+          <h2>Wissen</h2>
+          <ul className="list">
+            <li><Link className="list__item" to="/teamermappe">Teamermappe</Link></li>
+            {rollen?.darfTreffmappe && <li><Link className="list__item" to="/treffmappe">Treffmappe</Link></li>}
+          </ul>
+        </Card>
         {rollen?.koordination && (
           <Card>
             <h2>Koordination</h2>

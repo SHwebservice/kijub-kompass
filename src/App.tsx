@@ -14,6 +14,7 @@ import { FreizeitenListe } from './pages/freizeiten/FreizeitenListe';
 import { FreizeitDetail } from './pages/freizeiten/FreizeitDetail';
 import { FreizeitForm } from './pages/freizeiten/FreizeitForm';
 import { Orte } from './pages/Orte';
+import { MappeSeite } from './pages/mappen/MappeSeite';
 import { TreffeListe } from './pages/treffs/TreffeListe';
 import { TreffDetail } from './pages/treffs/TreffDetail';
 import { TreffForm } from './pages/treffs/TreffForm';
@@ -70,6 +71,10 @@ function Geschuetzt() {
         <Route path="treffs/:id/bearbeiten" element={rollen?.koordination ? <TreffForm /> : <Navigate to="/treffs" replace />} />
         <Route path="treffs/:id/*" element={<TreffDetail />} />
         <Route path="katalog/*" element={<Platzhalter titel="Katalog" text="Programmpunkte, Favoriten und Bewertungen folgen in Phase 3." />} />
+        <Route path="teamermappe" element={<MappeSeite schluessel="teamermappe" titel="Teamermappe" mitSchlagworten
+          untertitel="Regeln, Abläufe und Antworten für die Arbeit in den Freizeiten." />} />
+        <Route path="treffmappe" element={rollen?.darfTreffmappe ? <MappeSeite schluessel="treffmappe" titel="Treffmappe" mitSchlagworten={false}
+          untertitel="Regeln, Abläufe und Antworten für die Arbeit in den Treffs." /> : <Navigate to="/" replace />} />
         <Route path="mehr" element={<Mehr />} />
         <Route path="personen" element={rollen?.koordination ? <Personen /> : <Navigate to="/" replace />} />
         <Route path="orte" element={rollen?.koordination ? <Orte /> : <Navigate to="/" replace />} />

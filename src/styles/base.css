@@ -229,3 +229,12 @@ button.plan__eintrag { cursor: pointer; }
   .nachweis-druck table { width: 100%; border-collapse: collapse; margin: 8mm 0; }
   .nachweis-druck th, .nachweis-druck td { border: 1px solid #000; padding: 2mm 3mm; text-align: left; }
 }
+
+/* Mappen */
+.mappe__kopf { display: flex; align-items: center; gap: var(--space-3); width: 100%; background: none; border: 0; padding: var(--space-1) 0; text-align: left; cursor: pointer; font: inherit; color: inherit; min-height: var(--tap); }
+.mappe__titel { flex: 1; font-weight: 600; font-size: var(--fs-lg); }
+.mappe__punkte { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
+.mappe__punkte li { margin-bottom: var(--space-2); }
+.mappe__kachel--gedaempft { opacity: 0.6; }
+.mappe__kodex { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+mark { background: var(--warning-bg); color: inherit; padding: 0 2px; border-radius: 3px; }
