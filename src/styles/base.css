@@ -320,3 +320,25 @@ a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
 .zuordnung__auswahl--warnung { border-color: var(--warning, #b45309); box-shadow: 0 0 0 2px var(--warning-bg, rgba(180, 83, 9, 0.25)); }
 .mehrfach__liste { max-height: 18rem; overflow: auto; margin: var(--space-3) 0; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .mehrfach__hinweis { color: var(--warning, #b45309); font-size: var(--fs-sm); }
+
+/* â€žMehrâ€œ: MenÃ¼ mit Symbol, Name und Kurzbeschreibung */
+.profil { display: flex; align-items: center; gap: var(--space-4); }
+.profil__bild { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: var(--fs-lg); }
+.profil__mail { color: var(--text-muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.menue__titel { font-size: var(--fs-base); color: var(--text-muted); margin: 0 0 var(--space-2); }
+.menue { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.menue li + li { border-top: 1px solid var(--border); }
+.menue__eintrag { display: flex; align-items: center; gap: var(--space-3); min-height: 56px; padding: var(--space-3) var(--space-4); color: inherit; text-decoration: none; }
+.menue__eintrag:hover { background: var(--accent-bg); }
+.menue__eintrag:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.menue__icon { flex: none; width: 1.75rem; text-align: center; font-size: 1.3rem; }
+.menue__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.menue__name { font-weight: 600; }
+.menue__hinweis { color: var(--text-muted); font-size: var(--fs-sm); }
+.menue__pfeil { flex: none; color: var(--text-hint); font-size: 1.4rem; }
+.menue__details { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.menue__details > summary { cursor: pointer; padding: var(--space-3) var(--space-4); min-height: 48px; font-weight: 600; display: flex; align-items: center; }
+.menue__details[open] > summary { border-bottom: 1px solid var(--border); }
+.menue__details > .card { border: 0; box-shadow: none; }
+
+.menue__details > .card > h2 { display: none; }   /* die Zusammenfassung ist schon die Überschrift */

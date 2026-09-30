@@ -1,44 +1,65 @@
 import { Link } from 'react-router-dom';
-import { Button, Card, PageHeader } from '../components/ui';
+import { Badge, Button, Card, PageHeader } from '../components/ui';
 import { useAuth } from '../lib/auth-kontext';
+import { rollenBezeichnungen } from '../lib/rollen';
 import { PasswortAendern } from './PasswortAendern';
 import { VERSION } from '../version';
 import { MitteilungenKarte } from './MitteilungenKarte';
+import { baueMenue, initialen } from './mehr/menue';
 
+/** „Mehr“: Profil, Wissen und Material, Verwaltung (Koordination), Mitteilungen und Konto. */
 export function Mehr() {
   const { ich, rollen, abmelden, passwortAendern } = useAuth();
+  const gruppen = baueMenue(rollen);
+  const bezeichnungen = rollen ? rollenBezeichnungen(rollen) : [];
+
   return (
     <>
       <PageHeader titel="Mehr" />
       <div className="stack">
         <Card>
-          <strong>{ich?.vorname} {ich?.nachname}</strong>
-          <p style={{ marginBottom: 0, color: 'var(--text-muted)' }}>{ich?.mail}</p>
+          <div className="profil">
+            <span className="profil__bild" aria-hidden="true">{initialen(ich?.vorname, ich?.nachname)}</span>
+            <div>
+              <strong>{ich?.vorname} {ich?.nachname}</strong>
+              <div className="profil__mail">{ich?.mail}</div>
+              <div className="row" style={{ gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                {ich && <Badge>{ich.kategorie}</Badge>}
+                {bezeichnungen.map((b) => <Badge key={b} ton="accent">{b}</Badge>)}
+              </div>
+            </div>
+          </div>
         </Card>
-        <Card>
-          <h2>Wissen</h2>
-          <ul className="list">
-            <li><Link className="list__item" to="/teamermappe">Teamermappe</Link></li>
-            <li><Link className="list__item" to="/formulare">Formulare</Link></li>
-            <li><Link className="list__item" to="/quiz">Quiz</Link></li>
-            {rollen?.darfTreffmappe && <li><Link className="list__item" to="/treffmappe">Treffmappe</Link></li>}
-          </ul>
-        </Card>
-        {rollen?.koordination && (
-          <Card>
-            <h2>Koordination</h2>
-            <ul className="list">
-              <li><Link className="list__item" to="/bewerbungen">Bewerbungen</Link></li>
-              <li><Link className="list__item" to="/personen">Personen &amp; Zugänge</Link></li>
-              <li><Link className="list__item" to="/orte">Orte</Link></li>
-              <li><Link className="list__item" to="/mitteilungen">Mitteilung senden</Link></li>
-              <li><Link className="list__item" to="/import">KiJuKo-Import</Link></li>
+
+        {gruppen.map((g) => (
+          <section key={g.id} aria-labelledby={`menue-${g.id}`}>
+            <h2 id={`menue-${g.id}`} className="menue__titel">{g.titel}</h2>
+            <ul className="menue">
+              {g.eintraege.map((x) => (
+                <li key={x.pfad}>
+                  <Link className="menue__eintrag" to={x.pfad}>
+                    <span className="menue__icon" aria-hidden="true">{x.icon}</span>
+                    <span className="menue__text"><span className="menue__name">{x.label}</span><span className="menue__hinweis">{x.text}</span></span>
+                    <span className="menue__pfeil" aria-hidden="true">›</span>
+                  </Link>
+                </li>
+              ))}
             </ul>
-          </Card>
-        )}
-        <MitteilungenKarte />
-        <PasswortAendern speichern={passwortAendern} />
-        <Button block onClick={() => void abmelden()}>Abmelden</Button>
+          </section>
+        ))}
+
+        <section aria-labelledby="menue-konto">
+          <h2 id="menue-konto" className="menue__titel">Mein Konto</h2>
+          <div className="stack">
+            <MitteilungenKarte />
+            <details className="menue__details">
+              <summary>Passwort ändern</summary>
+              <PasswortAendern speichern={passwortAendern} />
+            </details>
+            <Button block onClick={() => void abmelden()}>Abmelden</Button>
+          </div>
+        </section>
+
         <p className="field__hint" style={{ textAlign: 'center' }}>
           <Link to="/impressum">Impressum</Link> · <Link to="/datenschutz">Datenschutz</Link><br />KiJuB-Kompass · Version {VERSION}
         </p>
