@@ -17,6 +17,7 @@ export function Mehr() {
           <h2>Wissen</h2>
           <ul className="list">
             <li><Link className="list__item" to="/teamermappe">Teamermappe</Link></li>
+            <li><Link className="list__item" to="/formulare">Formulare</Link></li>
             {rollen?.darfTreffmappe && <li><Link className="list__item" to="/treffmappe">Treffmappe</Link></li>}
           </ul>
         </Card>

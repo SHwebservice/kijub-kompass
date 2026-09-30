@@ -219,11 +219,16 @@ button.plan__eintrag { cursor: pointer; }
 .alert--warning { background: var(--warning-bg); color: var(--warning); }
 
 /* Nachweis der Teilzeitkräfte: Druckvorlage (A4) – nur beim Drucken sichtbar, alles andere wird ausgeblendet */
-.nachweis-druck { display: none; }
+.nachweis-druck, .formular-druck { display: none; }
 @media print {
   @page { size: A4; margin: 15mm; }
   body * { visibility: hidden; }
-  .nachweis-druck, .nachweis-druck * { visibility: visible; }
+  .nachweis-druck, .nachweis-druck *, .formular-druck, .formular-druck * { visibility: visible; }
+  .formular-druck { display: block; position: absolute; left: 0; top: 0; width: 100%; color: #000; background: #fff; font-size: 11pt; }
+  .formular-druck__kopf { display: flex; justify-content: space-between; font-size: 9pt; margin-bottom: 6mm; }
+  .formular-druck h1 { font-size: 16pt; }
+  .formular-druck table { width: 100%; border-collapse: collapse; margin: 6mm 0; }
+  .formular-druck th, .formular-druck td { border: 1px solid #000; padding: 1.5mm 2mm; text-align: left; }
   .nachweis-druck { display: block; position: absolute; left: 0; top: 0; width: 100%; color: #000; background: #fff; font-size: 11pt; }
   .nachweis-druck h1 { font-size: 16pt; }
   .nachweis-druck table { width: 100%; border-collapse: collapse; margin: 8mm 0; }
