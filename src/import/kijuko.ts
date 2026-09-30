@@ -322,6 +322,8 @@ export function baueImportPlan(roh: unknown): ImportPlan {
 
 /** SHA-256 der Datei als Hex-Text (Nachweis, welche Datei importiert wurde). */
 export async function sha256Hex(daten: ArrayBuffer): Promise<string> {
+  // Browser stellen crypto.subtle nur auf sicheren Seiten bereit (HTTPS oder localhost) – sonst gibt es eine klare Meldung statt eines Rätsels.
+  if (!globalThis.crypto?.subtle) throw new Error('crypto.subtle ist nicht verfügbar (Seite nicht über HTTPS oder localhost geöffnet)');
   const h = await crypto.subtle.digest('SHA-256', daten);
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }

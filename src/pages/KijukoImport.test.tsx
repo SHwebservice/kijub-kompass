@@ -138,9 +138,33 @@ describe('KijukoImport', () => {
     expect(screen.getByLabelText('KiJuKo-Sicherung (.json)')).toBeInTheDocument();
   });
 
-  it('Fehler der Vorschau (z. B. keine Berechtigung) werden verständlich gemeldet', async () => {
+  it('Fehler der Vorschau werden verständlich gemeldet, mit technischer Angabe', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
     render(<KijukoImport vorschau={vi.fn().mockRejectedValue(new Error('x'))} anwenden={vi.fn()} />);
     await laden(datei(beispielBackup()));
-    expect(await screen.findByRole('alert')).toHaveTextContent('konnte nicht geprüft werden');
+    const hinweis = await screen.findByRole('alert');
+    expect(hinweis).toHaveTextContent('konnte nicht geprüft werden');
+    expect(hinweis).toHaveTextContent('Technische Angabe');
+    expect(screen.getByText('x', { selector: 'code' })).toBeInTheDocument();
+  });
+
+  it('fehlt die Import-Funktion in der Datenbank, sagt die Meldung, dass Migration 0010 fehlt', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const fehlt = { code: 'PGRST202', message: 'Could not find the function public.fn_kijuko_import in the schema cache' };
+    render(<KijukoImport vorschau={vi.fn().mockRejectedValue(fehlt)} anwenden={vi.fn()} />);
+    await laden(datei(beispielBackup()));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Migration „0010_kijuko_import.sql“ wurde noch nicht eingespielt');
+    expect(screen.getByText(/PGRST202/)).toBeInTheDocument();
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it('die technische Angabe verschwindet beim nächsten Versuch', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(<KijukoImport vorschau={vi.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValue(leer)} anwenden={vi.fn()} />);
+    await laden(datei(beispielBackup()));
+    await screen.findByText('Technische Angabe');
+    await laden(datei(beispielBackup()));
+    await screen.findByRole('button', { name: 'Abbrechen' });
+    expect(screen.queryByText('Technische Angabe')).not.toBeInTheDocument();
   });
 });

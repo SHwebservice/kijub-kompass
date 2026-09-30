@@ -1,6 +1,7 @@
 import { useState, type ChangeEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { baueImportPlan, ImportFormatFehler, sha256Hex, type ImportPlan } from '../import/kijuko';
+import { importMeldung, type ImportMeldung } from '../import/fehler';
 import {
   ARTEN, feldLabel, hatAenderungen, summe, wertText, type Entscheidungen, type ImportErgebnis,
 } from '../import/ergebnis';
@@ -49,6 +50,7 @@ export function KijukoImport({ vorschau, anwenden }: Props) {
   const [entscheidungen, setEntscheidungen] = useState<Entscheidungen>({});
   const [entfernen, setEntfernen] = useState<Set<string>>(new Set());
   const [fehler, setFehler] = useState<string | null>(null);
+  const [technisch, setTechnisch] = useState<string | null>(null);
 
   const alle = (): Entscheidungen => {
     const e: Entscheidungen = { ...entscheidungen };
@@ -56,10 +58,16 @@ export function KijukoImport({ vorschau, anwenden }: Props) {
     return e;
   };
 
+  /** Zeigt die verständliche Meldung und hält die technische Angabe für die Fehlersuche bereit (auch in der Konsole). */
+  function melde(m: ImportMeldung, ursache: unknown) {
+    console.error('KiJuKo-Import fehlgeschlagen:', ursache);
+    setFehler(m.text); setTechnisch(m.technisch);
+  }
+
   async function dateiGewaehlt(ev: ChangeEvent<HTMLInputElement>) {
     const f = ev.target.files?.[0];
     if (!f) return;
-    setFehler(null); setPhase('laedt');
+    setFehler(null); setTechnisch(null); setPhase('laedt');
     try {
       const daten = await f.arrayBuffer();
       const roh: unknown = JSON.parse(new TextDecoder('utf-8').decode(daten));
@@ -69,26 +77,26 @@ export function KijukoImport({ vorschau, anwenden }: Props) {
       setPlan(p); setDatei(info); setErgebnis(e); setEntscheidungen({}); setEntfernen(new Set()); setPhase('vorschau');
     } catch (err) {
       setPhase('start');
-      setFehler(err instanceof ImportFormatFehler ? err.message
-        : err instanceof SyntaxError ? 'Die Datei ist keine gültige JSON-Datei.'
-        : 'Die Datei konnte nicht geprüft werden. Bitte erneut versuchen.');
+      if (err instanceof ImportFormatFehler) setFehler(err.message);
+      else if (err instanceof SyntaxError) setFehler('Die Datei ist keine gültige JSON-Datei.');
+      else melde(importMeldung(err, 'pruefen'), err);
     }
   }
 
   async function uebernehmen() {
     if (!plan || !datei) return;
-    setFehler(null); setPhase('laedt');
+    setFehler(null); setTechnisch(null); setPhase('laedt');
     try {
       setErgebnis(await anwenden(plan, alle(), datei));
       setPhase('fertig');
-    } catch {
+    } catch (err) {
       setPhase('vorschau');
-      setFehler('Der Import ist fehlgeschlagen. Es wurde nichts verändert. Bitte die Vorschau erneut prüfen.');
+      melde(importMeldung(err, 'uebernehmen'), err);
     }
   }
 
   function zuruecksetzen() {
-    setPhase('start'); setPlan(null); setDatei(null); setErgebnis(null); setEntscheidungen({}); setEntfernen(new Set()); setFehler(null);
+    setPhase('start'); setPlan(null); setDatei(null); setErgebnis(null); setEntscheidungen({}); setEntfernen(new Set()); setFehler(null); setTechnisch(null);
   }
 
   const zuteilungenEntfallen = ergebnis?.entfallen.filter((x) => x.art === 'Zuteilung') ?? [];
@@ -97,7 +105,12 @@ export function KijukoImport({ vorschau, anwenden }: Props) {
   return (
     <>
       <PageHeader titel="KiJuKo-Import" />
-      {fehler && <Alert ton="error">{fehler}</Alert>}
+      {fehler && (
+        <Alert ton="error">
+          {fehler}
+          {technisch && <details><summary>Technische Angabe</summary><code style={{ wordBreak: 'break-word' }}>{technisch}</code></details>}
+        </Alert>
+      )}
 
       {phase === 'start' && (
         <Card>
