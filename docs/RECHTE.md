@@ -106,6 +106,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Push-Abo (Endgerät) | eig. | eig. |
 | Manueller Push | E (an Freizeit/Treff/Kategorie/Koordination/alle) | — |
 | Empfängervorschau | L | — |
+| Mitteilungen bei Bewerbung angenommen, Nachweis eingereicht, Lebensmittel knapp/leer | erhält: Lebensmittel, Nachweis (falls keine Treffleitung) | erhält: Bewerbende die Annahme, Treffleitung den Nachweis · Details: `docs/ANZEIGEN_UND_MITTEILUNGEN.md` |
 | Einstellungen (Bewerbungsfrist, Ferienwochen …) | L Ä | L |
 | Backups/Export | ja | — |
 

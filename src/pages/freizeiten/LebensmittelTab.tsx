@@ -8,6 +8,7 @@ import {
 } from '../../freizeiten/api';
 import { formatDatum, formatKurz, heuteIso, tageVonBis } from '../../freizeiten/logik';
 import { artikelListe, formatMenge, parseMenge, standardTag, type Artikel } from '../../freizeiten/lebensmittel';
+import { sendePush } from '../../mitteilungen/senden';
 import { Alert, Badge, Button, Card, EmptyState, Spinner, TextField } from '../../components/ui';
 
 /** Führt eine Änderung aus und lädt neu; liefert true bei Erfolg (Fehler zeigt die Seite oben an). */
@@ -75,7 +76,7 @@ function ArtikelKarte({ a, tage, standard, ortId, freizeitId, ausfuehren }: {
     const m = parseMenge(menge);
     if (m === null) { setFehler('Bitte eine Menge größer 0 eingeben.'); return; }
     setFehler(null);
-    void ausfuehren(async () => { await trageVerbrauchEin(ortId, freizeitId, { name: a.name, menge: m, datum: tag }); }).then((ok) => { if (ok) setMenge(''); });
+    void ausfuehren(async () => { await trageVerbrauchEin(ortId, freizeitId, { name: a.name, menge: m, datum: tag }); sendePush('lebensmittel', ortId, { name: a.name }); }).then((ok) => { if (ok) setMenge(''); });
   }
 
   return (

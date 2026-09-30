@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { sendePush } from '../../mitteilungen/senden';
 import * as api from '../../freizeiten/api';
 import { LebensmittelTab } from './LebensmittelTab';
 import { renderMitAuth } from '../../test-utils';
@@ -138,6 +139,7 @@ describe('Lebensmittel: Verbrauch und Buchungen', () => {
     await userEvent.type(within(milch).getByLabelText('Verbrauch von Milch'), '12,5');
     await userEvent.click(knopf);
     expect(api.trageVerbrauchEin).toHaveBeenCalledWith('o1', 'f1', { name: 'Milch', menge: 12.5, datum: heute });
+    expect(sendePush).toHaveBeenCalledWith('lebensmittel', 'o1', { name: 'Milch' });   // die Datenbank entscheidet, ob es knapp genug ist
   });
 
   it('der Tag ist wählbar und auf die Tage der Freizeit begrenzt', async () => {

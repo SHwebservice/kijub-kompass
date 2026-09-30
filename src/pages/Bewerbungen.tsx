@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLaden } from '../lib/laden';
 import { fehlerText } from '../lib/fehler';
 import { bewerbungAblehnen, bewerbungAnnehmen, offeneBewerbungen } from '../freizeiten/api';
+import { sendePush } from '../mitteilungen/senden';
 import { formatDatum, zeitraumText } from '../freizeiten/logik';
 import { Alert, Badge, Button, EmptyState, PageHeader, Spinner } from '../components/ui';
 
@@ -17,6 +18,7 @@ export function Bewerbungen() {
     setArbeitet(id); setFehler(null); setMeldung(null);
     try {
       await (annehmen ? bewerbungAnnehmen(id) : bewerbungAblehnen(id));
+      if (annehmen) sendePush('bewerbung_angenommen', id);          // die Person erfährt, dass sie dabei ist (Absage bewusst ohne Mitteilung)
       setMeldung(annehmen ? `${name} ist jetzt im Team.` : `Die Bewerbung von ${name} wurde abgelehnt.`);
       liste.neuLaden();
     } catch (e) { setFehler(fehlerText(e)); } finally { setArbeitet(null); }

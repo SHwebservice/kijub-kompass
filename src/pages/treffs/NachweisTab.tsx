@@ -13,6 +13,7 @@ import {
   parseZeiten, sortiereZeilen, STATUS_LABEL, stundenWert, summe, validiereZeile, type Nachweis, type NachweisStatus, type NachweisZeile,
 } from '../../treffs/nachweis';
 import type { RolleInTreff } from '../../lib/rollen';
+import { sendePush } from '../../mitteilungen/senden';
 import { Alert, Badge, Button, Card, Spinner, TextField } from '../../components/ui';
 
 const TON: Record<NachweisStatus, 'neutral' | 'warning' | 'success'> = { entwurf: 'neutral', eingereicht: 'warning', freigegeben: 'success' };
@@ -165,7 +166,7 @@ function NachweisEditor({ treff: t, monat, nachweis: n, person, rolle, istEigene
 
       <div className="row">
         {darfEinreichen(n.status, istEigener) && (
-          <Button variante="primary" disabled={arbeitet || !unterschrift.trim()} onClick={() => void still(lauf(() => setzeNachweisStatus(n.id, 'eingereicht', unterschrift)))}>Einreichen</Button>
+          <Button variante="primary" disabled={arbeitet || !unterschrift.trim()} onClick={() => void still(lauf(async () => { await setzeNachweisStatus(n.id, 'eingereicht', unterschrift); sendePush('nachweis_eingereicht', n.id); }))}>Einreichen</Button>
         )}
         {darfFreigeben(n.status, rolle) && <Button variante="primary" disabled={arbeitet} onClick={() => void still(lauf(() => setzeNachweisStatus(n.id, 'freigegeben')))}>Freigeben</Button>}
         {darfZurueckgeben(n.status, rolle) && <Button disabled={arbeitet} onClick={() => void still(lauf(() => setzeNachweisStatus(n.id, 'entwurf')))}>Zur Überarbeitung zurückgeben</Button>}

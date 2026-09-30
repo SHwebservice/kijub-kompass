@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { sendePush } from '../mitteilungen/senden';
 import * as api from '../freizeiten/api';
 import { Orte } from './Orte';
 import { Bewerbungen } from './Bewerbungen';
@@ -92,6 +93,7 @@ describe('Bewerbungen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Annehmen' }));
     expect(api.bewerbungAnnehmen).toHaveBeenCalledWith('b1');
     expect(await screen.findByText('Ida Neu ist jetzt im Team.')).toBeInTheDocument();
+    expect(sendePush).toHaveBeenCalledWith('bewerbung_angenommen', 'b1');           // die Person erfährt es
   });
 
   it('lehnt ab', async () => {
@@ -101,6 +103,7 @@ describe('Bewerbungen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Ablehnen' }));
     expect(api.bewerbungAblehnen).toHaveBeenCalledWith('b1');
     expect(await screen.findByText(/Bewerbung von Ida Neu wurde abgelehnt/)).toBeInTheDocument();
+    expect(sendePush).not.toHaveBeenCalled();                                        // eine Absage löst bewusst keine Mitteilung aus
   });
 
   it('zeigt einen leeren Zustand und Fehler', async () => {

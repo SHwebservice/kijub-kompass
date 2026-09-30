@@ -64,7 +64,7 @@ Ohne sie sind alle Sicherungen unbrauchbar, und GitHub kann sie nicht wiederhers
 ## 2b. Mitteilungen (Web-Push) einrichten **[du]**
 
 Mitteilungen erscheinen auf dem Gerät, auch wenn die App geschlossen ist: neuer Hinweis, neue Absprache, Dienstplan geändert, neuer Kommentar, neuer Dienstwunsch und dessen Antwort,
-neue Bewerbung, neuer Katalog-Vorschlag – und manuelle Mitteilungen der Koordination an Gruppen (*Mehr → Mitteilung senden*). Jede Person schaltet sie selbst auf ihrem Gerät ein (*Mehr → Mitteilungen*).
+neue Bewerbung, Bewerbung angenommen, eingereichter Nachweis, knappe oder leere Lebensmittel (an die Koordination), neuer Katalog-Vorschlag – und manuelle Mitteilungen der Koordination an Gruppen (*Mehr → Mitteilung senden*). Jede Person schaltet sie selbst auf ihrem Gerät ein (*Mehr → Mitteilungen*).
 
 **Wie es funktioniert:** Die App meldet der Edge Function `push-senden`, dass etwas passiert ist. Die **Datenbank** entscheidet dann (Migration `0015`), ob die auslösende Person das darf,
 wer Empfänger ist und welcher Text verschickt wird – nur eigene, frische Vorgänge werden akzeptiert, Wiederholungen und Massenversand werden gebremst (gleiche Mitteilung nicht zweimal in 2 Minuten, höchstens 60 pro Stunde und Person).
@@ -154,7 +154,7 @@ dann ist der Ernstfall kein Erstkontakt. Diese Wiederherstellung wurde noch nich
 ## 5. Vor dem Start für alle: Checkliste **[du]**
 
 - [ ] Supabase: *Confirm email* wieder einschalten, Mindestlänge Passwort 10, Registrierung (*Allow new users to sign up*) **aus** – `npm run check:live` zeigt den Stand.
-- [ ] Migrationen `0001` bis `0016` eingespielt, Edge Functions (`konto-passwort`, `konto-entfernen`, `push-senden`) bereitgestellt, VAPID-Schlüssel eingetragen.
+- [ ] Migrationen `0001` bis `0017` eingespielt, Edge Functions (`konto-passwort`, `konto-entfernen`, `push-senden`) bereitgestellt, VAPID-Schlüssel eingetragen.
 - [ ] Cloudflare Pages läuft, `npm run check:site -- <Adresse>` zeigt „Alles in Ordnung“.
 - [ ] Fünf GitHub-Geheimnisse gesetzt (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DB_URL`, `BACKUP_PASSPHRASE`, `CRON_SECRET`), *Lebenszeichen* und *Datensicherung* je einmal von Hand gestartet (grün), `BACKUP_PASSPHRASE` im Passwort-Manager.
 - [ ] Probewiederherstellung in einem zweiten Projekt.

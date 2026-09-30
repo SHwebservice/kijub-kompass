@@ -331,3 +331,14 @@ H3 (Einschalten, Testen und Ausschalten je Gerät unter „Mehr“; Hinweis für
 - Änderungen erscheinen sofort und bei anderen live (Realtime), Fehler werden angezeigt, ohne dass die Anzeige falsch wird.
 
 **Noch offen:** Zuordnung durch die Leitung der eigenen Freizeit (bewusst nicht: nur Koordination), Rolle beim Annehmen einer Bewerbung wählen, Warnung beim Entfernen aus einem Treff, wenn noch Dienste eingeteilt sind.
+
+## Stand der Umsetzung: Anzeigen und Mitteilungen je Rolle (Phase 9, 2026-09-30)
+
+Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und getestet** (Migration `0017`):
+- **Bewerbung angenommen** → Mitteilung an die Person (Absage ohne Mitteilung).
+- **Nachweis eingereicht** → Mitteilung an die Treffleitung des Treffs (ohne Treffleitung an die Koordination). „Freigabe aufheben“ löst nichts aus.
+- **Lebensmittel knapp oder leer** → Mitteilung an die Koordination, die nachkauft – nach einer Verbrauchsbuchung, je Artikel und Stand (knapp/leer) höchstens einmal in 24 Stunden, nie an die buchende Person selbst.
+- Das Tagesprotokoll löst **keine** Mitteilung an die Koordination aus (weder „geschrieben“ noch „fehlt“); die Erinnerung „Protokoll fehlt“ geht nur an Treffleitung und die heute Eingeteilten.
+- Entschieden: keine Einstellung je Mitteilungsart, keine Ruhezeiten.
+
+**Noch offen:** Ob die Koordination fachlich in Freizeiten- und Treff-Koordination getrennt werden soll (technisch bisher eine Rolle).

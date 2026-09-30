@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { sendePush } from '../../mitteilungen/senden';
 import * as api from '../../treffs/api';
 import { NachweisTab } from './NachweisTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
@@ -125,6 +126,7 @@ describe('Nachweis: TZK (eigener Nachweis)', () => {
     await userEvent.type(screen.getByLabelText('Name als Unterschrift'), 'Anna Adler');
     await userEvent.click(einreichen);
     expect(api.setzeNachweisStatus).toHaveBeenCalledWith('n1', 'eingereicht', 'Anna Adler');
+    expect(sendePush).toHaveBeenCalledWith('nachweis_eingereicht', 'n1');           // die Treffleitung erfährt es
   });
 
   it('eingereicht: gesperrt, keine Bearbeitung, Hinweis', async () => {
