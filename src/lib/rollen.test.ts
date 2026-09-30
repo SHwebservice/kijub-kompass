@@ -53,3 +53,20 @@ describe('berechneRollen', () => {
     expect(navigation(r).length).toBeLessThanOrEqual(5);
   });
 });
+
+import { rolleInFreizeit, istLeitungOderKoordination } from './rollen';
+
+describe('rolleInFreizeit', () => {
+  const r = berechneRollen(ich(), [{ freizeit_id: 'f1', rolle: 'leitung' }, { freizeit_id: 'f2', rolle: 'teamer' }], []);
+  it('unterscheidet Leitung, TeamerIn und Gast je Freizeit', () => {
+    expect(rolleInFreizeit(r, 'f1')).toBe('leitung');
+    expect(rolleInFreizeit(r, 'f2')).toBe('teamer');
+    expect(rolleInFreizeit(r, 'f3')).toBe('gast');
+  });
+  it('Koordination gilt überall', () => {
+    expect(rolleInFreizeit(berechneRollen(ich({ ist_koordination: true }), [], []), 'irgendeine')).toBe('koordination');
+  });
+  it('Leitung und Koordination dürfen verwalten, andere nicht', () => {
+    expect(['leitung', 'koordination', 'teamer', 'gast'].map((x) => istLeitungOderKoordination(x as never))).toEqual([true, true, false, false]);
+  });
+});

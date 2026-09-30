@@ -10,6 +10,11 @@ import { Mehr } from './pages/Mehr';
 import { Personen } from './pages/Personen';
 import { PasswortAendern } from './pages/PasswortAendern';
 import { KijukoImportSeite } from './pages/KijukoImport';
+import { FreizeitenListe } from './pages/freizeiten/FreizeitenListe';
+import { FreizeitDetail } from './pages/freizeiten/FreizeitDetail';
+import { FreizeitForm } from './pages/freizeiten/FreizeitForm';
+import { Orte } from './pages/Orte';
+import { Bewerbungen } from './pages/Bewerbungen';
 
 function Zugang() {
   const { status, fehler, mussPasswortAendern, anmelden, passwortAendern, abmelden } = useAuth();
@@ -53,11 +58,16 @@ function Geschuetzt() {
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<Heute />} />
-        <Route path="freizeiten/*" element={<Platzhalter titel="Freizeiten" text="Stammdaten, Wochenplan, Hinweise und Lebensmittel folgen in Phase 3." />} />
+        <Route path="freizeiten" element={<FreizeitenListe />} />
+        <Route path="freizeiten/neu" element={rollen?.koordination ? <FreizeitForm /> : <Navigate to="/freizeiten" replace />} />
+        <Route path="freizeiten/:id/bearbeiten" element={rollen?.koordination ? <FreizeitForm /> : <Navigate to="/freizeiten" replace />} />
+        <Route path="freizeiten/:id/*" element={<FreizeitDetail />} />
         <Route path="treffs/*" element={<Platzhalter titel="Treffs" text="Wochenprogramm, Dienstplan und Nachweise folgen in Phase 3." />} />
         <Route path="katalog/*" element={<Platzhalter titel="Katalog" text="Programmpunkte, Favoriten und Bewertungen folgen in Phase 3." />} />
         <Route path="mehr" element={<Mehr />} />
         <Route path="personen" element={rollen?.koordination ? <Personen /> : <Navigate to="/" replace />} />
+        <Route path="orte" element={rollen?.koordination ? <Orte /> : <Navigate to="/" replace />} />
+        <Route path="bewerbungen" element={rollen?.koordination ? <Bewerbungen /> : <Navigate to="/" replace />} />
         <Route path="import" element={rollen?.koordination ? <KijukoImportSeite /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

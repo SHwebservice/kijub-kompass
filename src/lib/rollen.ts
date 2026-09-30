@@ -78,3 +78,16 @@ export function rollenBezeichnungen(r: Rollen): string[] {
   if (r.betreuerTreffs.length) out.push('BetreuerIn');
   return out;
 }
+
+export type RolleInFreizeit = 'koordination' | 'leitung' | 'teamer' | 'gast';
+
+/** Welche Rolle hat die Person in genau dieser Freizeit? (Koordination gilt überall.) */
+export function rolleInFreizeit(r: Rollen, freizeitId: string): RolleInFreizeit {
+  if (r.koordination) return 'koordination';
+  if (r.leitungFreizeiten.includes(freizeitId)) return 'leitung';
+  if (r.teamerFreizeiten.includes(freizeitId)) return 'teamer';
+  return 'gast';
+}
+
+/** Darf Hinweise, Absprachen, Lebensmittel und Kontaktdaten des Teams verwalten bzw. sehen. */
+export const istLeitungOderKoordination = (rolle: RolleInFreizeit) => rolle === 'leitung' || rolle === 'koordination';

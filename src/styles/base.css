@@ -168,3 +168,19 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tabelle th:first-child, .tabelle thead th { text-align: left; }
 .tabelle thead th { color: var(--text-muted); font-weight: 600; }
 .tabelle td { font-variant-numeric: tabular-nums; }
+
+/* ===== Reiter ===== */
+.tabs { display: flex; gap: var(--space-1); overflow-x: auto; margin-bottom: var(--space-4); border-bottom: 1px solid var(--border); scrollbar-width: thin; }
+.tabs__tab {
+  flex: none; min-height: var(--tap); padding: 0 var(--space-4); background: none; border: 0; border-bottom: 3px solid transparent;
+  color: var(--text-muted); font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center;
+}
+.tabs__tab[aria-selected='true'], .tabs__tab.active, .tabs__tab[aria-current='page'] { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ===== Stammdaten-Liste ===== */
+.daten { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4); margin: 0; }
+.daten dt { color: var(--text-muted); }
+.daten dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .daten { grid-template-columns: 1fr; gap: 0; } .daten dt { margin-top: var(--space-2); font-size: var(--fs-sm); } }
+
+.gefahr { border-color: var(--danger); margin-top: var(--space-6); }
