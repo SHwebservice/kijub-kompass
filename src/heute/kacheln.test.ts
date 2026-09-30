@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { baueKacheln, KEINE_ZAEHLER, MAX_ZIELE, summeBadges, type KachelKontext } from './kacheln';
 
 const ctx = (o: Partial<KachelKontext> = {}): KachelKontext => ({
-  koordination: false, bewerbend: true, darfTreffmappe: false, leitung: false, treffleitung: false, freizeitTeam: false, treffTeam: false,
+  freizeitkoordination: false, treffkoordination: false, bewerbend: true, darfTreffmappe: false, leitung: false, treffleitung: false, freizeitTeam: false, treffTeam: false,
   kategorie: 'TeamerIn', freizeiten: [], treffs: [], zaehler: KEINE_ZAEHLER, ...o,
 });
 const ids = (k: KachelKontext) => baueKacheln(k).flatMap((g) => g.kacheln.map((x) => x.id));
@@ -20,8 +20,9 @@ describe('Schnellzugriff: Grundausstattung für alle', () => {
     expect(ids(ctx())).not.toContain('treffmappe');
     expect(ids(ctx({ darfTreffmappe: true }))).toContain('treffmappe');
   });
-  it('die Koordination schlägt keine Programmpunkte vor, sie legt sie an', () => {
-    expect(ids(ctx({ koordination: true }))).not.toContain('vorschlagen');
+  it('die Koordination (jeder Bereich) schlägt keine Programmpunkte vor, sie legt sie an', () => {
+    expect(ids(ctx({ freizeitkoordination: true }))).not.toContain('vorschlagen');
+    expect(ids(ctx({ treffkoordination: true }))).not.toContain('vorschlagen');
   });
   it('ohne Rolle, die nicht bewerben darf (Hauptamtliche ohne Zuordnung): nur Wissen und Konto', () => {
     const g = baueKacheln(ctx({ bewerbend: false, kategorie: 'Hauptamtliche*r' }));
@@ -108,8 +109,8 @@ describe('Schnellzugriff: Treffs', () => {
   });
 });
 
-describe('Schnellzugriff: Koordination', () => {
-  const k = ctx({ koordination: true, bewerbend: false, freizeiten: fz(2), treffs: [{ id: 't1', name: 'A' }, { id: 't2', name: 'B' }], zaehler: { ...KEINE_ZAEHLER, bewerbungen: 2, vorschlaege: 1 } });
+describe('Schnellzugriff: Koordination (beide Bereiche)', () => {
+  const k = ctx({ freizeitkoordination: true, treffkoordination: true, bewerbend: false, freizeiten: fz(2), treffs: [{ id: 't1', name: 'A' }, { id: 't2', name: 'B' }], zaehler: { ...KEINE_ZAEHLER, bewerbungen: 2, vorschlaege: 1 } });
   it('Verwaltung mit allen Aufgaben und den Zahlen offener Bewerbungen und Vorschläge', () => {
     const v = gruppe(k, 'verwaltung')!;
     expect(v.kacheln.map((x) => x.id)).toEqual(['bewerbungen', 'vorschlaege', 'personen', 'neue-freizeit', 'neuer-treff', 'orte', 'mitteilung', 'kijuko', 'katalog-import', 'quiz-fragen']);
@@ -136,7 +137,42 @@ describe('Schnellzugriff: mehrere Rollen', () => {
     expect(alle).toEqual(expect.arrayContaining(['lebensmittel', 'wuensche', 'plan', 'dienstplan']));
   });
   it('Reihenfolge der Gruppen: Freizeiten, Treffs, Wissen, Verwaltung', () => {
-    const k = ctx({ koordination: true, freizeiten: fz(1), treffs: [{ id: 't1', name: 'T' }] });
+    const k = ctx({ freizeitkoordination: true, treffkoordination: true, freizeiten: fz(1), treffs: [{ id: 't1', name: 'T' }] });
     expect(baueKacheln(k).map((g) => g.id)).toEqual(['freizeiten', 'treffs', 'wissen', 'verwaltung']);
+  });
+});
+
+describe('Schnellzugriff: Koordination getrennt nach Bereichen', () => {
+  const treffs = [{ id: 't1', name: 'A' }];
+  const zaehler = { ...KEINE_ZAEHLER, bewerbungen: 2, vorschlaege: 1, knapp: 3, wuensche: 1, nachweise: 4 };
+
+  it('Freizeitenkoordination: Freizeiten, Lebensmittel, Bewerbungen und KiJuKo – aber keine Treffs', () => {
+    const k = ctx({ freizeitkoordination: true, bewerbend: false, freizeiten: fz(1), treffs, zaehler });
+    expect(baueKacheln(k).map((g) => g.id)).toEqual(['freizeiten', 'wissen', 'verwaltung']);
+    expect(kachel(k, 'lebensmittel')).toMatchObject({ badge: 3 });
+    expect(gruppe(k, 'verwaltung')!.kacheln.map((x) => x.id)).toEqual(['bewerbungen', 'vorschlaege', 'personen', 'neue-freizeit', 'orte', 'mitteilung', 'kijuko', 'katalog-import', 'quiz-fragen']);
+    expect(ids(k)).not.toContain('neuer-treff');
+    expect(ids(k)).not.toContain('protokoll');
+  });
+
+  it('Treffkoordination: Treffs, Protokolle, Nachweise und Dienstwünsche – aber keine Freizeiten, Lebensmittel, Bewerbungen, KiJuKo', () => {
+    const k = ctx({ treffkoordination: true, bewerbend: false, freizeiten: fz(1), treffs, zaehler });
+    expect(baueKacheln(k).map((g) => g.id)).toEqual(['treffs', 'wissen', 'verwaltung']);
+    expect(kachel(k, 'nachweis')).toMatchObject({ badge: 4 });
+    expect(kachel(k, 'wuensche')).toMatchObject({ badge: 1 });
+    expect(gruppe(k, 'verwaltung')!.kacheln.map((x) => x.id)).toEqual(['vorschlaege', 'personen', 'neuer-treff', 'orte', 'mitteilung', 'katalog-import', 'quiz-fragen']);
+    for (const weg of ['lebensmittel', 'bewerbungen', 'neue-freizeit', 'kijuko', 'plan']) expect(ids(k)).not.toContain(weg);
+  });
+
+  it('gemeinsame Verwaltung (Personen, Orte, Katalog, Quiz, Mitteilungen) hat jede der beiden', () => {
+    for (const o of [{ freizeitkoordination: true }, { treffkoordination: true }]) {
+      expect(gruppe(ctx(o), 'verwaltung')!.kacheln.map((x) => x.id)).toEqual(expect.arrayContaining(['personen', 'orte', 'mitteilung', 'vorschlaege', 'katalog-import', 'quiz-fragen']));
+    }
+  });
+
+  it('Treffkoordination ist zugleich Freizeit-Leitung: dann gibt es auch die Freizeit-Kacheln, aber keine Verwaltung der Freizeiten', () => {
+    const k = ctx({ treffkoordination: true, leitung: true, freizeitTeam: true, freizeiten: fz(1), treffs, bewerbend: false, kategorie: 'Hauptamtliche*r' });
+    expect(ids(k)).toEqual(expect.arrayContaining(['lebensmittel', 'plan', 'protokoll']));
+    expect(ids(k)).not.toContain('bewerbungen');
   });
 });

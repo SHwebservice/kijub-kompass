@@ -342,3 +342,15 @@ Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und
 - Entschieden: keine Einstellung je Mitteilungsart, keine Ruhezeiten.
 
 **Noch offen:** Ob die Koordination fachlich in Freizeiten- und Treff-Koordination getrennt werden soll (technisch bisher eine Rolle).
+
+## Stand der Umsetzung: Koordination getrennt (Phase 10, 2026-09-30)
+
+**Umgesetzt und getestet** (Migration `0018`): Die Koordination besteht aus zwei Bereichen, eine Person kann beide sein – Details und Zuständigkeiten in `docs/RECHTE.md` und `docs/ANZEIGEN_UND_MITTEILUNGEN.md`.
+- **Freizeitenkoordination:** Freizeiten, Team, Bewerbungen, Lebensmittel, KiJuKo-Import, Absprachen der Freizeiten. **Treffkoordination:** Treffs, Team, Dienstplan, Nachweise, Tagesprotokolle, Notizen, Treff-Absprachen, Treffmappe.
+  **Gemeinsam:** Personen und Zugänge (inkl. Vergabe der Koordination), Orte, Katalog, Quiz, Mappen, manuelle Mitteilungen (an eine Freizeit nur Freizeitenkoordination, an einen Treff nur Treffkoordination).
+- Bestehende Koordinationen haben **beide** Bereiche erhalten – nichts ändert sich, bis die Bereiche getrennt vergeben werden. Vergeben wird unter *Personen* → „Zuordnungen“ einer Person (zwei Häkchen); in der Liste zeigen Schilder, wer welchen Bereich hat.
+- **Datenbank:** getrennte Hilfsfunktionen, alle Zugriffsregeln, Sichten und Funktionen je Bereich umgestellt (ein Test prüft, dass nur die gemeinsam verwalteten Tabellen und Funktionen „irgendeine Koordination“ behalten haben); die letzte aktive Person **je Bereich** ist geschützt; „ist_koordination“ bleibt als abgeleitete Angabe „irgendein Bereich“ (Altcode, Import und Tests setzen es weiter und meinen dann beide Bereiche).
+- **Oberfläche:** Startseite (Kacheln, Karten, Verwaltung), „Mehr“, Seiten- und Schaltflächenrechte, Mitteilungsziele und Navigation richten sich nach dem Bereich; nicht erlaubte Adressen führen zurück zur Startseite bzw. zur Liste.
+- **Mitteilungen:** Bewerbung, Absprache (Freizeit) und Lebensmittel gehen an die Freizeitenkoordination, „Nachweis eingereicht“ ohne Treffleitung an die Treffkoordination, Katalog-Vorschläge an beide.
+
+**Bewusst so:** Wer Koordination vergeben darf, ist jede der beiden Koordinationen (gemeinsame Personenverwaltung). Die Bereiche trennen die Zuständigkeit, sichern aber nicht gegeneinander ab.

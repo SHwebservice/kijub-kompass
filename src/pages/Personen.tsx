@@ -5,7 +5,7 @@ import { fehlerText } from '../lib/fehler';
 import { heuteIso } from '../freizeiten/logik';
 import { listeFreizeiten } from '../freizeiten/api';
 import { listeTreffs } from '../treffs/api';
-import { listePersonenVoll, type PersonZeile } from '../zuordnung/api';
+import { listePersonenVoll, setzeKoordination, type Bereich, type PersonZeile } from '../zuordnung/api';
 import { useZuordnungsdaten } from '../zuordnung/daten';
 import {
   filterePersonen, indexiere, konflikteFuer, konfliktText, personName, verfuegbareJahre, waehleFreizeiten, zusammenfassung,
@@ -93,6 +93,7 @@ export function Personen() {
       const k = rolle ? konflikteFuer(p.id, f, freizeiten, z) : [];
       return k.length ? `Achtung: ${personName(p)} ist zur selben Zeit auch eingeteilt in ${k.map(konfliktText).join(', ')}.` : null;
     });
+  const aendereKoordination = (p: PersonZeile, bereich: Bereich, an: boolean) => void zuordnungAendern(async () => { await setzeKoordination(p.id, bereich, an); neuLaden(); });
   const aendereTreff = (p: PersonZeile, t: TreffSpalte, rolle: TreffRolle | null) => void zuordnungAendern(() => zd.setzeTreff(t.id, p.id, rolle));
 
   useEffect(() => {
@@ -151,7 +152,7 @@ export function Personen() {
     if (modus === 'deaktivieren') {
       const { error } = await supabase.from('personen').update({ aktiv: false }).eq('id', p.id);
       if (error) return /letzte aktive Koordination/.test(error.message)
-        ? 'Die letzte aktive Koordination kann nicht deaktiviert werden.' : 'Deaktivieren hat nicht geklappt.';
+        ? 'Die letzte aktive Koordination eines Bereichs kann nicht deaktiviert werden.' : 'Deaktivieren hat nicht geklappt.';
     } else {
       const { data, error } = await supabase.functions.invoke('konto-entfernen', { body: { person_id: p.id, modus } });
       if (error || !data?.ok) {
@@ -258,6 +259,8 @@ export function Personen() {
                     <Badge>{p.kategorie}</Badge>
                     <Badge ton={s.ton}>{s.text}</Badge>
                     {!p.aktiv && <Badge ton="danger">Deaktiviert</Badge>}
+                    {p.ist_freizeitkoordination && <Badge ton="accent">Freizeitenkoordination</Badge>}
+                    {p.ist_treffkoordination && <Badge ton="accent">Treffkoordination</Badge>}
                     {zusammenfassung(p.id, freizeiten, z, heute) && <span>{zusammenfassung(p.id, freizeiten, z, heute)}</span>}
                   </div>
                 </div>
@@ -281,7 +284,7 @@ export function Personen() {
       </div>
       {zuordnungPerson && (
         <ZuordnungSheet person={zeilen?.find((x) => x.id === zuordnungPerson.id) ?? zuordnungPerson} freizeiten={freizeiten} heute={heute}
-          {...ansichtDaten} schliessen={() => setZuordnungPerson(null)} />
+          {...ansichtDaten} aendereKoordination={aendereKoordination} schliessen={() => setZuordnungPerson(null)} />
       )}
     </>
   );

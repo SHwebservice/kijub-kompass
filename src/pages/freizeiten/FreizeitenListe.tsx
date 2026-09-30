@@ -31,14 +31,14 @@ export function FreizeitenListe() {
   if (!rollen || !ich) return null;
   const heute = heuteIso();
   const meineIds = new Set([...rollen.leitungFreizeiten, ...rollen.teamerFreizeiten]);
-  const darfAlle = rollen.koordination || rollen.bewerbend;
+  const darfAlle = rollen.freizeitkoordination || rollen.bewerbend;
   const tabs: Tab[] = [...(meineIds.size > 0 || !darfAlle ? ['meine' as const] : []), ...(darfAlle ? ['alle' as const] : []), 'vergangen'];
   const tab: Tab = gewaehlt && tabs.includes(gewaehlt) ? gewaehlt : tabs[0]!;
 
   const alle = liste.daten ?? [];
   const sichtbar = alle.filter((f) => {
     const p = phase(f, heute);
-    if (tab === 'vergangen') return p === 'vergangen' && (rollen.koordination || meineIds.has(f.id));
+    if (tab === 'vergangen') return p === 'vergangen' && (rollen.freizeitkoordination || meineIds.has(f.id));
     if (p === 'vergangen') return false;
     return tab === 'alle' ? true : meineIds.has(f.id);
   });
@@ -73,7 +73,7 @@ export function FreizeitenListe() {
   return (
     <>
       <PageHeader titel="Freizeiten">
-        {rollen.koordination && <Link className="btn btn--primary" to="/freizeiten/neu">Neue Freizeit</Link>}
+        {rollen.freizeitkoordination && <Link className="btn btn--primary" to="/freizeiten/neu">Neue Freizeit</Link>}
       </PageHeader>
       {liste.fehler && <Alert ton="error">{liste.fehler}</Alert>}
       {meldung && <Alert ton={meldung.ton}>{meldung.text}</Alert>}
@@ -117,7 +117,7 @@ export function FreizeitenListe() {
               const bis = tageBisStart(f, heute);
               const bewerbungsStatus = status.get(f.id);
               const istMein = meineIds.has(f.id);
-              const kannBewerben = !rollen.koordination && rollen.bewerbend && !istMein && !bewerbungsStatus
+              const kannBewerben = !rollen.freizeitkoordination && rollen.bewerbend && !istMein && !bewerbungsStatus
                 && darfBeworbenWerden(f, heute, vorlauf.daten ?? 7);
               return (
                 <li key={f.id} className="list__item">

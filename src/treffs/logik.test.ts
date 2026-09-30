@@ -71,14 +71,15 @@ describe('Team', () => {
 });
 
 describe('rolleInTreff', () => {
-  const ich = { id: 'i', vorname: 'A', nachname: 'B', mail: 'a@b.de', kategorie: 'TZK' as const, ist_koordination: false };
+  const ich = { id: 'i', vorname: 'A', nachname: 'B', mail: 'a@b.de', kategorie: 'TZK' as const, ist_koordination: false, ist_freizeitkoordination: false, ist_treffkoordination: false };
   const r = berechneRollen(ich, [], [{ treff_id: 't1', rolle: 'treffleitung' }, { treff_id: 't2', rolle: 'betreuerin' }]);
   it('unterscheidet die Rollen', () => {
     expect(rolleInTreff(r, 't1')).toBe('treffleitung');
     expect(rolleInTreff(r, 't2')).toBe('betreuerin');
     expect(rolleInTreff(r, 't3')).toBe('gast');
   });
-  it('Koordination gilt überall', () => {
-    expect(rolleInTreff(berechneRollen({ ...ich, ist_koordination: true }, [], []), 'x')).toBe('koordination');
+  it('die Treffkoordination gilt überall, die Freizeitenkoordination nicht', () => {
+    expect(rolleInTreff(berechneRollen({ ...ich, ist_koordination: true, ist_treffkoordination: true }, [], []), 'x')).toBe('koordination');
+    expect(rolleInTreff(berechneRollen({ ...ich, ist_koordination: true, ist_freizeitkoordination: true }, [], []), 'x')).toBe('gast');
   });
 });

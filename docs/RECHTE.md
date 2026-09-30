@@ -10,7 +10,9 @@ Treff BetreuerIn sein.
 
 | Rolle | Wie sie entsteht | Kurzbeschreibung |
 |---|---|---|
-| **Koordination** | Flag `ist_koordination` am Personenprofil | Vollzugriff, verwaltet Stammdaten, Personal, Katalog, Inhalte. |
+| **Freizeitenkoordination** | Flag `ist_freizeitkoordination` am Personenprofil (seit Migration 0018) | Verwaltet alle Freizeiten, Bewerbungen, Lebensmittel, KiJuKo-Import. |
+| **Treffkoordination** | Flag `ist_treffkoordination` am Personenprofil (seit Migration 0018) | Verwaltet alle Treffs, Dienstplan, Nachweise, Tagesprotokolle. |
+| **Koordination** (gemeinsam) | eines der beiden Flags (abgeleitet als `ist_koordination`) | Gemeinsame Verwaltung: Personen, Orte, Katalog, Quiz, Mappen, Einstellungen, manuelle Mitteilungen. |
 | **Leitung** | `freizeit_team.rolle = 'leitung'` | Freizeitleitung der jeweiligen Freizeit. |
 | **TeamerIn** | `freizeit_team.rolle = 'teamer'` | Teammitglied der jeweiligen Freizeit. |
 | **Treffleitung** | `treff_team.rolle = 'treffleitung'` | Leitung des jeweiligen Treffs. |
@@ -25,6 +27,18 @@ Kategorie → Standardrolle bei Zuordnung (vorbelegt, von der Koordination ände
 | TeamerIn, Senior-TeamerIn, Praktikum bezahlt | teamer | – | nein |
 | FSJ, TZK, Praktikum unbezahlt | teamer | betreuerin | ja |
 | Hauptamtliche\*r | leitung | treffleitung | ja |
+
+**Koordination in zwei Bereichen (Migration 0018).** Eine Person kann Freizeitenkoordination, Treffkoordination oder beides sein; bestehende Koordinationen haben beide Bereiche erhalten.
+Wo in den Tabellen unten „Koordination“ steht, gilt:
+
+| Bereich | Wer | Tabellen und Funktionen |
+|---|---|---|
+| Freizeiten | Freizeitenkoordination | Freizeiten, Team, Slots/Wochenplan, Hinweise und Absprachen der Freizeiten (samt Kommentaren), Lebensmittel, Verpflegung/Material, Bewerbungen (entscheiden), KiJuKo-Import, Kontaktdaten der Freizeit-Teams |
+| Treffs | Treffkoordination | Treffs, Team, Öffnungszeiten, Wochenprogramm, Dienste, Wünsche, Kommentare, Abwesenheiten, Feiertage, Nachweise (freigeben), Tagesprotokolle, Notizen, Treff-Absprachen, Treffmappe, Kontaktdaten der Treff-Teams |
+| Gemeinsam | jede der beiden | Personen (anlegen, ändern, Zugang, Koordination vergeben), Orte, Tags, Einstellungen, Katalog (Programmpunkte, Vorschläge), Quiz-Fragen, Mappen-Inhalte, manuelle Mitteilungen an alle/Koordination/Kategorien; an eine **Freizeit** nur die Freizeitenkoordination, an einen **Treff** nur die Treffkoordination |
+
+Die letzte aktive Person je Bereich ist geschützt: sie lässt sich weder löschen noch deaktivieren noch herabstufen.
+Wer Koordination vergeben darf: jede der beiden Koordinationen (gemeinsame Personenverwaltung) – die Bereiche trennen die Zuständigkeit, nicht gegenseitiges Misstrauen.
 
 Deaktivierte Personen (`aktiv = false`) haben **keine** Rechte außer „Anmeldung verweigert".
 

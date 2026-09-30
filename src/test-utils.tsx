@@ -4,9 +4,19 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthKontext, type AuthWert } from './lib/auth-kontext';
 import { berechneRollen, type FreizeitZuordnung, type Ich, type TreffZuordnung } from './lib/rollen';
 
-export const beispielIch = (o: Partial<Ich> = {}): Ich => ({
-  id: 'ich', vorname: 'Anna', nachname: 'Adler', mail: 'anna@test.example', kategorie: 'TeamerIn', ist_koordination: false, ...o,
-});
+/**
+ * Beispielperson. `ist_koordination: true` (wie im Altbestand) meint beide Bereiche; einzelne Bereiche über
+ * `ist_freizeitkoordination` bzw. `ist_treffkoordination`.
+ */
+export const beispielIch = (o: Partial<Ich> = {}): Ich => {
+  const alt = o.ist_koordination === true && o.ist_freizeitkoordination === undefined && o.ist_treffkoordination === undefined;
+  const fk = alt || o.ist_freizeitkoordination === true;
+  const tk = alt || o.ist_treffkoordination === true;
+  return {
+    id: 'ich', vorname: 'Anna', nachname: 'Adler', mail: 'anna@test.example', kategorie: 'TeamerIn',
+    ...o, ist_koordination: fk || tk, ist_freizeitkoordination: fk, ist_treffkoordination: tk,
+  };
+};
 
 export interface Szene {
   ich?: Partial<Ich>;

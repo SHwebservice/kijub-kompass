@@ -74,12 +74,12 @@ function Geschuetzt() {
       <Route element={<AppShell />}>
         <Route index element={<Heute />} />
         <Route path="freizeiten" element={<FreizeitenListe />} />
-        <Route path="freizeiten/neu" element={rollen?.koordination ? <FreizeitForm /> : <Navigate to="/freizeiten" replace />} />
-        <Route path="freizeiten/:id/bearbeiten" element={rollen?.koordination ? <FreizeitForm /> : <Navigate to="/freizeiten" replace />} />
+        <Route path="freizeiten/neu" element={rollen?.freizeitkoordination ? <FreizeitForm /> : <Navigate to="/freizeiten" replace />} />
+        <Route path="freizeiten/:id/bearbeiten" element={rollen?.freizeitkoordination ? <FreizeitForm /> : <Navigate to="/freizeiten" replace />} />
         <Route path="freizeiten/:id/*" element={<FreizeitDetail />} />
         <Route path="treffs" element={<TreffeListe />} />
-        <Route path="treffs/neu" element={rollen?.koordination ? <TreffForm /> : <Navigate to="/treffs" replace />} />
-        <Route path="treffs/:id/bearbeiten" element={rollen?.koordination ? <TreffForm /> : <Navigate to="/treffs" replace />} />
+        <Route path="treffs/neu" element={rollen?.treffkoordination ? <TreffForm /> : <Navigate to="/treffs" replace />} />
+        <Route path="treffs/:id/bearbeiten" element={rollen?.treffkoordination ? <TreffForm /> : <Navigate to="/treffs" replace />} />
         <Route path="treffs/:id/*" element={<TreffDetail />} />
         <Route path="katalog" element={<KatalogListe />} />
         <Route path="katalog/neu" element={rollen?.koordination ? <AngebotForm modus="neu" /> : <Navigate to="/katalog" replace />} />
@@ -99,8 +99,8 @@ function Geschuetzt() {
         <Route path="mitteilungen" element={rollen?.koordination ? <MitteilungSenden /> : <Navigate to="/" replace />} />
         <Route path="personen" element={rollen?.koordination ? <Personen /> : <Navigate to="/" replace />} />
         <Route path="orte" element={rollen?.koordination ? <Orte /> : <Navigate to="/" replace />} />
-        <Route path="bewerbungen" element={rollen?.koordination ? <Bewerbungen /> : <Navigate to="/" replace />} />
-        <Route path="import" element={rollen?.koordination ? <KijukoImportSeite /> : <Navigate to="/" replace />} />
+        <Route path="bewerbungen" element={rollen?.freizeitkoordination ? <Bewerbungen /> : <Navigate to="/" replace />} />
+        <Route path="import" element={rollen?.freizeitkoordination ? <KijukoImportSeite /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

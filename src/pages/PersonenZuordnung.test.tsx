@@ -13,7 +13,7 @@ vi.mock('../freizeiten/api');
 vi.mock('../treffs/api');
 
 const person = (id: string, vorname: string, nachname: string, o: Partial<zApi.PersonZeile> = {}): zApi.PersonZeile => ({
-  id, vorname, nachname, mail: `${vorname.toLowerCase()}@kijub.example`, kategorie: 'TeamerIn', aktiv: true, auth_user_id: 'u', eingeladen_am: null, ...o,
+  id, vorname, nachname, mail: `${vorname.toLowerCase()}@kijub.example`, kategorie: 'TeamerIn', aktiv: true, ist_freizeitkoordination: false, ist_treffkoordination: false, auth_user_id: 'u', eingeladen_am: null, ...o,
 });
 
 const anna = person('anna', 'Anna', 'Adler');
@@ -34,6 +34,7 @@ beforeEach(() => {
   vi.mocked(zApi.listeTreffTeams).mockResolvedValue([{ treff_id: 't1', person_id: 'ben', rolle: 'betreuerin' }]);
   vi.mocked(zApi.setzeFreizeitRolle).mockResolvedValue(undefined);
   vi.mocked(zApi.setzeTreffRolle).mockResolvedValue(undefined);
+  vi.mocked(zApi.setzeKoordination).mockResolvedValue(undefined);
   vi.mocked(fzApi.listeFreizeiten).mockResolvedValue([sommer1, sommer2, herbst, alt]);
   vi.mocked(treffApi.listeTreffs).mockResolvedValue([nord]);
 });
@@ -190,5 +191,65 @@ describe('Personen: Fenster mit den Zuordnungen einer Person', () => {
     const u = await zurTabelle();
     await u.click(screen.getByRole('button', { name: 'Zuordnungen von Ben Baum öffnen' }));
     expect(await screen.findByRole('dialog', { name: 'Zuordnungen · Ben Baum' })).toBeInTheDocument();
+  });
+});
+
+describe('Personen: Koordination je Bereich', () => {
+  it('die Liste zeigt, wer Freizeiten- und wer Treffkoordination ist', async () => {
+    vi.mocked(zApi.listePersonenVoll).mockResolvedValue([
+      person('k1', 'Kim', 'Kopf', { ist_freizeitkoordination: true }),
+      person('k2', 'Tom', 'Tief', { ist_treffkoordination: true }),
+      person('k3', 'Bea', 'Beide', { ist_freizeitkoordination: true, ist_treffkoordination: true }),
+      anna,
+    ]);
+    zeige();
+    await screen.findByText('Kim Kopf');
+    const zeile = (n: string) => screen.getByText(n).closest('li')!;
+    expect(within(zeile('Kim Kopf')).getByText('Freizeitenkoordination')).toBeInTheDocument();
+    expect(within(zeile('Kim Kopf')).queryByText('Treffkoordination')).not.toBeInTheDocument();
+    expect(within(zeile('Tom Tief')).getByText('Treffkoordination')).toBeInTheDocument();
+    expect(within(zeile('Tom Tief')).queryByText('Freizeitenkoordination')).not.toBeInTheDocument();
+    expect(within(zeile('Bea Beide')).getByText('Freizeitenkoordination')).toBeInTheDocument();
+    expect(within(zeile('Bea Beide')).getByText('Treffkoordination')).toBeInTheDocument();
+    expect(within(zeile('Anna Adler')).queryByText(/koordination/i)).not.toBeInTheDocument();
+  });
+
+  it('im Fenster der Person lässt sich jeder Bereich einzeln vergeben und zurücknehmen', async () => {
+    vi.mocked(zApi.listePersonenVoll).mockResolvedValue([person('k1', 'Kim', 'Kopf', { ist_freizeitkoordination: true }), anna]);
+    const u = userEvent.setup();
+    zeige();
+    await screen.findByText('Kim Kopf');
+    await u.click(screen.getByRole('button', { name: 'Zuordnungen von Kim Kopf' }));
+    const dialog = await screen.findByRole('dialog');
+    const fk = within(dialog).getByRole('checkbox', { name: /Freizeitenkoordination/ });
+    const tk = within(dialog).getByRole('checkbox', { name: /Treffkoordination/ });
+    expect(fk).toBeChecked();
+    expect(tk).not.toBeChecked();
+    await u.click(tk);
+    expect(zApi.setzeKoordination).toHaveBeenLastCalledWith('k1', 'treffs', true);
+    await u.click(fk);
+    expect(zApi.setzeKoordination).toHaveBeenLastCalledWith('k1', 'freizeiten', false);
+  });
+
+  it('die letzte Koordination eines Bereichs lässt sich nicht abgeben – die Meldung der Datenbank erscheint', async () => {
+    vi.mocked(zApi.listePersonenVoll).mockResolvedValue([person('k1', 'Kim', 'Kopf', { ist_treffkoordination: true }), anna]);
+    vi.mocked(zApi.setzeKoordination).mockRejectedValue({ code: '23514', message: 'Die letzte aktive Koordination der Treffs kann nicht gelöscht, deaktiviert oder herabgestuft werden' });
+    const u = userEvent.setup();
+    zeige();
+    await screen.findByText('Kim Kopf');
+    await u.click(screen.getByRole('button', { name: 'Zuordnungen von Kim Kopf' }));
+    await u.click(within(await screen.findByRole('dialog')).getByRole('checkbox', { name: /Treffkoordination/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/letzte aktive Koordination der Treffs/);
+  });
+
+  it('deaktivierte Personen lassen sich nicht zur Koordination machen', async () => {
+    vi.mocked(zApi.listePersonenVoll).mockResolvedValue([carla, anna]);
+    const u = userEvent.setup();
+    zeige();
+    await screen.findByText('Carla Cord');
+    await u.click(screen.getByRole('button', { name: 'Zuordnungen von Carla Cord' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('checkbox', { name: /Freizeitenkoordination/ })).toBeDisabled();
+    expect(within(dialog).getByRole('checkbox', { name: /Treffkoordination/ })).toBeDisabled();
   });
 });

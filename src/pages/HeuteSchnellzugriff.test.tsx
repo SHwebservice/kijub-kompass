@@ -195,3 +195,83 @@ describe('Startseite: Tagesprotokoll und Notizen der Treffs', () => {
     expect(await within(await screen.findByRole('list', { name: 'Treffs' })).findByRole('link', { name: /Notizen\s*Offen:\s*3/ })).toHaveAttribute('href', '/treffs/t1/notizen');
   });
 });
+
+describe('Startseite: Koordination getrennt nach Bereichen', () => {
+  const fkOnly: Szene = { ich: { ist_freizeitkoordination: true, kategorie: 'Hauptamtliche*r' } };
+  const tkOnly: Szene = { ich: { ist_treffkoordination: true, kategorie: 'Hauptamtliche*r' } };
+  const taeglich = [1, 2, 3, 4, 5, 6, 7].map((wochentag) => ({ wochentag, von: '00:00', bis: '23:59' }));
+
+  it('Freizeitenkoordination: Freizeiten, Lebensmittel, Bewerbungen, KiJuKo – keine Treffs', async () => {
+    vi.mocked(fzApi.offeneBewerbungen).mockResolvedValue([{ id: 'b1' }, { id: 'b2' }] as never);
+    zeige(fkOnly);
+    await screen.findByRole('navigation', { name: 'Schnellzugriff' });
+    expect(kachelLink('Freizeiten', 'Wochenplan')).toHaveAttribute('href', '/freizeiten/f1/plan');
+    expect(kachelLink('Freizeiten', /^Lebensmittel/)).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Treffs' })).not.toBeInTheDocument();
+    const verwaltung = await screen.findByRole('list', { name: 'Verwaltung' });
+    expect(within(verwaltung).getByRole('link', { name: /Bewerbungen/ })).toHaveAttribute('href', '/bewerbungen');
+    expect(verwaltung.querySelector('a[href="/import"]')).not.toBeNull();
+    expect(verwaltung.querySelector('a[href="/freizeiten/neu"]')).not.toBeNull();
+    expect(verwaltung.querySelector('a[href="/treffs/neu"]')).toBeNull();
+    expect(screen.queryByText('Tagesprotokoll fehlt')).not.toBeInTheDocument();
+    expect(treffApi.listeTreffs).not.toHaveBeenCalled();                       // die Treffs werden gar nicht erst geladen
+  });
+
+  it('Treffkoordination: Treffs, Protokolle, Nachweise – keine Freizeiten, Lebensmittel, Bewerbungen', async () => {
+    vi.mocked(treffApi.listeTreffs).mockResolvedValue([{ ...treff({ id: 't1', name: 'Kindertreff' }), oeffnungszeiten: taeglich }]);
+    vi.mocked(heuteApi.zaehleEingereichteNachweise).mockResolvedValue(2);
+    zeige(tkOnly);
+    const treffs = await screen.findByRole('list', { name: 'Treffs' });
+    expect(await within(treffs).findByRole('link', { name: /Tagesprotokoll\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/protokoll');
+    expect(await within(treffs).findByRole('link', { name: /Nachweis\s*Offen:\s*2/ })).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Freizeiten' })).not.toBeInTheDocument();
+    const verwaltung = screen.getByRole('list', { name: 'Verwaltung' });
+    expect(verwaltung.querySelector('a[href="/treffs/neu"]')).not.toBeNull();
+    for (const weg of ['/bewerbungen', '/import', '/freizeiten/neu']) expect(verwaltung.querySelector(`a[href="${weg}"]`)).toBeNull();
+    expect(await screen.findByRole('list', { name: 'Treffs ohne Protokoll von heute' })).toBeInTheDocument();
+    expect(fzApi.offeneBewerbungen).not.toHaveBeenCalled();
+    expect(heuteApi.listeKnappeLebensmittel).not.toHaveBeenCalled();
+  });
+
+  it('Koordinations-Karte: Bewerbungen nur für die Freizeitenkoordination, Katalog-Vorschläge für beide', async () => {
+    vi.mocked(katalogApi.listeVorschlaege).mockResolvedValue([{ status: 'offen' }] as never);
+    const { unmount } = zeige(fkOnly);
+    const karte = (await screen.findByRole('list', { name: 'Offene Aufgaben der Koordination' }));
+    expect(within(karte).getByRole('link', { name: 'Bewerbungen' })).toBeInTheDocument();
+    expect(within(karte).getByRole('link', { name: 'Katalog-Vorschläge' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Saison-Überblick' })).toBeInTheDocument();
+    unmount();
+
+    zeige(tkOnly);
+    const karte2 = (await screen.findByRole('list', { name: 'Offene Aufgaben der Koordination' }));
+    expect(within(karte2).queryByRole('link', { name: 'Bewerbungen' })).not.toBeInTheDocument();
+    expect(within(karte2).getByRole('link', { name: 'Katalog-Vorschläge' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Saison-Überblick' })).not.toBeInTheDocument();
+  });
+
+  it('wer beide Bereiche hat, sieht beides', async () => {
+    zeige({ ich: { ist_freizeitkoordination: true, ist_treffkoordination: true, kategorie: 'Hauptamtliche*r' } });
+    await screen.findByRole('navigation', { name: 'Schnellzugriff' });
+    expect(screen.getByRole('list', { name: 'Freizeiten' })).toBeInTheDocument();
+    expect(await screen.findByRole('list', { name: 'Treffs' })).toBeInTheDocument();
+    const verwaltung = screen.getByRole('list', { name: 'Verwaltung' });
+    for (const ziel of ['/bewerbungen', '/import', '/freizeiten/neu', '/treffs/neu']) expect(verwaltung.querySelector(`a[href="${ziel}"]`)).not.toBeNull();
+  });
+
+  it('Hinweise der Freizeit-Absprachen bestätigt nur die Freizeitenkoordination – die der Treffs nur die Treffkoordination', async () => {
+    vi.mocked(heuteApi.listeNotizenFuerHeute).mockResolvedValue([
+      notiz({ id: 'fa', art: 'absprache', text: 'Budget' }),
+      notiz({ id: 'ta', art: 'absprache', text: 'Schlüssel', freizeit_id: null, treff_id: 't1', quelle: 'Kindertreff' }),
+    ]);
+    vi.mocked(treffApi.listeTreffs).mockResolvedValue([{ ...treff({ id: 't1', name: 'Kindertreff' }), oeffnungszeiten: [] }]);
+    const { unmount } = zeige(fkOnly);
+    const karte = await screen.findByRole('list', { name: 'Offene Hinweise und Absprachen' });
+    expect(within(karte).getAllByRole('listitem')).toHaveLength(1);
+    expect(karte).toHaveTextContent('Sommer-Sause');
+    unmount();
+    zeige(tkOnly);
+    const karte2 = await screen.findByRole('list', { name: 'Offene Hinweise und Absprachen' });
+    expect(within(karte2).getAllByRole('listitem')).toHaveLength(1);
+    expect(karte2).toHaveTextContent('Kindertreff');
+  });
+});

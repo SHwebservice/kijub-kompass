@@ -30,43 +30,45 @@ const DIENSTE_TAGE = 14;
  */
 export function Heute() {
   const { ich, rollen } = useAuth();
-  const koord = rollen?.koordination ?? false;
+  const fk = rollen?.freizeitkoordination ?? false;     // Freizeitenkoordination: alle Freizeiten, Bewerbungen, Lebensmittel
+  const tk = rollen?.treffkoordination ?? false;        // Treffkoordination: alle Treffs, Dienstplan, Nachweise, Protokolle
+  const koord = fk || tk;
   const heute = heuteIso();
   const hatTreffs = !!rollen && rollen.treffleitungen.length + rollen.betreuerTreffs.length > 0;
-  const istLeitung = !!rollen && (rollen.leitungFreizeiten.length > 0 || koord);
-  const istTreffleitung = !!rollen && (rollen.treffleitungen.length > 0 || koord);
+  const istLeitung = !!rollen && (rollen.leitungFreizeiten.length > 0 || fk);
+  const istTreffleitung = !!rollen && (rollen.treffleitungen.length > 0 || tk);
 
   const freizeiten = useLaden(listeFreizeiten, 'heute-freizeiten');
   const dienste = useLaden(async () => (hatTreffs && ich ? listeMeineDienste(ich.id, heute, addTage(heute, DIENSTE_TAGE)) : []), `heute-dienste-${hatTreffs}-${heute}`);
-  const treffs = useLaden(async () => (hatTreffs || koord ? listeTreffs() : []), `heute-treffs-${hatTreffs}-${koord}`);
+  const treffs = useLaden(async () => (hatTreffs || tk ? listeTreffs() : []), `heute-treffs-${hatTreffs}-${tk}`);
 
   // Die Freizeiten und Treffs, für die die Startseite Hinweise und Absprachen einsammelt
   const alle = freizeiten.daten ?? [];
   const meineIds = new Set([...(rollen?.leitungFreizeiten ?? []), ...(rollen?.teamerFreizeiten ?? [])]);
   const aktuelle = aktuelleFreizeiten(alle, heute);
   const aktuelleMeine = aktuelle.filter((f) => meineIds.has(f.id));
-  const notizFreizeiten = koord ? aktuelle : aktuelleMeine;
+  const notizFreizeiten = fk ? aktuelle : aktuelleMeine;
   const meineTreffIds = [...(rollen?.treffleitungen ?? []), ...(rollen?.betreuerTreffs ?? [])];
-  const notizTreffIds = koord ? (treffs.daten ?? []).map((t) => t.id) : meineTreffIds;
+  const notizTreffIds = tk ? (treffs.daten ?? []).map((t) => t.id) : meineTreffIds;
   const fIds = notizFreizeiten.map((f) => f.id);
 
   const notizen = useLaden(() => listeNotizenFuerHeute(fIds, notizTreffIds), `heute-notizen-${fIds.join(',')}-${notizTreffIds.join(',')}`);
   const bestand = useLaden(async () => (istLeitung ? listeKnappeLebensmittel() : []), `heute-bestand-${istLeitung}`);
-  const wuensche = useLaden(async () => (istTreffleitung ? listeOffeneWuensche(koord ? null : (rollen?.treffleitungen ?? []), heute) : []), `heute-wuensche-${istTreffleitung}-${koord}-${heute}`);
-  const bewerbungen = useLaden(async () => (koord ? offeneBewerbungen() : []), `heute-bewerbungen-${koord}`);
+  const wuensche = useLaden(async () => (istTreffleitung ? listeOffeneWuensche(tk ? null : (rollen?.treffleitungen ?? []), heute) : []), `heute-wuensche-${istTreffleitung}-${tk}-${heute}`);
+  const bewerbungen = useLaden(async () => (fk ? offeneBewerbungen() : []), `heute-bewerbungen-${fk}`);
   const vorschlaege = useLaden(async () => (koord ? listeVorschlaege() : []), `heute-vorschlaege-${koord}`);
   const nachweise = useLaden(async () => (istTreffleitung ? zaehleEingereichteNachweise() : 0), `heute-nachweise-${istTreffleitung}`);
-  const kachelTreffs = koord ? treffs.daten ?? [] : (treffs.daten ?? []).filter((t) => meineTreffIds.includes(t.id));
+  const kachelTreffs = tk ? treffs.daten ?? [] : (treffs.daten ?? []).filter((t) => meineTreffIds.includes(t.id));
   const kachelTreffIds = kachelTreffs.map((t) => t.id);
   const stand = useLaden(() => listeProtokollStand(kachelTreffIds, heute), `heute-protokollstand-${kachelTreffIds.join(',')}-${heute}`);
   if (!ich || !rollen) return null;
 
   const meine = alle.filter((f) => meineIds.has(f.id) && phase(f, heute) !== 'vergangen' && f.status === 'geplant').sort((a, b) => a.start_datum.localeCompare(b.start_datum) || a.name.localeCompare(b.name, 'de'));
-  const laufendHeute = (koord ? aktuelle : aktuelleMeine).filter((f) => laeuftHeute(f, heute));
-  const leitungFreizeiten = koord ? aktuelle : aktuelleMeine.filter((f) => rollen.leitungFreizeiten.includes(f.id));
+  const laufendHeute = (fk ? aktuelle : aktuelleMeine).filter((f) => laeuftHeute(f, heute));
+  const leitungFreizeiten = fk ? aktuelle : aktuelleMeine.filter((f) => rollen.leitungFreizeiten.includes(f.id));
   const kommendeDienste = (dienste.daten ?? []).filter((d) => d.datum > heute);
   const diensteHeute = (dienste.daten ?? []).filter((d) => d.datum === heute).length;
-  const nichtsZuTun = meineIds.size === 0 && !hatTreffs && !koord;
+  const nichtsZuTun = meineIds.size === 0 && !hatTreffs && !koord;     // gar keine Zuordnung und keine Koordination
 
   // Zahlen für die Kacheln
   const offen = offeneFuerMich(notizen.daten ?? [], ich.id, rollen, heute);
@@ -79,10 +81,10 @@ export function Heute() {
   const ohneProtokoll = stand.daten ? kachelTreffs.filter((t) => protokollFaellig(t.oeffnungszeiten, heute, uhrzeit) && !protokolliert.has(t.id)) : [];
 
   const kacheln = baueKacheln({
-    koordination: koord, bewerbend: rollen.bewerbend, darfTreffmappe: rollen.darfTreffmappe,
+    freizeitkoordination: fk, treffkoordination: tk, bewerbend: rollen.bewerbend, darfTreffmappe: rollen.darfTreffmappe,
     leitung: rollen.leitungFreizeiten.length > 0, treffleitung: rollen.treffleitungen.length > 0,
     freizeitTeam: meineIds.size > 0, treffTeam: hatTreffs, kategorie: ich.kategorie,
-    freizeiten: (koord ? aktuelle : meine).map((f) => ({ id: f.id, name: f.name })),
+    freizeiten: (fk ? aktuelle : meine).map((f) => ({ id: f.id, name: f.name })),
     treffs: kachelTreffs.map((t) => ({ id: t.id, name: t.name })),
     zaehler: {
       hinweise: offen.filter((n) => n.freizeit_id !== null).length,          // Hinweise und Absprachen der Freizeiten, die noch bestätigt werden sollen
@@ -113,7 +115,7 @@ export function Heute() {
 
         {istLeitung && <LeitungSicht heute={heute} freizeiten={leitungFreizeiten} bestand={bestand} notizen={notizen} />}
         {istTreffleitung && <TreffleitungSicht wuensche={wuensche} />}
-        {koord && <KoordSicht aktuelle={aktuelle} bewerbungen={bewerbungen} vorschlaege={vorschlaege} />}
+        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} bewerbungen={bewerbungen} vorschlaege={vorschlaege} />}
 
         {meineIds.size > 0 && (
           <Card>
@@ -165,7 +167,7 @@ export function Heute() {
           </Card>
         )}
 
-        {rollen.bewerbend && !koord && <Bewerben heute={heute} freizeiten={alle} meineIds={meineIds} />}
+        {rollen.bewerbend && !fk && <Bewerben heute={heute} freizeiten={alle} meineIds={meineIds} />}
 
         {nichtsZuTun && !freizeiten.laedt && (
           <EmptyState icon="🧭" titel="Willkommen im KiJuB-Kompass">

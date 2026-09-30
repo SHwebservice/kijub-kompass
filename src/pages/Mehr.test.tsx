@@ -8,8 +8,9 @@ import { berechneRollen, type Ich } from '../lib/rollen';
 
 vi.mock('../mitteilungen/geraet');
 
+const BEIDE = { ist_koordination: true, ist_freizeitkoordination: true, ist_treffkoordination: true };
 const rollenVon = (ich: Partial<Ich>, treffs: { treff_id: string; rolle: 'betreuerin' | 'treffleitung' }[] = []) =>
-  berechneRollen({ id: 'i', vorname: 'A', nachname: 'B', mail: 'a@b.de', kategorie: 'TeamerIn', ist_koordination: false, ...ich }, [], treffs);
+  berechneRollen({ id: 'i', vorname: 'A', nachname: 'B', mail: 'a@b.de', kategorie: 'TeamerIn', ist_koordination: false, ist_freizeitkoordination: false, ist_treffkoordination: false, ...ich }, [], treffs);
 
 describe('Menü unter „Mehr“: Inhalt je Rolle', () => {
   const ids = (g: ReturnType<typeof baueMenue>) => g.map((x) => x.id);
@@ -23,15 +24,26 @@ describe('Menü unter „Mehr“: Inhalt je Rolle', () => {
   it('TZK im Treff bekommt zusätzlich die Treffmappe', () => {
     expect(pfade(baueMenue(rollenVon({ kategorie: 'TZK' }, [{ treff_id: 't', rolle: 'betreuerin' }])))).toContain('/treffmappe');
   });
-  it('Koordination: Verwaltung in vier Gruppen, ohne „Programmpunkt vorschlagen“', () => {
-    const g = baueMenue(rollenVon({ ist_koordination: true, kategorie: 'Hauptamtliche*r' }));
+  it('Koordination (beide Bereiche): Verwaltung in vier Gruppen, ohne „Programmpunkt vorschlagen“', () => {
+    const g = baueMenue(rollenVon({ ...BEIDE, kategorie: 'Hauptamtliche*r' }));
     expect(ids(g)).toEqual(['wissen', 'personen', 'planung', 'inhalte', 'kommunikation']);
     expect(pfade(g)).toEqual(expect.arrayContaining(['/bewerbungen', '/personen', '/freizeiten/neu', '/treffs/neu', '/orte', '/katalog/vorschlaege', '/katalog/import', '/quiz/verwalten', '/mitteilungen', '/import']));
     expect(pfade(g)).not.toContain('/katalog/vorschlagen');
     expect(pfade(g)).toContain('/treffmappe');
   });
+  it('Freizeitenkoordination: Bewerbungen, Neue Freizeit und KiJuKo – aber nicht „Neuer Treff“', () => {
+    const p = pfade(baueMenue(rollenVon({ ist_koordination: true, ist_freizeitkoordination: true, kategorie: 'Hauptamtliche*r' })));
+    expect(p).toEqual(expect.arrayContaining(['/bewerbungen', '/freizeiten/neu', '/import', '/personen', '/orte', '/mitteilungen', '/katalog/import', '/quiz/verwalten']));
+    expect(p).not.toContain('/treffs/neu');
+    expect(p).not.toContain('/treffmappe');
+  });
+  it('Treffkoordination: Neuer Treff und Treffmappe – aber keine Bewerbungen, Neue Freizeit, KiJuKo', () => {
+    const p = pfade(baueMenue(rollenVon({ ist_koordination: true, ist_treffkoordination: true, kategorie: 'Hauptamtliche*r' })));
+    expect(p).toEqual(expect.arrayContaining(['/treffs/neu', '/treffmappe', '/personen', '/orte', '/mitteilungen', '/katalog/import', '/quiz/verwalten']));
+    for (const weg of ['/bewerbungen', '/freizeiten/neu', '/import']) expect(p).not.toContain(weg);
+  });
   it('kein Eintrag doppelt, jeder mit Text', () => {
-    const g = baueMenue(rollenVon({ ist_koordination: true, kategorie: 'Hauptamtliche*r' }));
+    const g = baueMenue(rollenVon({ ...BEIDE, kategorie: 'Hauptamtliche*r' }));
     const alle = g.flatMap((x) => x.eintraege);
     expect(new Set(alle.map((x) => x.pfad)).size).toBe(alle.length);
     expect(alle.every((x) => x.label && x.text && x.icon)).toBe(true);
@@ -64,7 +76,7 @@ describe('Seite „Mehr“', () => {
   });
 
   it('Gruppen mit Namen und Kurzbeschreibung; die Links führen an die richtigen Orte', async () => {
-    zeige({ ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } });
+    zeige({ ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } });      // alter Schreibweise: beide Bereiche
     const personen = (await screen.findByRole('heading', { name: 'Personen' })).closest('section')!;
     const link = within(personen).getByRole('link', { name: /Personen & Zugänge/ });
     expect(link).toHaveAttribute('href', '/personen');

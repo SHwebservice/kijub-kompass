@@ -5,7 +5,7 @@ import {
 } from './logik';
 
 const HEUTE = '2027-07-07';
-const rollen = (o: Partial<RollenAuszug> = {}): RollenAuszug => ({ koordination: false, leitungFreizeiten: [], teamerFreizeiten: [], treffleitungen: [], betreuerTreffs: [], ...o });
+const rollen = (o: Partial<RollenAuszug> = {}): RollenAuszug => ({ freizeitkoordination: false, treffkoordination: false, leitungFreizeiten: [], teamerFreizeiten: [], treffleitungen: [], betreuerTreffs: [], ...o });
 const notiz = (o: Partial<OffeneNotiz> & { id: string }): OffeneNotiz => ({
   art: 'hinweis', geltung: 'gesamt', datum: null, text: 'Text', created_at: '2027-07-01T10:00:00Z', freizeit_id: 'f1', treff_id: null, quelle: 'Sommer-Sause', bestaetigt_von: [], ...o,
 });
@@ -15,24 +15,26 @@ describe('darfBestaetigen (gespiegelt aus den Datenbankregeln)', () => {
     const h = notiz({ id: 'h' });
     expect(darfBestaetigen(h, rollen({ teamerFreizeiten: ['f1'] }))).toBe(true);
     expect(darfBestaetigen(h, rollen({ leitungFreizeiten: ['f1'] }))).toBe(false);
-    expect(darfBestaetigen(h, rollen({ koordination: true }))).toBe(false);
+    expect(darfBestaetigen(h, rollen({ freizeitkoordination: true }))).toBe(false);
     expect(darfBestaetigen(h, rollen({ teamerFreizeiten: ['f2'] }))).toBe(false);
   });
-  it('Absprache: Leitung der Freizeit und Koordination', () => {
+  it('Absprache: Leitung der Freizeit und Freizeitenkoordination', () => {
     const a = notiz({ id: 'a', art: 'absprache' });
     expect(darfBestaetigen(a, rollen({ leitungFreizeiten: ['f1'] }))).toBe(true);
-    expect(darfBestaetigen(a, rollen({ koordination: true }))).toBe(true);
+    expect(darfBestaetigen(a, rollen({ freizeitkoordination: true }))).toBe(true);
+    expect(darfBestaetigen(a, rollen({ treffkoordination: true }))).toBe(false);
     expect(darfBestaetigen(a, rollen({ teamerFreizeiten: ['f1'] }))).toBe(false);
   });
-  it('Treff-Absprache: alle im Treff und die Koordination', () => {
+  it('Treff-Absprache: alle im Treff und die Treffkoordination', () => {
     const a = notiz({ id: 'a', art: 'absprache', freizeit_id: null, treff_id: 't1' });
     expect(darfBestaetigen(a, rollen({ betreuerTreffs: ['t1'] }))).toBe(true);
     expect(darfBestaetigen(a, rollen({ treffleitungen: ['t1'] }))).toBe(true);
-    expect(darfBestaetigen(a, rollen({ koordination: true }))).toBe(true);
+    expect(darfBestaetigen(a, rollen({ treffkoordination: true }))).toBe(true);
+    expect(darfBestaetigen(a, rollen({ freizeitkoordination: true }))).toBe(false);
     expect(darfBestaetigen(a, rollen({ betreuerTreffs: ['t2'] }))).toBe(false);
   });
   it('ohne Freizeit und Treff gibt es nichts zu bestätigen', () => {
-    expect(darfBestaetigen(notiz({ id: 'x', freizeit_id: null }), rollen({ koordination: true }))).toBe(false);
+    expect(darfBestaetigen(notiz({ id: 'x', freizeit_id: null }), rollen({ freizeitkoordination: true, treffkoordination: true }))).toBe(false);
   });
 });
 

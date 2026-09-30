@@ -22,14 +22,15 @@ export function baueMenue(r: Rollen | null): MenueGruppe[] {
   }];
 
   if (r?.koordination) {
+    const fk = r.freizeitkoordination; const tk = r.treffkoordination;
     gruppen.push(
       { id: 'personen', titel: 'Personen', eintraege: [
-        e('/bewerbungen', '📥', 'Bewerbungen', 'Bewerbungen auf Freizeiten annehmen oder ablehnen'),
+        ...(fk ? [e('/bewerbungen', '📥', 'Bewerbungen', 'Bewerbungen auf Freizeiten annehmen oder ablehnen')] : []),
         e('/personen', '🪪', 'Personen & Zugänge', 'Personen anlegen, Zugänge und Zuordnungen verwalten'),
       ] },
       { id: 'planung', titel: 'Planung', eintraege: [
-        e('/freizeiten/neu', '➕', 'Neue Freizeit', 'Eine Freizeit anlegen'),
-        e('/treffs/neu', '🏗️', 'Neuer Treff', 'Einen Treff mit Öffnungszeiten anlegen'),
+        ...(fk ? [e('/freizeiten/neu', '➕', 'Neue Freizeit', 'Eine Freizeit anlegen')] : []),
+        ...(tk ? [e('/treffs/neu', '🏗️', 'Neuer Treff', 'Einen Treff mit Öffnungszeiten anlegen')] : []),
         e('/orte', '📍', 'Orte', 'Orte und Adressen pflegen'),
       ] },
       { id: 'inhalte', titel: 'Inhalte', eintraege: [
@@ -39,7 +40,7 @@ export function baueMenue(r: Rollen | null): MenueGruppe[] {
       ] },
       { id: 'kommunikation', titel: 'Mitteilungen & Daten', eintraege: [
         e('/mitteilungen', '📢', 'Mitteilung senden', 'An alle oder an eine Gruppe'),
-        e('/import', '🔄', 'KiJuKo-Import', 'Daten aus KiJuKo übernehmen'),
+        ...(fk ? [e('/import', '🔄', 'KiJuKo-Import', 'Daten aus KiJuKo übernehmen')] : []),
       ] },
     );
   }

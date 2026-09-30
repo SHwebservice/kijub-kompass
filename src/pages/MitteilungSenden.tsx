@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useLaden } from '../lib/laden';
+import { useAuth } from '../lib/auth-kontext';
 import { listeFreizeiten } from '../freizeiten/api';
 import { listeTreffs } from '../treffs/api';
 import { ladeVorschau } from '../mitteilungen/api';
@@ -10,10 +11,15 @@ import {
 } from '../mitteilungen/ziele';
 import { Alert, Button, Card, PageHeader, SelectField, Spinner, TextField } from '../components/ui';
 
-const ZIELE = Object.keys(ZIEL_LABEL) as ZielArt[];
+const ALLE_ZIELE = Object.keys(ZIEL_LABEL) as ZielArt[];
 
-/** Koordination: eine Mitteilung an eine Gruppe schicken – mit Vorschau, wer sie bekommt. */
+/**
+ * Koordination: eine Mitteilung an eine Gruppe schicken – mit Vorschau, wer sie bekommt.
+ * An Freizeiten sendet nur die Freizeitenkoordination, an Treffs nur die Treffkoordination; alle übrigen Gruppen jede der beiden.
+ */
 export function MitteilungSenden() {
+  const { rollen } = useAuth();
+  const ZIELE = ALLE_ZIELE.filter((z) => (z === 'freizeit' ? rollen?.freizeitkoordination : z === 'treff' ? rollen?.treffkoordination : true));
   const freizeiten = useLaden(listeFreizeiten, 'mitteilung-freizeiten');
   const treffs = useLaden(listeTreffs, 'mitteilung-treffs');
   const [art, setArt] = useState<ZielArt>('alle');

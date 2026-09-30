@@ -38,7 +38,10 @@ export interface Zaehler {
 export const KEINE_ZAEHLER: Zaehler = { hinweise: 0, treffAbsprachen: 0, knapp: 0, wuensche: 0, bewerbungen: 0, vorschlaege: 0, nachweise: 0, diensteHeute: 0, protokollFehlt: 0, offeneNotizen: 0 };
 
 export interface KachelKontext {
-  koordination: boolean;
+  /** Freizeitenkoordination: alle Freizeiten, Bewerbungen, Lebensmittel, KiJuKo-Import. */
+  freizeitkoordination: boolean;
+  /** Treffkoordination: alle Treffs, Dienstplan, Nachweise, Tagesprotokolle. */
+  treffkoordination: boolean;
   bewerbend: boolean;
   darfTreffmappe: boolean;
   /** Ist in mindestens einer Freizeit Leitung. */
@@ -50,9 +53,9 @@ export interface KachelKontext {
   /** Ist in mindestens einem Treff im Team. */
   treffTeam: boolean;
   kategorie: string;
-  /** Aktuelle bzw. nächste Freizeiten der Person (Koordination: alle aktuellen), in zeitlicher Reihenfolge. */
+  /** Aktuelle bzw. nächste Freizeiten der Person (Freizeitenkoordination: alle aktuellen), in zeitlicher Reihenfolge. */
   freizeiten: { id: string; name: string }[];
-  /** Treffs der Person (Koordination: alle). */
+  /** Treffs der Person (Treffkoordination: alle). */
   treffs: { id: string; name: string }[];
   zaehler: Zaehler;
 }
@@ -73,32 +76,34 @@ function mitZielen(id: string, label: string, icon: string, sammel: string, ziel
 export function baueKacheln(k: KachelKontext): KachelGruppe[] {
   const z = k.zaehler;
   const gruppen: KachelGruppe[] = [];
+  /** Koordination irgendeines Bereichs: gemeinsame Verwaltung (Personen, Orte, Katalog, Quiz, Mitteilungen). */
+  const koordination = k.freizeitkoordination || k.treffkoordination;
 
   /* ── Freizeiten ── */
   const freizeiten: Kachel[] = [];
-  if (k.freizeitTeam || k.koordination) {
+  if (k.freizeitTeam || k.freizeitkoordination) {
     if (k.freizeiten.length > 0) {
       freizeiten.push(mitZielen('plan', 'Wochenplan', '📅', '/freizeiten', k.freizeiten, 'plan'));
       freizeiten.push(mitZielen('hinweise', 'Hinweise', '📣', '/freizeiten', k.freizeiten, 'hinweise', z.hinweise));
-      if (k.leitung || k.koordination) freizeiten.push(mitZielen('lebensmittel', 'Lebensmittel', '🥕', '/freizeiten', k.freizeiten, 'lebensmittel', z.knapp));
+      if (k.leitung || k.freizeitkoordination) freizeiten.push(mitZielen('lebensmittel', 'Lebensmittel', '🥕', '/freizeiten', k.freizeiten, 'lebensmittel', z.knapp));
       freizeiten.push(mitZielen('team', 'Team', '👥', '/freizeiten', k.freizeiten, 'team'));
     }
   }
-  if (k.freizeitTeam || k.koordination || k.bewerbend) {
-    freizeiten.push(kachel('freizeiten', k.freizeitTeam || k.koordination ? 'Alle Freizeiten' : 'Freizeiten & Bewerben', '⛺', '/freizeiten'));
+  if (k.freizeitTeam || k.freizeitkoordination || k.bewerbend) {
+    freizeiten.push(kachel('freizeiten', k.freizeitTeam || k.freizeitkoordination ? 'Alle Freizeiten' : 'Freizeiten & Bewerben', '⛺', '/freizeiten'));
   }
   if (freizeiten.length) gruppen.push({ id: 'freizeiten', titel: 'Freizeiten', kacheln: freizeiten });
 
   /* ── Treffs ── */
   const treffs: Kachel[] = [];
-  if (k.treffTeam || k.koordination) {
+  if (k.treffTeam || k.treffkoordination) {
     if (k.treffs.length > 0) {
       treffs.push(mitZielen('protokoll', 'Tagesprotokoll', '📝', '/treffs', k.treffs, 'protokoll', z.protokollFehlt));
       treffs.push(mitZielen('notizen', 'Notizen', '🗒️', '/treffs', k.treffs, 'notizen', z.offeneNotizen));
       treffs.push(mitZielen('dienstplan', 'Dienstplan', '🗓️', '/treffs', k.treffs, 'dienstplan', z.diensteHeute));
       treffs.push(mitZielen('treff-absprachen', 'Absprachen', '🤝', '/treffs', k.treffs, 'absprachen', z.treffAbsprachen));
-      if (k.kategorie === 'TZK' || k.treffleitung || k.koordination) treffs.push(mitZielen('nachweis', 'Nachweis', '🧾', '/treffs', k.treffs, 'nachweis', k.treffleitung || k.koordination ? z.nachweise : 0));
-      if (k.treffleitung || k.koordination) {
+      if (k.kategorie === 'TZK' || k.treffleitung || k.treffkoordination) treffs.push(mitZielen('nachweis', 'Nachweis', '🧾', '/treffs', k.treffs, 'nachweis', k.treffleitung || k.treffkoordination ? z.nachweise : 0));
+      if (k.treffleitung || k.treffkoordination) {
         treffs.push(mitZielen('wuensche', 'Dienstwünsche', '✋', '/treffs', k.treffs, 'dienstplan', z.wuensche));
         treffs.push(mitZielen('monat', 'Monatsplan', '📆', '/treffs', k.treffs, 'monat'));
         treffs.push(mitZielen('abwesenheit', 'Abwesenheit & Feiertage', '🏖️', '/treffs', k.treffs, 'verwaltung'));
@@ -116,24 +121,25 @@ export function baueKacheln(k: KachelKontext): KachelGruppe[] {
     ...(k.darfTreffmappe ? [kachel('treffmappe', 'Treffmappe', '📒', '/treffmappe')] : []),
     kachel('formulare', 'Formulare', '📝', '/formulare'),
     kachel('quiz', 'Quiz', '❓', '/quiz'),
-    ...(!k.koordination ? [kachel('vorschlagen', 'Programmpunkt vorschlagen', '💡', '/katalog/vorschlagen')] : []),
+    ...(!koordination ? [kachel('vorschlagen', 'Programmpunkt vorschlagen', '💡', '/katalog/vorschlagen')] : []),
     kachel('konto', 'Mitteilungen & Konto', '🔔', '/mehr'),
   ];
   gruppen.push({ id: 'wissen', titel: 'Wissen & Konto', kacheln: wissen });
 
   /* ── Verwaltung (Koordination) ── */
-  if (k.koordination) {
+  if (koordination) {
+    const fk = k.freizeitkoordination; const tk = k.treffkoordination;
     gruppen.push({
       id: 'verwaltung', titel: 'Verwaltung',
       kacheln: [
-        kachel('bewerbungen', 'Bewerbungen', '📥', '/bewerbungen', z.bewerbungen),
+        ...(fk ? [kachel('bewerbungen', 'Bewerbungen', '📥', '/bewerbungen', z.bewerbungen)] : []),
         kachel('vorschlaege', 'Katalog-Vorschläge', '💡', '/katalog/vorschlaege', z.vorschlaege),
         kachel('personen', 'Personen & Zugänge', '🪪', '/personen'),
-        kachel('neue-freizeit', 'Neue Freizeit', '➕', '/freizeiten/neu'),
-        kachel('neuer-treff', 'Neuer Treff', '🏗️', '/treffs/neu'),
+        ...(fk ? [kachel('neue-freizeit', 'Neue Freizeit', '➕', '/freizeiten/neu')] : []),
+        ...(tk ? [kachel('neuer-treff', 'Neuer Treff', '🏗️', '/treffs/neu')] : []),
         kachel('orte', 'Orte', '📍', '/orte'),
         kachel('mitteilung', 'Mitteilung senden', '📢', '/mitteilungen'),
-        kachel('kijuko', 'KiJuKo-Import', '🔄', '/import'),
+        ...(fk ? [kachel('kijuko', 'KiJuKo-Import', '🔄', '/import')] : []),
         kachel('katalog-import', 'Katalog importieren', '📦', '/katalog/import'),
         kachel('quiz-fragen', 'Quiz-Fragen', '🧠', '/quiz/verwalten'),
       ],

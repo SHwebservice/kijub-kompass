@@ -17,13 +17,15 @@ export interface PersonZeile {
   mail: string;
   kategorie: Kategorie;
   aktiv: boolean;
+  ist_freizeitkoordination: boolean;
+  ist_treffkoordination: boolean;
   auth_user_id: string | null;
   eingeladen_am: string | null;
 }
 
 export async function listePersonenVoll(): Promise<PersonZeile[]> {
   return pruefe(await supabase.from('personen')
-    .select('id, vorname, nachname, mail, kategorie, aktiv, auth_user_id, eingeladen_am')
+    .select('id, vorname, nachname, mail, kategorie, aktiv, ist_freizeitkoordination, ist_treffkoordination, auth_user_id, eingeladen_am')
     .order('nachname').order('vorname')) as PersonZeile[];
 }
 
@@ -55,4 +57,12 @@ export async function freizeitTeamHinzufuegen(freizeitId: string, personIds: str
 export async function treffTeamHinzufuegenViele(treffId: string, personIds: string[], rolle: TreffRolle): Promise<void> {
   if (!personIds.length) return;
   pruefe(await supabase.from('treff_team').insert(personIds.map((p) => ({ treff_id: treffId, person_id: p, rolle }))));
+}
+
+export type Bereich = 'freizeiten' | 'treffs';
+
+/** Macht eine Person zur Koordination eines Bereichs oder nimmt es zurück. Die letzte aktive Person je Bereich ist durch die Datenbank geschützt. */
+export async function setzeKoordination(personId: string, bereich: Bereich, an: boolean): Promise<void> {
+  const spalte = bereich === 'freizeiten' ? 'ist_freizeitkoordination' : 'ist_treffkoordination';
+  pruefe(await supabase.from('personen').update({ [spalte]: an }).eq('id', personId));
 }

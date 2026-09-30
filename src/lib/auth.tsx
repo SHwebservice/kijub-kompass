@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!s) { setIch(null); setRollen(null); setStatus('abgemeldet'); setQuittiertFuer(null); return; }
     const { data: person, error } = await supabase
       .from('personen')
-      .select('id, vorname, nachname, mail, kategorie, ist_koordination')
+      .select('id, vorname, nachname, mail, kategorie, ist_koordination, ist_freizeitkoordination, ist_treffkoordination')
       .eq('auth_user_id', s.user.id)
       .maybeSingle();
     if (error) { setFehler(error.message); setStatus('fehler'); return; }

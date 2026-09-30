@@ -22,7 +22,8 @@ export interface BestandZeile { ort_id: string; name: string; einheit: string | 
 export interface WunschZeile { person_id: string; datum: string; treff_id: string }
 
 export interface RollenAuszug {
-  koordination: boolean;
+  freizeitkoordination: boolean;
+  treffkoordination: boolean;
   leitungFreizeiten: string[];
   teamerFreizeiten: string[];
   treffleitungen: string[];
@@ -31,10 +32,10 @@ export interface RollenAuszug {
 
 /** Spiegel der Datenbankregeln: Hinweise bestätigen TeamerInnen, Absprachen Leitung und Koordination, Treff-Absprachen alle im Treff. */
 export function darfBestaetigen(n: OffeneNotiz, r: RollenAuszug): boolean {
-  if (n.treff_id) return r.koordination || r.treffleitungen.includes(n.treff_id) || r.betreuerTreffs.includes(n.treff_id);
+  if (n.treff_id) return r.treffkoordination || r.treffleitungen.includes(n.treff_id) || r.betreuerTreffs.includes(n.treff_id);
   if (!n.freizeit_id) return false;
   if (n.art === 'hinweis') return r.teamerFreizeiten.includes(n.freizeit_id);
-  return r.koordination || r.leitungFreizeiten.includes(n.freizeit_id);
+  return r.freizeitkoordination || r.leitungFreizeiten.includes(n.freizeit_id);
 }
 
 /** Notizen am Tag, die schon vorbei sind, erledigen sich von selbst. */

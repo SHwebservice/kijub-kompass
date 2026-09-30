@@ -5,7 +5,7 @@ import {
   darfInTreff, FREIZEIT_ROLLEN, konflikteFuer, konfliktText, personName, spaltenZeitraum, TREFF_ROLLEN,
   type FreizeitSpalte,
 } from '../../zuordnung/logik';
-import type { PersonZeile } from '../../zuordnung/api';
+import type { Bereich, PersonZeile } from '../../zuordnung/api';
 import { Sheet } from '../../components/Sheet';
 import { Badge } from '../../components/ui';
 import { RollenAuswahl } from './RollenAuswahl';
@@ -16,11 +16,13 @@ interface Props extends Omit<ZuordnungsAnsicht, 'spalten'> {
   /** Alle Freizeiten (auch vergangene). */
   freizeiten: FreizeitSpalte[];
   heute: string;
+  /** Person zur Koordination eines Bereichs machen bzw. zurücknehmen. */
+  aendereKoordination: (person: PersonZeile, bereich: Bereich, an: boolean) => void;
   schliessen: () => void;
 }
 
 /** Alle Zuordnungen einer Person auf einen Blick: jede Freizeit und jeder Treff mit Auswahl. Gut für das Handy, wo die Tabelle zu breit ist. */
-export function ZuordnungSheet({ person, freizeiten, treffs, z, heute, aendereFreizeit, aendereTreff, gesperrt, schliessen }: Props) {
+export function ZuordnungSheet({ person, freizeiten, treffs, z, heute, aendereFreizeit, aendereTreff, aendereKoordination, gesperrt, schliessen }: Props) {
   const [vergangene, setVergangene] = useState(false);
   const sichtbar = freizeiten
     .filter((f) => f.status === 'geplant' && (vergangene || phase(f, heute) !== 'vergangen' || z.freizeitRolle(f.id, person.id) !== null))
@@ -33,6 +35,18 @@ export function ZuordnungSheet({ person, freizeiten, treffs, z, heute, aendereFr
   return (
     <Sheet titel={`Zuordnungen · ${personName(person)}`} schliessen={schliessen}>
       <p className="field__hint">{person.kategorie}{!person.aktiv && ' · deaktiviert – Zuordnungen lassen sich nur noch entfernen'}</p>
+
+      <fieldset className="optionen" aria-label="Koordination">
+        <legend className="field__label">Koordination</legend>
+        <label className="option">
+          <input type="checkbox" checked={person.ist_freizeitkoordination} disabled={gesperrt || !person.aktiv} onChange={(e) => aendereKoordination(person, 'freizeiten', e.target.checked)} />
+          <span>Freizeitenkoordination <span className="field__hint">(Freizeiten, Bewerbungen, Lebensmittel, KiJuKo-Import)</span></span>
+        </label>
+        <label className="option">
+          <input type="checkbox" checked={person.ist_treffkoordination} disabled={gesperrt || !person.aktiv} onChange={(e) => aendereKoordination(person, 'treffs', e.target.checked)} />
+          <span>Treffkoordination <span className="field__hint">(Treffs, Dienstplan, Nachweise, Tagesprotokolle)</span></span>
+        </label>
+      </fieldset>
 
       <h3>Freizeiten</h3>
       {sichtbar.length === 0 && <p>Keine laufenden oder kommenden Freizeiten.</p>}

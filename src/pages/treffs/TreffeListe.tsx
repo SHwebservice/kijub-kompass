@@ -15,13 +15,13 @@ export function TreffeListe() {
   return (
     <>
       <PageHeader titel="Treffs">
-        {rollen.koordination && <Link className="btn btn--primary" to="/treffs/neu">Neuer Treff</Link>}
+        {rollen.treffkoordination && <Link className="btn btn--primary" to="/treffs/neu">Neuer Treff</Link>}
       </PageHeader>
       {liste.fehler && <Alert ton="error">{liste.fehler}</Alert>}
       {liste.laedt && <Spinner />}
       {!liste.laedt && !liste.fehler && (liste.daten?.length ?? 0) === 0 && (
-        <EmptyState icon="🏠" titel={rollen.koordination ? 'Noch kein Treff angelegt' : 'Du bist noch keinem Treff zugeordnet'}>
-          {rollen.koordination ? 'Lege den ersten Treff mit „Neuer Treff“ an.' : 'Die Koordination ordnet dich einem Treff zu.'}
+        <EmptyState icon="🏠" titel={rollen.treffkoordination ? 'Noch kein Treff angelegt' : 'Du bist noch keinem Treff zugeordnet'}>
+          {rollen.treffkoordination ? 'Lege den ersten Treff mit „Neuer Treff“ an.' : 'Die Koordination ordnet dich einem Treff zu.'}
         </EmptyState>
       )}
       <ul className="list">

@@ -7,9 +7,10 @@ import { listeTeamZeilen } from '../../heute/api';
 import { ohneLeitung, personenText } from '../../heute/logik';
 import { Alert, Badge, Card } from '../../components/ui';
 
-/** Koordination: offene Bewerbungen und Vorschläge, Freizeiten ohne Leitung und der Überblick über die aktuelle Saison. */
-export function KoordSicht({ aktuelle, bewerbungen, vorschlaege }: { aktuelle: FreizeitZeile[]; bewerbungen: Geladen<OffeneBewerbung[]>; vorschlaege: Geladen<Vorschlag[]> }) {
-  const ids = aktuelle.map((f) => f.id);
+/** Koordination: offene Bewerbungen (nur Freizeitenkoordination) und Vorschläge, Freizeiten ohne Leitung und der Überblick über die aktuelle Saison. */
+export function KoordSicht({ freizeiten, aktuelle, bewerbungen, vorschlaege }: { freizeiten: boolean; aktuelle: FreizeitZeile[]; bewerbungen: Geladen<OffeneBewerbung[]>; vorschlaege: Geladen<Vorschlag[]> }) {
+  // Bewerbungen und Saison-Überblick gehören zur Freizeitenkoordination; die Katalog-Vorschläge zu jeder Koordination
+  const ids = freizeiten ? aktuelle.map((f) => f.id) : [];
   const team = useLaden(() => listeTeamZeilen(ids), `heute-koord-team-${ids.join(',')}`);
 
   const nBewerbungen = bewerbungen.daten?.length ?? 0;
@@ -23,6 +24,7 @@ export function KoordSicht({ aktuelle, bewerbungen, vorschlaege }: { aktuelle: F
         <h2>Für die Koordination</h2>
         {fehler && <Alert ton="error">{fehler}</Alert>}
         <ul className="list" aria-label="Offene Aufgaben der Koordination">
+          {freizeiten && (
           <li className="list__item">
             <div className="list__main">
               <Link className="list__title" to="/bewerbungen">Bewerbungen</Link>
@@ -30,6 +32,7 @@ export function KoordSicht({ aktuelle, bewerbungen, vorschlaege }: { aktuelle: F
             </div>
             {nBewerbungen > 0 && <Badge ton="warning">{nBewerbungen}</Badge>}
           </li>
+          )}
           <li className="list__item">
             <div className="list__main">
               <Link className="list__title" to="/katalog/vorschlaege">Katalog-Vorschläge</Link>
@@ -40,7 +43,7 @@ export function KoordSicht({ aktuelle, bewerbungen, vorschlaege }: { aktuelle: F
         </ul>
       </Card>
 
-      {aktuelle.length > 0 && (
+      {freizeiten && aktuelle.length > 0 && (
         <Card>
           <h2>Saison-Überblick</h2>
           <p className="field__hint">Laufende Freizeiten und solche, die in den nächsten zwei Wochen beginnen.</p>
