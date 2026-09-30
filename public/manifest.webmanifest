@@ -1,0 +1,15 @@
+{
+  "name": "KiJuB-Kompass",
+  "short_name": "Kompass",
+  "description": "Organisation der Ferienfreizeiten und Treffs des Kinder- und Jugendbüros",
+  "lang": "de",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f2f4f8",
+  "theme_color": "#1B4B8A",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

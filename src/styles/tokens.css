@@ -1,0 +1,85 @@
+/* KiJuB-Kompass · Design-Tokens
+   Farben übernehmen die Identität des bisherigen Auftritts (Blau #1B4B8A, Orange #E84520).
+   Kontrast: Fließtext ≥ 4.5:1 (AA), große Schrift und UI-Elemente ≥ 3:1. */
+:root {
+  color-scheme: light dark;
+
+  /* Flächen & Text */
+  --bg: #f2f4f8;
+  --surface: #ffffff;
+  --surface-2: #edf0f5;
+  --border: rgb(0 0 0 / 0.11);
+  --border-strong: rgb(0 0 0 / 0.26);
+  --text: #1a1a2e;
+  --text-muted: #4a5068;
+  --text-hint: #6b7086;
+
+  /* Marke */
+  --accent: #1b4b8a;
+  --accent-hover: #123672;
+  --accent-bg: #e8eef8;
+  --on-accent: #ffffff;
+  --orange: #c93a16;           /* dunkler als das Logo-Orange, damit Text darauf/daneben AA erreicht */
+  --orange-bg: #fdeee9;
+
+  /* Zustände */
+  --danger: #b3261e;
+  --danger-bg: #fcebea;
+  --success: #1e7a45;
+  --success-bg: #e6f4ec;
+  --warning: #8a5a00;
+  --warning-bg: #fff4d6;
+
+  /* Form */
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 20px;
+  --shadow-soft: 0 4px 20px rgb(15 23 42 / 0.06);
+  --focus-ring: 0 0 0 3px rgb(27 75 138 / 0.35);
+
+  /* Abstände (4-px-Raster) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px;
+
+  /* Schrift */
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-display: 'Outfit', var(--font-body);
+  --fs-sm: 0.875rem; --fs-base: 0.9375rem; --fs-lg: 1.125rem; --fs-xl: 1.5rem;
+
+  /* Geräteränder (Notch / Home-Indikator) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Mindestgröße für Tipp-Ziele */
+  --tap: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101420;
+    --surface: #181d2c;
+    --surface-2: #212738;
+    --border: rgb(255 255 255 / 0.12);
+    --border-strong: rgb(255 255 255 / 0.3);
+    --text: #eef0f7;
+    --text-muted: #b4b9cc;
+    --text-hint: #9198b0;
+
+    --accent: #7aa7e8;
+    --accent-hover: #9dbdf0;
+    --accent-bg: #1f2c47;
+    --on-accent: #0b1220;
+    --orange: #ff8a65;
+    --orange-bg: #3a2019;
+
+    --danger: #ff8a80;
+    --danger-bg: #3a1f1d;
+    --success: #6fd49a;
+    --success-bg: #17301f;
+    --warning: #f2c35c;
+    --warning-bg: #36290a;
+
+    --shadow-soft: 0 4px 20px rgb(0 0 0 / 0.4);
+    --focus-ring: 0 0 0 3px rgb(122 167 232 / 0.45);
+  }
+}
