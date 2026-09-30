@@ -91,3 +91,13 @@ export function rolleInFreizeit(r: Rollen, freizeitId: string): RolleInFreizeit 
 
 /** Darf Hinweise, Absprachen, Lebensmittel und Kontaktdaten des Teams verwalten bzw. sehen. */
 export const istLeitungOderKoordination = (rolle: RolleInFreizeit) => rolle === 'leitung' || rolle === 'koordination';
+
+export type RolleInTreff = 'koordination' | 'treffleitung' | 'betreuerin' | 'gast';
+
+/** Welche Rolle hat die Person in genau diesem Treff? (Koordination gilt überall.) */
+export function rolleInTreff(r: Rollen, treffId: string): RolleInTreff {
+  if (r.koordination) return 'koordination';
+  if (r.treffleitungen.includes(treffId)) return 'treffleitung';
+  if (r.betreuerTreffs.includes(treffId)) return 'betreuerin';
+  return 'gast';
+}
