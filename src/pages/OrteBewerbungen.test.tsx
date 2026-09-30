@@ -4,9 +4,7 @@ import userEvent from '@testing-library/user-event';
 import * as api from '../freizeiten/api';
 import { Orte } from './Orte';
 import { Bewerbungen } from './Bewerbungen';
-import { Heute } from './Heute';
 import { renderMitAuth } from '../test-utils';
-import { freizeit, inTagen } from '../test-daten';
 
 vi.mock('../freizeiten/api');
 beforeEach(() => { vi.resetAllMocks(); });
@@ -117,37 +115,5 @@ describe('Bewerbungen', () => {
     renderMitAuth(<Bewerbungen />, koord);
     await userEvent.click(await screen.findByRole('button', { name: 'Annehmen' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Dafür fehlt die Berechtigung.');
-  });
-});
-
-describe('Startseite', () => {
-  beforeEach(() => {
-    vi.mocked(api.listeFreizeiten).mockResolvedValue([
-      freizeit({ id: 'mein', name: 'Meine Kommende' }),
-      freizeit({ id: 'lauf', name: 'Meine Laufende', start_datum: inTagen(-1), ende_datum: inTagen(3) }),
-      freizeit({ id: 'alt', name: 'Meine Alte', start_datum: inTagen(-30), ende_datum: inTagen(-26) }),
-      freizeit({ id: 'ab', name: 'Meine Abgesagte', status: 'abgesagt' }),
-      freizeit({ id: 'fremd', name: 'Nicht meine' }),
-    ]);
-  });
-
-  it('zeigt nur eigene, laufende oder kommende, nicht abgesagte Freizeiten', async () => {
-    renderMitAuth(<Heute />, { freizeiten: ['mein', 'lauf', 'alt', 'ab'].map((id) => ({ freizeit_id: id, rolle: 'teamer' as const })) });
-    expect(await screen.findByText('Meine Kommende')).toBeInTheDocument();
-    expect(screen.getByText('Meine Laufende')).toBeInTheDocument();
-    expect(screen.getByText('Läuft')).toBeInTheDocument();
-    expect(screen.getByText('in 30 Tagen')).toBeInTheDocument();
-    for (const n of ['Meine Alte', 'Meine Abgesagte', 'Nicht meine']) expect(screen.queryByText(n)).not.toBeInTheDocument();
-  });
-
-  it('ohne Zuordnung: Willkommenstext mit Hinweis auf die Bewerbung', async () => {
-    renderMitAuth(<Heute />);
-    expect(await screen.findByText('Willkommen im KiJuB-Kompass')).toBeInTheDocument();
-    expect(screen.getByText(/kannst du dich für kommende Freizeiten bewerben/)).toBeInTheDocument();
-  });
-
-  it('Hauptamtliche ohne Zuordnung bekommen keinen Bewerbungs-Hinweis', async () => {
-    renderMitAuth(<Heute />, { ich: { kategorie: 'Hauptamtliche*r' } });
-    expect(await screen.findByText(/Sobald du einer Freizeit oder einem Treff zugeordnet bist/)).toBeInTheDocument();
   });
 });

@@ -276,3 +276,21 @@ H3 (Einschalten, Testen und Ausschalten je Gerät unter „Mehr“; Hinweis für
 **Nicht erprobt:** Der Versand an echte Push-Dienste (Google, Mozilla, Apple) und die Anzeige auf echten Geräten konnten nicht getestet werden (brauchen die gehostete Seite und eure Schlüssel) – nach dem Einrichten bitte mit *Testmitteilung senden* prüfen, auch auf einem iPhone.
 
 **Noch offen:** „Neu seit letztem Besuch“ (D4) und Ungelesen-Punkte, Einstellung je Mitteilungsart, vollständige Startseite „Heute“.
+
+## Stand der Umsetzung: Startseite „Heute“ (Phase 6, 2026-09-30)
+
+**Umgesetzt und getestet** (ersetzt die Dashboards C8, C12 und D5):
+- **Alle:** „Heute“ mit den laufenden Freizeiten samt dem Tagesprogramm aus dem Wochenplan und den Diensten des Tages; „Das wartet auf dich“ mit den Hinweisen (TeamerInnen: „gesehen“) und Absprachen (Leitung, Koordination, Treff-Team), die noch nicht bestätigt sind, je Freizeit bzw. Treff mit Link;
+  „Meine Freizeiten“, „Meine Treffs“ und „Meine nächsten Dienste“ (14 Tage); Einladung, Mitteilungen einzuschalten (auf dem iPhone: die App zum Home-Bildschirm hinzufügen), wegklickbar.
+- **Leitung:** knappe und leere Lebensmittel an den Orten der aktuellen Freizeiten (mit Link zum Lebensmittel-Reiter) und Hinweise, die noch nicht alle TeamerInnen gesehen haben.
+- **Treffleitung:** offene Dienstwünsche je Treff, frühester Wunschtag, Link zum Dienstplan.
+- **TeamerIn ohne Einsatz oder mit Lust auf mehr:** die nächsten Freizeiten, für die man sich noch bewerben kann (Vorlauf beachtet), und der Hinweis auf eigene offene Bewerbungen.
+- **Koordination:** offene Bewerbungen und Katalog-Vorschläge mit Zahl und Link, Warnung „Freizeit ohne Leitung“, Saison-Überblick der laufenden und der in zwei Wochen beginnenden Freizeiten nach Ferienzeit; außerdem alles Obige für alle aktuellen Freizeiten und Treffs.
+
+**Bewusste Entscheidungen:**
+- Jede Karte erscheint nur, wenn es etwas zu zeigen gibt; ein Fehler in einer Karte stört die anderen nicht.
+- Was jemand sehen darf, entscheidet wie immer die Datenbank; die Startseite fragt nur nach dem, was zur Rolle gehört.
+- Hinweise gelten als „offen“, bis man sie selbst bestätigt hat (statt „neu seit dem letzten Besuch“). Notizen für einen vergangenen Tag erledigen sich von selbst.
+- Lebensmittel werden nur für Orte gezeigt, an denen gerade eine Freizeit läuft oder in zwei Wochen beginnt – alte Restbestände früherer Freizeiten stören nicht.
+
+**Noch offen:** „Neu seit letztem Besuch“ (D4) und Kommentare zu Absprachen als Hinweis für die Koordination, Farbe je Freizeit (C10).
