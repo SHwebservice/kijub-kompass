@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const wurzel = join(__dirname, '../..');
@@ -94,7 +94,8 @@ describe('Projektdateien', () => {
     expect(lies('public/sw.js')).toContain('addEventListener');
   });
   it('SPA-Fallback: alle Adressen liefern die App', () => {
-    expect(lies('public/_redirects')).toMatch(/^\/\*\s+\/index\.html\s+200/m);
+    expect(lies('wrangler.jsonc')).toMatch(/"not_found_handling":\s*"single-page-application"/);
+    expect(existsSync(join(wurzel, 'public/_redirects'))).toBe(false); // Cloudflare lehnt die Regel „/* /index.html 200“ als Endlosschleife ab
   });
   it('Content-Security-Policy: kein unsafe-eval, keine fremden Skripte, Supabase erlaubt', () => {
     const csp = /Content-Security-Policy:\s*(.+)/.exec(lies('public/_headers'))?.[1] ?? '';

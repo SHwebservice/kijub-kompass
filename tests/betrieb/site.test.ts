@@ -23,7 +23,7 @@ const passt = (muster: string, pfad: string) => muster === pfad || (muster.endsW
 const INDEX_HTML = lies('index.html').replace('/src/main.tsx', '/assets/index-abc123.js');
 
 /**
- * Eine nachgebaute Auslieferung mit den ECHTEN Dateien aus public/ (_headers, _redirects, Manifest):
+ * Eine nachgebaute Auslieferung mit den ECHTEN Dateien aus public/ (_headers, wrangler.jsonc, Manifest):
  * So prüft der Test, dass die Einstellungen im Repository die Anforderungen der Seitenprüfung erfüllen.
  */
 function attrappe(opt: { ohneHeaders?: boolean; mitKarte?: boolean; ohneFallback?: boolean } = {}): typeof fetch {
@@ -36,7 +36,7 @@ function attrappe(opt: { ohneHeaders?: boolean; mitKarte?: boolean; ohneFallback
     '/assets/index-abc123.js': { typ: 'text/javascript', text: 'console.log(1)' },
     ...(opt.mitKarte ? { '/assets/index-abc123.js.map': { typ: 'application/json', text: '{"version":3}' } } : {}),
   };
-  const fallback = /\/\*\s+\/index\.html\s+200/.test(lies('public/_redirects')) && !opt.ohneFallback;
+  const fallback = /"not_found_handling":\s*"single-page-application"/.test(lies('wrangler.jsonc')) && !opt.ohneFallback;
   return (async (eingabe: RequestInfo | URL) => {
     const pfad = new URL(String(eingabe)).pathname;
     const datei = pfad === '/' ? dateien['/index.html']! : dateien[pfad] ?? (fallback ? dateien['/index.html']! : undefined);

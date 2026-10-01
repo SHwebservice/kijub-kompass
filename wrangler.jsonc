@@ -1,0 +1,11 @@
+{
+  // Cloudflare: Die App besteht nur aus den fertigen Dateien in dist/.
+  // Unbekannte Adressen (Lesezeichen, „Neu laden“) bekommen die App: das ersetzt die frühere public/_redirects.
+  // Sicherheits- und Cache-Köpfe kommen weiter aus public/_headers.
+  "name": "kijub-kompass",
+  "compatibility_date": "2026-09-30",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

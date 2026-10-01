@@ -5,7 +5,7 @@ alles andere ist im Repository vorbereitet und getestet.
 
 | Baustein | Was er tut | Wo die Einstellung liegt |
 |---|---|---|
-| Cloudflare Pages | liefert die App aus (HTTPS, weltweit schnell) | Cloudflare-Konto **[du]**, `public/_headers`, `public/_redirects`, `.node-version` |
+| Cloudflare Pages | liefert die App aus (HTTPS, weltweit schnell) | Cloudflare-Konto **[du]**, `public/_headers`, `wrangler.jsonc`, `.node-version` |
 | Supabase | Datenbank, Anmeldung, Zugriffsregeln | Supabase-Projekt **[du]**, `supabase/migrations/` |
 | Erinnerung Tagesprotokoll | „Protokoll fehlt“ abends per Mitteilung an Treffleitung und Dienst des Tages | Migration `0016`, Workflow `erinnerung.yml`, Secret `CRON_SECRET` **[du]** |
 | Mitteilungen | Web-Push an die Geräte (Hinweise, Dienstplan, Bewerbungen …) | Edge Function `push-senden`, Migration `0015`, `public/sw.js`, VAPID-Schlüssel **[du]** |
@@ -178,7 +178,7 @@ dann ist der Ernstfall kein Erstkontakt. Diese Wiederherstellung wurde noch nich
 |---|---|---|
 | Seite zeigt „Die App ist noch nicht mit Supabase verbunden“ | Umgebungsvariablen fehlen im Cloudflare-Build | Variablen setzen, Deployment neu starten (Variablen gelten erst ab dem nächsten Build) |
 | Anmeldung meldet einen Serverfehler, nichts lädt | Supabase-Projekt pausiert | Dashboard → *Restore project* |
-| Lesezeichen/„Neu laden“ ergibt „Not found“ | `public/_redirects` fehlt im Build | `npm run check:site` zeigt es; Datei muss in `dist/` liegen |
+| Lesezeichen/„Neu laden“ ergibt „Not found“ | `not_found_handling` fehlt in `wrangler.jsonc` | `npm run check:site` zeigt es; Einstellung muss `single-page-application` sein |
 | Seite bleibt nach Änderung auf altem Stand | Gerät hat die alte Version zwischengespeichert | „Seite neu laden“ (auf dem Handy: App schließen und neu öffnen) |
 | Keine Verbindung zu Supabase trotz laufendem Projekt | Content-Security-Policy blockiert die Adresse (z. B. eigene Supabase-Domain) | `connect-src` in `public/_headers` ergänzen |
 | „Mitteilungen sind noch nicht eingerichtet“ in der App | `VITE_VAPID_PUBLIC_KEY` fehlt im Cloudflare-Build | Variable setzen, neu bereitstellen |
