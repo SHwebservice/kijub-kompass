@@ -1,31 +1,30 @@
 import { Link } from 'react-router-dom';
 import { Alert, Badge, Card, EmptyState, PageHeader, Spinner } from '../components/ui';
 import { useAuth } from '../lib/auth-kontext';
-import { teil, useLaden } from '../lib/laden';
+import { useLaden } from '../lib/laden';
 import { rollenBezeichnungen } from '../lib/rollen';
 import { listeFreizeiten } from '../freizeiten/api';
 import { formatKurz, heuteIso, phase, tageBisStart, zeitraumText } from '../freizeiten/logik';
 import { ladeHeute, quittiereBesuch } from '../heute/api';
 import { baueKacheln } from '../heute/kacheln';
-import { aktuelleFreizeiten, knappeJeOrt, laeuftHeute, offeneFuerMich } from '../heute/logik';
+import { baueBento } from '../heute/bento';
+import { baueFeed } from '../heute/feed';
+import { aktuelleFreizeiten, gruppiereOffene, knappeJeOrt, laeuftHeute, nichtGeseheneImTeam, offeneFuerMich, ohneLeitung, planNachFreizeit, wuenscheJeTreff } from '../heute/logik';
 import { listeMeineDienste, listeTreffs } from '../treffs/api';
 import { protokollFaellig } from '../tagesprotokoll/logik';
 import { addTage, dienstZeit } from '../treffs/dienstplan';
 import { Bewerben } from './heute/Bewerben';
-import { HeuteTag } from './heute/HeuteTag';
+import { Bento } from './heute/Bento';
+import { Feed } from './heute/Feed';
 import { KoordSicht } from './heute/KoordSicht';
-import { LeitungSicht, TreffleitungSicht } from './heute/LeitungSicht';
 import { MitteilungsHinweis } from './heute/MitteilungsHinweis';
-import { NeuSeitBesuch } from './heute/NeuSeitBesuch';
-import { ProtokollKarte } from './heute/ProtokollKarte';
 import { Schnellzugriff } from './heute/Schnellzugriff';
-import { WartetAufDich } from './heute/WartetAufDich';
 
 const DIENSTE_TAGE = 14;
 
 /**
- * Startseite: oben der Schnellzugriff (Kacheln für alle Funktionen der eigenen Rollen, mit Zahlen für Offenes),
- * darunter „Jetzt wichtig“: was heute läuft, was auf dich wartet, Sicht der Leitung, Treffleitung und Koordination.
+ * Startseite: die Koordination sieht oben das Kachelraster mit Zahlen („Überblick“). Für alle folgt der Feed: Zu erledigen, Heute,
+ * Neu seit dem letzten Besuch. Darunter der Schnellzugriff (Kacheln für alle Funktionen der eigenen Rollen), die Saison der Koordination und die eigenen Freizeiten und Treffs.
  */
 export function Heute() {
   const { ich, rollen } = useAuth();
@@ -65,12 +64,6 @@ export function Heute() {
     ...(istTreffleitung ? { wuensche: tk ? ('alle' as const) : (rollen?.treffleitungen ?? []) } : {}),
   };
   const stand = useLaden(async () => (bereit ? ladeHeute(anfrage) : null), `heute-stand-${bereit}-${JSON.stringify(anfrage)}`);
-  const notizen = teil(stand, (d) => d?.notizen ?? []);
-  const bestand = teil(stand, (d) => d?.bestand ?? []);
-  const wuensche = teil(stand, (d) => d?.wuensche ?? []);
-  const bewerbungen = teil(stand, (d) => d?.bewerbungen ?? 0);
-  const vorschlaege = teil(stand, (d) => d?.vorschlaege ?? 0);
-  const plan = teil(stand, (d) => d?.plan ?? []);
   if (!ich || !rollen) return null;
 
   const meine = alle.filter((f) => meineIds.has(f.id) && phase(f, heute) !== 'vergangen' && f.status === 'geplant').sort((a, b) => a.start_datum.localeCompare(b.start_datum) || a.name.localeCompare(b.name, 'de'));
@@ -91,6 +84,22 @@ export function Heute() {
   const protokolliert = new Set(d?.protokolliert ?? []);
   const ohneProtokoll = d ? kachelTreffs.filter((t) => protokollFaellig(t.oeffnungszeiten, heute, uhrzeit) && !protokolliert.has(t.id)) : [];
 
+  const freizeitAmOrt = (ortId: string) => leitungFreizeiten.find((f) => f.ort_id === ortId);
+  const offeneGruppen = gruppiereOffene(offen);
+  const knappJeOrt = knappeJeOrt(d?.bestand ?? [], ortIds);
+  const planHeute = planNachFreizeit(d?.plan ?? []);
+  const wuenscheJe = istTreffleitung ? wuenscheJeTreff(d?.wuensche ?? []) : [];
+  const eintraege = baueFeed({
+    ohneProtokoll: ohneProtokoll.map((t) => ({ id: t.id, name: t.name })),
+    offene: offeneGruppen,
+    knapp: istLeitung ? knappJeOrt.map((o) => ({ ort: o, freizeitId: freizeitAmOrt(o.ort_id)?.id ?? null, name: d?.orte[o.ort_id] ?? freizeitAmOrt(o.ort_id)?.name ?? 'Ort' })) : [],
+    nichtGesehen: istLeitung ? nichtGeseheneImTeam(d?.notizen ?? [], d?.team ?? [], leitungFreizeiten.map((f) => f.id), heute) : [],
+    wuensche: wuenscheJe.map((w) => ({ treff: w, name: d?.treffNamen[w.treff_id] ?? 'Treff' })),
+    diensteHeute: (dienste.daten ?? []).filter((x) => x.datum === heute),
+    freizeitenHeute: laufendHeute.map((f) => ({ id: f.id, name: f.name, ort_name: f.ort_name ?? null, punkte: planHeute.get(f.id) ?? [] })),
+    neu: d?.neu ?? [],
+  });
+
   const kacheln = baueKacheln({
     freizeitkoordination: fk, treffkoordination: tk, bewerbend: rollen.bewerbend, darfTreffmappe: rollen.darfTreffmappe,
     leitung: rollen.leitungFreizeiten.length > 0, treffleitung: rollen.treffleitungen.length > 0,
@@ -105,6 +114,14 @@ export function Heute() {
     },
   });
   const bezeichnungen = rollenBezeichnungen(rollen);
+  const bento = koord ? baueBento({
+    freizeitkoordination: fk, treffkoordination: tk, heute, zaehler: {
+      hinweise: 0, treffAbsprachen: 0, knapp, wuensche: d?.wuensche.length ?? 0, bewerbungen: d?.bewerbungen ?? 0, vorschlaege: d?.vorschlaege ?? 0,
+      nachweise: d?.nachweise ?? 0, diensteHeute, protokollFehlt: ohneProtokoll.length, offeneNotizen: 0, fehler: d?.fehler ?? 0,
+    },
+    ohneProtokoll: ohneProtokoll.map((t) => ({ id: t.id, name: t.name })), aktuelle: fk ? aktuelle : [], laufendHeute: laufendHeute.length,
+    ohneLeitung: fk ? ohneLeitung(aktuelle, d?.team ?? []).length : 0, wunschTreffId: wuenscheJe[0]?.treff_id ?? null, erstesTreffId: kachelTreffs[0]?.id ?? null,
+  }) : [];
 
   return (
     <>
@@ -116,17 +133,12 @@ export function Heute() {
 
       <div className="stack">
         <MitteilungsHinweis />
-        <Schnellzugriff gruppen={kacheln} />
         {(freizeiten.fehler ?? stand.fehler) && <Alert ton="error">{freizeiten.fehler ?? stand.fehler}</Alert>}
-        <NeuSeitBesuch seit={d?.seit ?? null} neu={d?.neu ?? []} gesamt={d?.neuGesamt ?? 0} gesehen={async () => { await quittiereBesuch(); stand.neuLaden(); }} />
-
-        <HeuteTag heute={heute} freizeiten={laufendHeute} dienste={dienste.daten ?? []} plan={plan} />
-        <WartetAufDich heute={heute} notizen={notizen} />
-        <ProtokollKarte treffs={ohneProtokoll} />
-
-        {istLeitung && <LeitungSicht heute={heute} freizeiten={leitungFreizeiten} bestand={bestand} notizen={notizen} orte={d?.orte ?? {}} team={d?.team ?? []} />}
-        {istTreffleitung && <TreffleitungSicht wuensche={wuensche} treffNamen={d?.treffNamen ?? {}} />}
-        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} bewerbungen={bewerbungen} vorschlaege={vorschlaege} team={d?.team ?? []} />}
+        {koord && <Bento kacheln={bento} />}
+        <Feed heute={heute} eintraege={eintraege} seit={d?.seit ?? null} neuGesamt={d?.neuGesamt ?? 0} laedt={stand.laedt || freizeiten.laedt || !bereit}
+          gesehen={async () => { await quittiereBesuch(); stand.neuLaden(); }} />
+        <Schnellzugriff gruppen={kacheln} />
+        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} team={d?.team ?? []} />}
 
         {meineIds.size > 0 && (
           <Card>

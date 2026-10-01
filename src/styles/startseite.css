@@ -1,0 +1,47 @@
+/* KiJuB-Kompass · Startseite: Feed (alle) und Kachelraster (Koordination) im Glas-Stil.
+   Farben und Glas-Werte kommen aus tokens.css; Lesbarkeit ist dort per Test abgesichert (Text auf Glas auf der stärksten Wolke). */
+
+.feed__titelzeile { margin: 0 0 var(--space-2); font-size: var(--fs-lg); }
+
+.feed { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+.feed__karte {
+  position: relative; display: flex; gap: var(--space-3); align-items: flex-start; min-width: 0;
+  padding: var(--space-3) var(--space-4); border: 1px solid var(--glas-rand); border-radius: var(--radius);
+  background: var(--glas); box-shadow: var(--glas-schatten);
+}
+.feed__karte:focus-within { box-shadow: var(--focus-ring); }
+.feed__icon { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent-bg); font-size: 1.1rem; line-height: 1; }
+.feed__karte--warnung .feed__icon { background: var(--warning-bg); }
+.feed__karte--erfolg .feed__icon { background: var(--success-bg); }
+.feed__inhalt { min-width: 0; flex: 1; }
+.feed__kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.feed__titel { font-weight: 600; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.feed__titel::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }        /* die ganze Karte ist anklickbar */
+.feed__titel:focus-visible { box-shadow: none; }
+.feed__text { color: var(--text-muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.feed__zeilen { list-style: none; margin: var(--space-1) 0 0; padding: 0; font-size: var(--fs-sm); }
+.feed__aktion { display: inline-block; margin-top: var(--space-2); padding: 4px 12px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: var(--fs-sm); font-weight: 600; }
+
+/* Kachelraster */
+.bento { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+@media (min-width: 720px) { .bento { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.bento__kachel--breit { grid-column: span 2; }
+.bento__kachel > a {
+  display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-1); height: 100%; min-height: 104px; min-width: 0;
+  padding: var(--space-3) var(--space-4); border: 1px solid var(--glas-rand); border-radius: 18px; text-decoration: none;
+  background: var(--glas); box-shadow: var(--glas-schatten); color: var(--text);
+}
+.bento__kachel > a:focus-visible { box-shadow: var(--focus-ring); }
+.bento__label { font-size: var(--fs-sm); color: var(--text-muted); }
+.bento__zahl { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; line-height: 1.1; overflow-wrap: anywhere; }
+.bento__zahl--text { font-size: 1.3rem; line-height: 1.25; }
+.bento__unter { font-size: var(--fs-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.bento__kachel--warnung > a { border-color: var(--orange); }
+.bento__kachel--warnung .bento__zahl { color: var(--orange); }
+.bento__kachel--haupt > a { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.bento__kachel--haupt .bento__label, .bento__kachel--haupt .bento__unter { color: var(--on-accent); }
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .feed__karte, .bento__kachel > a { background: var(--surface); }
+  .bento__kachel--haupt > a { background: var(--accent); }
+}

@@ -49,11 +49,13 @@ const zeige = (s: Szene) => renderMitAuth(<Heute />, s);
 const kachelLink = (gruppe: string, name: string | RegExp) => within(screen.getByRole('list', { name: gruppe })).getByRole('link', { name });
 
 describe('Startseite: Schnellzugriff', () => {
-  it('steht oben – vor „Heute“ und allen Karten', async () => {
+  it('steht unter dem Feed („Heute“) und vor „Meine Freizeiten“', async () => {
     zeige(teamer);
     const nav = await screen.findByRole('navigation', { name: 'Schnellzugriff' });
     const heuteKarte = await screen.findByRole('heading', { name: /^Heute ·/ });
-    expect(nav.compareDocumentPosition(heuteKarte) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const meine = await screen.findByRole('heading', { name: 'Meine Freizeiten' });
+    expect(heuteKarte.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(nav.compareDocumentPosition(meine) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('TeamerIn in einer Freizeit: direkte Kacheln in die Reiter, Wissen und Konto', async () => {
@@ -161,8 +163,9 @@ describe('Startseite: Tagesprotokoll und Notizen der Treffs', () => {
   it('heute geöffnet und noch kein Protokoll: Karte mit Link und Zahl an der Kachel', async () => {
     geoeffnet();
     zeige(tzk);
-    const karte = await screen.findByRole('list', { name: 'Treffs ohne Protokoll von heute' });
-    expect(within(karte).getByRole('link', { name: 'Kindertreff' })).toHaveAttribute('href', '/treffs/t1/protokoll');
+    const karte = await screen.findByRole('list', { name: 'Zu erledigen' });
+    expect(within(karte).getByRole('link', { name: 'Tagesprotokoll fehlt' })).toHaveAttribute('href', '/treffs/t1/protokoll');
+    expect(karte).toHaveTextContent('Kindertreff');
     expect(await within(screen.getByRole('list', { name: 'Treffs' })).findByRole('link', { name: /Tagesprotokoll\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/protokoll');
   });
 
@@ -172,7 +175,7 @@ describe('Startseite: Tagesprotokoll und Notizen der Treffs', () => {
     zeige(tzk);
     await screen.findByRole('navigation', { name: 'Schnellzugriff' });
     expect(await screen.findByRole('link', { name: 'Tagesprotokoll' })).toBeInTheDocument();
-    expect(screen.queryByRole('list', { name: 'Treffs ohne Protokoll von heute' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Tagesprotokoll fehlt' })).not.toBeInTheDocument();
   });
 
   it('Treff ohne Öffnung heute: nichts fehlt', async () => {
@@ -220,23 +223,23 @@ describe('Startseite: Koordination getrennt nach Bereichen', () => {
     const verwaltung = screen.getByRole('list', { name: 'Verwaltung' });
     expect(verwaltung.querySelector('a[href="/treffs/neu"]')).not.toBeNull();
     for (const weg of ['/bewerbungen', '/import', '/freizeiten/neu']) expect(verwaltung.querySelector(`a[href="${weg}"]`)).toBeNull();
-    expect(await screen.findByRole('list', { name: 'Treffs ohne Protokoll von heute' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Tagesprotokoll fehlt' })).toBeInTheDocument();
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ bewerbungen: false, bestand: false }));         // gar nicht erst angefragt
   });
 
-  it('Koordinations-Karte: Bewerbungen nur für die Freizeitenkoordination, Katalog-Vorschläge für beide', async () => {
+  it('Kachelraster: Bewerbungen nur für die Freizeitenkoordination, Katalog-Vorschläge für beide', async () => {
     stand.vorschlaege = 1;
     const { unmount } = zeige(fkOnly);
-    const karte = (await screen.findByRole('list', { name: 'Offene Aufgaben der Koordination' }));
-    expect(within(karte).getByRole('link', { name: 'Bewerbungen' })).toBeInTheDocument();
-    expect(within(karte).getByRole('link', { name: 'Katalog-Vorschläge' })).toBeInTheDocument();
+    const karte = (await screen.findByRole('list', { name: 'Überblick der Koordination' }));
+    expect(within(karte).getByRole('link', { name: /^Bewerbungen/ })).toBeInTheDocument();
+    expect(within(karte).getByRole('link', { name: /^Katalog-Vorschläge/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Saison-Überblick' })).toBeInTheDocument();
     unmount();
 
     zeige(tkOnly);
-    const karte2 = (await screen.findByRole('list', { name: 'Offene Aufgaben der Koordination' }));
-    expect(within(karte2).queryByRole('link', { name: 'Bewerbungen' })).not.toBeInTheDocument();
-    expect(within(karte2).getByRole('link', { name: 'Katalog-Vorschläge' })).toBeInTheDocument();
+    const karte2 = (await screen.findByRole('list', { name: 'Überblick der Koordination' }));
+    expect(within(karte2).queryByRole('link', { name: /^Bewerbungen/ })).not.toBeInTheDocument();
+    expect(within(karte2).getByRole('link', { name: /^Katalog-Vorschläge/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Saison-Überblick' })).not.toBeInTheDocument();
   });
 
@@ -256,12 +259,12 @@ describe('Startseite: Koordination getrennt nach Bereichen', () => {
     ];
     vi.mocked(treffApi.listeTreffs).mockResolvedValue([{ ...treff({ id: 't1', name: 'Kindertreff' }), oeffnungszeiten: [] }]);
     const { unmount } = zeige(fkOnly);
-    const karte = await screen.findByRole('list', { name: 'Offene Hinweise und Absprachen' });
+    const karte = await screen.findByRole('list', { name: 'Zu erledigen' });
     expect(within(karte).getAllByRole('listitem')).toHaveLength(1);
     expect(karte).toHaveTextContent('Sommer-Sause');
     unmount();
     zeige(tkOnly);
-    const karte2 = await screen.findByRole('list', { name: 'Offene Hinweise und Absprachen' });
+    const karte2 = await screen.findByRole('list', { name: 'Zu erledigen' });
     expect(within(karte2).getAllByRole('listitem')).toHaveLength(1);
     expect(karte2).toHaveTextContent('Kindertreff');
   });

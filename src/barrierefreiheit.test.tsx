@@ -81,7 +81,7 @@ describe('Prüfung selbst', () => {
 describe('Barrierefreiheit (axe): keine Verstöße gegen gängige Regeln', () => {
   it('Startseite der Koordination', async () => {
     const { container } = renderMitAuth(<Heute />, koord);
-    await screen.findByRole('list', { name: 'Neuigkeiten' });
+    await screen.findByRole('list', { name: 'Überblick der Koordination' });
     expect(await axeVerstoesse(container)).toEqual([]);
   });
 

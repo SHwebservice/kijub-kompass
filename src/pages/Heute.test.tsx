@@ -77,9 +77,9 @@ describe('Heute: TeamerIn', () => {
       { id: '1', freizeit_id: 'f1', titel: 'Schwimmen', slot: 'Nachmittag', position: 2 }, { id: '2', freizeit_id: 'f1', titel: 'Fangen', slot: 'Vormittag', position: 1 },
     ];
     zeige(teamer);
-    const heute = await screen.findByRole('list', { name: 'Laufende Freizeiten' });
-    expect(within(heute).getByRole('link', { name: 'Sommer-Sause' })).toHaveAttribute('href', '/freizeiten/f1');
-    const plan = await within(heute).findByRole('list', { name: 'Tagesprogramm Sommer-Sause' });
+    const heute = await screen.findByRole('list', { name: 'Heute' });
+    expect(within(heute).getByRole('link', { name: 'Sommer-Sause läuft' })).toHaveAttribute('href', '/freizeiten/f1/plan');
+    const plan = await within(heute).findByRole('list', { name: 'Tagesprogramm Sommer-Sause läuft' });
     expect(within(plan).getAllByRole('listitem').map((l) => l.textContent)).toEqual(['Vormittag: Fangen', 'Nachmittag: Schwimmen']);
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ planFreizeiten: ['f1'], heute: inTagen(0) }));
     const meine = screen.getByRole('list', { name: 'Meine Freizeiten' });
@@ -89,17 +89,17 @@ describe('Heute: TeamerIn', () => {
 
   it('ohne Programm für heute: Hinweis mit Link zum Wochenplan', async () => {
     zeige(teamer);
-    expect(await screen.findByText(/Für heute steht noch nichts im/)).toBeInTheDocument();
-    const laufend = screen.getByRole('list', { name: 'Laufende Freizeiten' });
-    expect(within(laufend).getByRole('link', { name: 'Wochenplan' })).toHaveAttribute('href', '/freizeiten/f1/plan');
+    expect(await screen.findByText('Für heute steht noch nichts im Wochenplan.')).toBeInTheDocument();
+    const laufend = screen.getByRole('list', { name: 'Heute' });
+    expect(within(laufend).getByRole('link', { name: 'Sommer-Sause läuft' })).toHaveAttribute('href', '/freizeiten/f1/plan');
   });
 
-  it('„Das wartet auf dich“: unbestätigte Hinweise je Freizeit; Erledigtes und Fremdes fehlen', async () => {
+  it('„Zu erledigen“: unbestätigte Hinweise je Freizeit; Erledigtes und Fremdes fehlen', async () => {
     stand.notizen = [
       notiz({ id: '1' }), notiz({ id: '2' }), notiz({ id: '3', bestaetigt_von: ['ich'] }), notiz({ id: '4', art: 'absprache' }),
     ];
     zeige(teamer);
-    const liste = await screen.findByRole('list', { name: 'Offene Hinweise und Absprachen' });
+    const liste = await screen.findByRole('list', { name: 'Zu erledigen' });
     expect(within(liste).getByRole('link', { name: 'Sommer-Sause' })).toHaveAttribute('href', '/freizeiten/f1/hinweise');
     expect(within(liste).getByText('2 Hinweise zum Bestätigen')).toBeInTheDocument();
     expect(within(liste).queryByText(/Absprache/)).not.toBeInTheDocument();     // TeamerInnen bestätigen keine Absprachen
@@ -108,8 +108,8 @@ describe('Heute: TeamerIn', () => {
 
   it('nichts offen: die Karte fehlt ganz', async () => {
     zeige(teamer);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
-    expect(screen.queryByText('Das wartet auf dich')).not.toBeInTheDocument();
+    await screen.findByRole('list', { name: 'Heute' });
+    expect(screen.queryByText('Zu erledigen')).not.toBeInTheDocument();
   });
 
   it('meldet Ladefehler der Freizeiten', async () => {
@@ -156,8 +156,8 @@ describe('Heute: Treffs', () => {
   it('Dienste von heute stehen oben, die späteren in „Meine nächsten Dienste“', async () => {
     vi.mocked(treffApi.listeMeineDienste).mockResolvedValue([dienst('d1', inTagen(0)), dienst('d2', inTagen(3), { ist_sonder: true, bezeichnung: 'Sommerfest' })]);
     zeige(tzk);
-    const heute = await screen.findByRole('list', { name: 'Dienste heute' });
-    expect(within(heute).getByRole('link')).toHaveTextContent('Dienst · 15:00–19:00 Uhr');
+    const heute = await screen.findByRole('list', { name: 'Heute' });
+    expect(within(heute).getByRole('link')).toHaveTextContent('Dienst heute · 15:00–19:00 Uhr');
     const spaeter = await screen.findByRole('list', { name: 'Meine Dienste' });
     const eintraege = within(spaeter).getAllByRole('listitem');
     expect(eintraege).toHaveLength(1);
@@ -180,7 +180,7 @@ describe('Heute: Treffs', () => {
   it('offene Treff-Absprachen warten auf die Bestätigung', async () => {
     stand.notizen = [notiz({ id: 'a', art: 'absprache', freizeit_id: null, treff_id: 't1', quelle: 'Kindertreff' })];
     zeige(tzk);
-    const liste = await screen.findByRole('list', { name: 'Offene Hinweise und Absprachen' });
+    const liste = await screen.findByRole('list', { name: 'Zu erledigen' });
     expect(within(liste).getByRole('link', { name: 'Kindertreff' })).toHaveAttribute('href', '/treffs/t1/absprachen');
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ notizFreizeiten: [], notizTreffs: ['t1'] }));
   });
@@ -188,8 +188,8 @@ describe('Heute: Treffs', () => {
   it('Treffleitung sieht offene Dienstwünsche; BetreuerIn nicht', async () => {
     stand.wuensche = [{ person_id: 'b', datum: inTagen(2), treff_id: 't1' }, { person_id: 'c', datum: inTagen(5), treff_id: 't1' }];
     const { unmount } = zeige(treffleitung);
-    const liste = await screen.findByRole('list', { name: 'Offene Dienstwünsche' });
-    expect(within(liste).getByRole('link', { name: 'Kindertreff' })).toHaveAttribute('href', '/treffs/t1/dienstplan');
+    const liste = await screen.findByRole('list', { name: 'Zu erledigen' });
+    expect(within(liste).getByRole('link', { name: 'Dienstwünsche warten' })).toHaveAttribute('href', '/treffs/t1/dienstplan');
     expect(within(liste).getByText(new RegExp(`2 Wünsche warten auf Antwort, der nächste für ${formatKurz(inTagen(2))}`))).toBeInTheDocument();
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ wuensche: ['t1'] }));
     unmount();
@@ -197,7 +197,7 @@ describe('Heute: Treffs', () => {
     zeige(tzk);
     await screen.findByRole('list', { name: 'Meine Treffs' });
     await waitFor(() => expect(heuteApi.ladeHeute).toHaveBeenCalled());
-    expect(screen.queryByText('Offene Dienstwünsche')).not.toBeInTheDocument();
+    expect(screen.queryByText('Dienstwünsche warten')).not.toBeInTheDocument();
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.not.objectContaining({ wuensche: expect.anything() }));          // Wünsche werden gar nicht erst angefragt
   });
 });
@@ -209,12 +209,11 @@ describe('Heute: Leitung', () => {
       { ort_id: 'o9', name: 'Salz', einheit: null, rest: 0, status: 'leer' },
     ];
     zeige(leitung);
-    const liste = await screen.findByRole('list', { name: 'Knappe Lebensmittel' });
-    expect(within(liste).getByRole('link', { name: 'Mörscher Au' })).toHaveAttribute('href', '/freizeiten/f1/lebensmittel');
-    expect(within(liste).getByText('1 leer')).toBeInTheDocument();
-    expect(within(liste).getByText('1 knapp')).toBeInTheDocument();
-    expect(within(liste).getByText('Reis (leer)')).toBeInTheDocument();
-    expect(within(liste).getByText('Milch (3,5 l)')).toBeInTheDocument();
+    const liste = await screen.findByRole('list', { name: 'Zu erledigen' });
+    expect(within(liste).getByRole('link', { name: 'Lebensmittel werden knapp' })).toHaveAttribute('href', '/freizeiten/f1/lebensmittel');
+    expect(within(liste).getByText(/^Mörscher Au:/)).toBeInTheDocument();
+    expect(within(liste).getByText(/Reis \(leer\)/)).toBeInTheDocument();
+    expect(within(liste).getByText(/Milch \(3,5 l\)/)).toBeInTheDocument();
     expect(within(liste).queryByText(/Salz/)).not.toBeInTheDocument();
   });
 
@@ -224,21 +223,21 @@ describe('Heute: Leitung', () => {
       { freizeit_id: 'f1', person_id: 'lea', rolle: 'leitung' }, { freizeit_id: 'f1', person_id: 't1', rolle: 'teamer' }, { freizeit_id: 'f1', person_id: 't2', rolle: 'teamer' },
     ];
     zeige(leitung);
-    const liste = await screen.findByRole('list', { name: 'Nicht gesehene Hinweise' });
-    expect(within(liste).getByRole('link', { name: 'Sommer-Sause' })).toHaveAttribute('href', '/freizeiten/f1/hinweise');
-    expect(within(liste).getByText('1 Hinweis mit offenen Bestätigungen im Team')).toBeInTheDocument();
+    const liste = await screen.findByRole('list', { name: 'Zu erledigen' });
+    expect(within(liste).getByRole('link', { name: 'Hinweise noch nicht von allen gesehen' })).toHaveAttribute('href', '/freizeiten/f1/hinweise');
+    expect(within(liste).getByText('Sommer-Sause: 1 Hinweis mit offenen Bestätigungen im Team')).toBeInTheDocument();
   });
 
   it('die Leitung sieht nur die Hinweise und Lebensmittel ihrer eigenen Freizeiten, TeamerInnen gar nichts davon', async () => {
     zeige(teamer);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ bestand: false }));          // Bestände werden gar nicht erst angefragt
     expect(screen.queryByText('Für die Leitung')).not.toBeInTheDocument();
   });
 
   it('nichts knapp und nichts offen: die Karte fehlt', async () => {
     zeige(leitung);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(screen.queryByText('Für die Leitung')).not.toBeInTheDocument();
   });
 });
@@ -248,17 +247,17 @@ describe('Heute: Koordination', () => {
     stand.bewerbungen = 2;
     stand.vorschlaege = 1;
     zeige(koord);
-    const liste = await screen.findByRole('list', { name: 'Offene Aufgaben der Koordination' });
-    expect(await within(liste).findByText('2 Bewerbungen warten auf Entscheidung')).toBeInTheDocument();
-    expect(within(liste).getByText('1 Vorschlag wartet auf Prüfung')).toBeInTheDocument();
-    expect(within(liste).getByRole('link', { name: 'Bewerbungen' })).toHaveAttribute('href', '/bewerbungen');
-    expect(within(liste).getByRole('link', { name: 'Katalog-Vorschläge' })).toHaveAttribute('href', '/katalog/vorschlaege');
+    const raster = await screen.findByRole('list', { name: 'Überblick der Koordination' });
+    expect(await within(raster).findByRole('link', { name: /Bewerbungen\s*2\s*warten auf Entscheidung/ })).toHaveAttribute('href', '/bewerbungen');
+    expect(within(raster).getByRole('link', { name: /Katalog-Vorschläge\s*1\s*warten auf Prüfung/ })).toHaveAttribute('href', '/katalog/vorschlaege');
   });
 
-  it('nichts offen: freundliche Zeilen statt Zahlen', async () => {
+  it('nichts offen: Nullen mit ruhiger Beschriftung statt Warnung', async () => {
     zeige(koord);
-    expect(await screen.findByText('Keine offenen Bewerbungen')).toBeInTheDocument();
-    expect(screen.getByText('Keine offenen Vorschläge')).toBeInTheDocument();
+    const raster = await screen.findByRole('list', { name: 'Überblick der Koordination' });
+    const bewerbungen = await within(raster).findByRole('link', { name: /Bewerbungen\s*0\s*keine offen/ });
+    expect(bewerbungen.closest('li')).toHaveClass('bento__kachel--ruhig');
+    expect(within(raster).getByRole('link', { name: /Katalog-Vorschläge\s*0\s*keine offen/ })).toBeInTheDocument();
   });
 
   it('Saison-Überblick: aktuelle Freizeiten nach Ferienzeit, Warnung bei fehlender Leitung', async () => {
@@ -275,9 +274,9 @@ describe('Heute: Koordination', () => {
   it('die Koordination sieht laufende Freizeiten aller, keine „Freizeiten zum Bewerben“, aber Lebensmittel', async () => {
     stand.bestand = [{ ort_id: 'o2', name: 'Brot', einheit: null, rest: 0, status: 'leer' }];
     zeige(koord);
-    const laufend = await screen.findByRole('list', { name: 'Laufende Freizeiten' });
-    expect(within(laufend).getByRole('link', { name: 'Sommer-Sause' })).toBeInTheDocument();
-    expect(await screen.findByRole('list', { name: 'Knappe Lebensmittel' })).toBeInTheDocument();
+    const laufend = await screen.findByRole('list', { name: 'Heute' });
+    expect(within(laufend).getByRole('link', { name: 'Sommer-Sause läuft' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Lebensmittel werden knapp' })).toBeInTheDocument();
     expect(screen.queryByText('Freizeiten zum Bewerben')).not.toBeInTheDocument();
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ wuensche: 'alle' }));                  // alle Treffs
   });
@@ -298,7 +297,7 @@ describe('Heute: Hinweis zu Mitteilungen', () => {
     expect(screen.queryByRole('link', { name: 'Mitteilungen einschalten' })).not.toBeInTheDocument();
     unmount();
     zeige(teamer);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(screen.queryByRole('link', { name: 'Mitteilungen einschalten' })).not.toBeInTheDocument();     // gemerkt
   });
 
@@ -306,7 +305,7 @@ describe('Heute: Hinweis zu Mitteilungen', () => {
     for (const status of ['an', 'verweigert', 'nicht_eingerichtet'] as const) {
       vi.mocked(geraet.pruefeStatus).mockResolvedValue(status);
       const { unmount } = zeige(teamer);
-      await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+      await screen.findByRole('list', { name: 'Heute' });
       expect(screen.queryByRole('link', { name: 'Mitteilungen einschalten' })).not.toBeInTheDocument();
       unmount();
     }
@@ -322,12 +321,12 @@ describe('Heute: Hinweis zu Mitteilungen', () => {
   it('auf anderen Geräten ohne Unterstützung bleibt es still; ein Fehler bei der Prüfung auch', async () => {
     vi.mocked(geraet.pruefeStatus).mockResolvedValue('nicht_unterstuetzt');
     const { unmount } = zeige(teamer);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(screen.queryByText(/Home-Bildschirm/)).not.toBeInTheDocument();
     unmount();
     vi.mocked(geraet.pruefeStatus).mockRejectedValue(new Error('x'));
     zeige(teamer);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(screen.queryByRole('link', { name: 'Mitteilungen einschalten' })).not.toBeInTheDocument();
   });
 });
@@ -335,7 +334,7 @@ describe('Heute: Hinweis zu Mitteilungen', () => {
 describe('Heute: alles in einem Aufruf', () => {
   it('nach dem Laden von Freizeiten und Treffs genau EIN Aufruf für alles Übrige', async () => {
     zeige(teamer);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(heuteApi.ladeHeute).toHaveBeenCalledTimes(1);
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({
       heute: inTagen(0), notizFreizeiten: ['f1'], teamFreizeiten: [], planFreizeiten: ['f1'], kachelTreffs: [], besuch: true,
@@ -345,13 +344,13 @@ describe('Heute: alles in einem Aufruf', () => {
 
   it('die Leitung fragt Bestände und Team an, die Koordination zusätzlich Bewerbungen, Vorschläge und Fehler', async () => {
     zeige(leitung);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(heuteApi.ladeHeute).toHaveBeenLastCalledWith(expect.objectContaining({ bestand: true, teamFreizeiten: ['f1'], bewerbungen: false, fehler: false }));
   });
 
   it('die Koordination fragt nach Bewerbungen, Vorschlägen und Fehlern', async () => {
     zeige(koord);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(heuteApi.ladeHeute).toHaveBeenLastCalledWith(expect.objectContaining({ bewerbungen: true, vorschlaege: true, fehler: true, nachweise: true, wuensche: 'alle' }));
   });
 
@@ -369,19 +368,19 @@ describe('Heute: Neu seit deinem letzten Besuch', () => {
     stand.neuGesamt = 1;
     const u = userEvent.setup();
     zeige(teamer);
-    const liste = await screen.findByRole('list', { name: 'Neuigkeiten' });
+    const liste = await screen.findByRole('list', { name: 'Neu seit deinem letzten Besuch' });
     expect(within(liste).getByRole('link')).toHaveAttribute('href', '/freizeiten/f1/hinweise');
     const aufrufe = vi.mocked(heuteApi.ladeHeute).mock.calls.length;
     stand.neu = []; stand.neuGesamt = 0;
     await u.click(screen.getByRole('button', { name: 'Alles gesehen' }));
     expect(heuteApi.quittiereBesuch).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(vi.mocked(heuteApi.ladeHeute).mock.calls.length).toBeGreaterThan(aufrufe));
-    await waitFor(() => expect(screen.queryByRole('list', { name: 'Neuigkeiten' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Neu seit deinem letzten Besuch' })).not.toBeInTheDocument());
   });
 
   it('ohne Neuigkeiten oder beim ersten Besuch keine Karte', async () => {
     zeige(teamer);
-    await screen.findByRole('list', { name: 'Laufende Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(screen.queryByText('Neu seit deinem letzten Besuch')).not.toBeInTheDocument();
   });
 });
