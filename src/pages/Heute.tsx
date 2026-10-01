@@ -138,7 +138,7 @@ export function Heute() {
         <Feed heute={heute} eintraege={eintraege} seit={d?.seit ?? null} neuGesamt={d?.neuGesamt ?? 0} laedt={stand.laedt || freizeiten.laedt || !bereit}
           gesehen={async () => { await quittiereBesuch(); stand.neuLaden(); }} />
         <Schnellzugriff gruppen={kacheln} />
-        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} team={d?.team ?? []} />}
+        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} team={d?.team ?? []} heute={heute} />}
 
         {meineIds.size > 0 && (
           <Card>

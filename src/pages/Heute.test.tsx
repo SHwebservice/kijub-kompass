@@ -266,8 +266,14 @@ describe('Heute: Koordination', () => {
     const sommer = await screen.findByRole('region', { name: 'Sommer' });
     expect(within(sommer).getByRole('link', { name: 'Sommer-Sause' })).toBeInTheDocument();
     expect(within(sommer).getByRole('link', { name: 'Sommer-Sause 2' })).toBeInTheDocument();
-    expect(await screen.findByText(/Eine Freizeit hat noch keine Leitung: Sommer-Sause 2\./)).toBeInTheDocument();
+    const zahlen = await screen.findByRole('list', { name: 'Zusammenfassung' });
+    expect(within(zahlen).getByText('2 Freizeiten')).toBeInTheDocument();
+    expect(within(zahlen).getByText('1 läuft')).toBeInTheDocument();
+    expect(within(zahlen).getByText('1 ohne Leitung')).toBeInTheDocument();
     expect(within(sommer).getByText('Keine Leitung')).toBeInTheDocument();
+    expect(within(sommer).getByText('Läuft')).toBeInTheDocument();
+    expect(within(sommer).getByText('Leitung 1 · Team 0')).toBeInTheDocument();
+    expect(within(sommer).getByText('in 6 Tagen')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Herbstfahrt' })).not.toBeInTheDocument();           // liegt weit in der Zukunft
   });
 

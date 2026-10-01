@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   tageVonBis, tageZwischen, wochentagKurz, wochentagLang, formatDatum, formatKurz, zeitraumText, ferienText, phase,
   gruppiereNachFerien, darfBeworbenWerden, fruehesterBewerbungsstart, bestand, hochrechnung, sortiereTeam, heuteIso,
-  tageBisStart, freizeitFarbe, formatTagLang, type FreizeitKurz,
+  tageBisStart, freizeitFarbe, formatTagLang, formatMonatKurz, type FreizeitKurz,
 } from './logik';
 
 const fz = (o: Partial<FreizeitKurz> & { id: string }): FreizeitKurz => ({
@@ -122,5 +122,12 @@ describe('formatTagLang', () => {
     expect(formatTagLang('2027-07-05')).toBe('Mo., 5. Juli');
     expect(formatTagLang('2026-10-01')).toBe('Do., 1. Oktober');
     expect(formatTagLang('2027-12-31')).toBe('Fr., 31. Dezember');
+  });
+});
+
+describe('formatMonatKurz', () => {
+  it('abgekürzter Monatsname', () => {
+    expect(formatMonatKurz('2027-03-05')).toBe('Mär');
+    expect(formatMonatKurz('2027-12-31')).toBe('Dez');
   });
 });

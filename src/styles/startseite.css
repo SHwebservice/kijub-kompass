@@ -41,7 +41,31 @@
 .bento__kachel--haupt > a { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .bento__kachel--haupt .bento__label, .bento__kachel--haupt .bento__unter { color: var(--on-accent); }
 
+
+/* Saison-Überblick der Koordination */
+.saison__zahlen { list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-3); padding: 0; }
+.saison__zahl { padding: 4px 12px; border-radius: 999px; background: var(--surface-2); font-size: var(--fs-sm); font-weight: 600; }
+.saison__zahl--warnung { background: var(--danger-bg); color: var(--danger); }
+.saison__anzahl { color: var(--text-muted); font-weight: 400; }
+.saison { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+@media (min-width: 720px) { .saison { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.saison__karte {
+  position: relative; display: flex; gap: var(--space-3); align-items: center; min-width: 0; padding: var(--space-3);
+  border: 1px solid var(--glas-rand); border-radius: var(--radius); background: var(--glas); box-shadow: var(--glas-schatten);
+}
+.saison__karte--warnung { border-color: var(--danger); }
+.saison__karte:focus-within { box-shadow: var(--focus-ring); }
+.saison__datum { flex: none; display: grid; place-content: center; width: 54px; height: 54px; border-radius: 14px; background: var(--accent-bg); color: var(--accent); text-align: center; line-height: 1.1; }
+.saison__tag { display: block; font-size: 1.25rem; font-weight: 700; }
+.saison__monat { display: block; font-size: 0.72rem; font-weight: 600; }
+.saison__inhalt { min-width: 0; flex: 1; }
+.saison__titel { font-weight: 600; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.saison__titel::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.saison__titel:focus-visible { box-shadow: none; }
+.saison__meta { color: var(--text-muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.saison__chips { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .feed__karte, .bento__kachel > a { background: var(--surface); }
+  .feed__karte, .bento__kachel > a, .saison__karte { background: var(--surface); }
   .bento__kachel--haupt > a { background: var(--accent); }
 }
