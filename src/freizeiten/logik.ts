@@ -49,6 +49,10 @@ export const formatTagMonat = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}
 /** "2027-07-05" → "Mo 05.07." */
 export const formatKurz = (d: string) => `${wochentagKurz(d)} ${formatTagMonat(d)}`;
 
+const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+/** "2027-07-05" → "Mo., 5. Juli" */
+export const formatTagLang = (d: string) => `${wochentagKurz(d)}., ${Number(d.slice(8, 10))}. ${MONATE[Number(d.slice(5, 7)) - 1]}`;
+
 export function zeitraumText(start: string, ende: string): string {
   return start === ende ? formatDatum(start) : `${formatDatum(start)} – ${formatDatum(ende)}`;
 }

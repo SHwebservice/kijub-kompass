@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fehlerText } from '../../lib/fehler';
-import { formatDatum } from '../../freizeiten/logik';
+import { formatTagLang } from '../../freizeiten/logik';
 import { jeGruppe, type FeedEintrag, type FeedGruppe } from '../../heute/feed';
 import { Alert, Badge, Button, EmptyState } from '../../components/ui';
 
 const uhrzeit = (iso: string) => {
   const d = new Date(iso);
-  return `${formatDatum(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} Uhr`;
+  return `${formatTagLang(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} Uhr`;
 };
 
 /** Eine Karte im Feed: die ganze Karte ist ein Link; der Knopf darunter benennt nur, was dort passiert. */
@@ -63,7 +63,7 @@ export function Feed({ heute, eintraege, seit, neuGesamt, gesehen, laedt }: Prop
         const liste = jeGruppe(eintraege, g);
         return (
           <section key={g} aria-labelledby={`feed-${g}`}>
-            <h2 id={`feed-${g}`} className="feed__titelzeile">{g === 'heute' ? `Heute · ${formatDatum(heute)}` : TITEL[g]}</h2>
+            <h2 id={`feed-${g}`} className="feed__titelzeile">{g === 'heute' ? `Heute · ${formatTagLang(heute)}` : TITEL[g]}</h2>
             {g === 'neu' && seit && <p className="field__hint">Seit {uhrzeit(seit)} – ohne deine eigenen Änderungen.</p>}
             {g === 'neu' && fehler && <Alert ton="error">{fehler}</Alert>}
             <ul className="feed" aria-label={TITEL[g]}>

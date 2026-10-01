@@ -100,8 +100,8 @@ describe('Heute: TeamerIn', () => {
     ];
     zeige(teamer);
     const liste = await screen.findByRole('list', { name: 'Zu erledigen' });
-    expect(within(liste).getByRole('link', { name: 'Sommer-Sause' })).toHaveAttribute('href', '/freizeiten/f1/hinweise');
-    expect(within(liste).getByText('2 Hinweise zum Bestätigen')).toBeInTheDocument();
+    expect(within(liste).getByRole('link', { name: '2 Hinweise zum Bestätigen' })).toHaveAttribute('href', '/freizeiten/f1/hinweise');
+    expect(within(liste).getByText('Sommer-Sause')).toBeInTheDocument();
     expect(within(liste).queryByText(/Absprache/)).not.toBeInTheDocument();     // TeamerInnen bestätigen keine Absprachen
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ notizFreizeiten: ['f1'], notizTreffs: [] }));
   });
@@ -181,7 +181,7 @@ describe('Heute: Treffs', () => {
     stand.notizen = [notiz({ id: 'a', art: 'absprache', freizeit_id: null, treff_id: 't1', quelle: 'Kindertreff' })];
     zeige(tzk);
     const liste = await screen.findByRole('list', { name: 'Zu erledigen' });
-    expect(within(liste).getByRole('link', { name: 'Kindertreff' })).toHaveAttribute('href', '/treffs/t1/absprachen');
+    expect(within(liste).getByRole('link', { name: '1 Absprache zum Bestätigen' })).toHaveAttribute('href', '/treffs/t1/absprachen');
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ notizFreizeiten: [], notizTreffs: ['t1'] }));
   });
 

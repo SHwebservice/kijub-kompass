@@ -64,9 +64,9 @@ export function baueFeed(e: FeedEingabe): FeedEintrag[] {
     liste.push({ id: `protokoll-${t.id}`, gruppe: 'erledigen', icon: '📝', ton: 'warnung', titel: 'Tagesprotokoll fehlt', text: `${t.name} · heute ist geöffnet – bitte das Protokoll schreiben.`, link: `/treffs/${t.id}/protokoll`, aktion: 'Jetzt schreiben' });
   }
   for (const g of e.offene) {
-    const teile = [g.hinweise > 0 && `${personenText(g.hinweise, 'Hinweis', 'Hinweise')} zum Bestätigen`, g.absprachen > 0 && `${personenText(g.absprachen, 'Absprache', 'Absprachen')} zum Bestätigen`].filter(Boolean);
+    const teile = [g.hinweise > 0 && personenText(g.hinweise, 'Hinweis', 'Hinweise'), g.absprachen > 0 && personenText(g.absprachen, 'Absprache', 'Absprachen')].filter(Boolean);
     liste.push({
-      id: `offen-${g.schluessel}`, gruppe: 'erledigen', icon: g.typ === 'treff' ? '🤝' : '📣', ton: 'warnung', titel: g.name, text: teile.join(' · '),
+      id: `offen-${g.schluessel}`, gruppe: 'erledigen', icon: g.typ === 'treff' ? '🤝' : '📣', ton: 'warnung', titel: `${teile.join(' und ')} zum Bestätigen`, text: g.name,
       link: g.typ === 'treff' ? `/treffs/${g.id}/absprachen` : `/freizeiten/${g.id}/hinweise`, aktion: 'Ansehen', zahl: g.anzahl,
     });
   }

@@ -31,8 +31,8 @@ describe('baueFeed', () => {
         { schluessel: 't-t1', typ: 'treff', id: 't1', name: 'Kindertreff', anzahl: 1, hinweise: 0, absprachen: 1 },
       ],
     }));
-    expect(f[0]).toMatchObject({ link: '/freizeiten/f1/hinweise', zahl: 3, text: '2 Hinweise zum Bestätigen · 1 Absprache zum Bestätigen' });
-    expect(f[1]).toMatchObject({ link: '/treffs/t1/absprachen', zahl: 1, text: '1 Absprache zum Bestätigen' });
+    expect(f[0]).toMatchObject({ link: '/freizeiten/f1/hinweise', zahl: 3, titel: '2 Hinweise und 1 Absprache zum Bestätigen', text: 'Sommer' });
+    expect(f[1]).toMatchObject({ link: '/treffs/t1/absprachen', zahl: 1, titel: '1 Absprache zum Bestätigen', text: 'Kindertreff' });
   });
 
   it('knappe Lebensmittel: Ort, Artikel mit Rest, Link zum Lebensmittel-Reiter; ohne Freizeit zur Liste', () => {

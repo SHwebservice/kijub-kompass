@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   tageVonBis, tageZwischen, wochentagKurz, wochentagLang, formatDatum, formatKurz, zeitraumText, ferienText, phase,
   gruppiereNachFerien, darfBeworbenWerden, fruehesterBewerbungsstart, bestand, hochrechnung, sortiereTeam, heuteIso,
-  tageBisStart, freizeitFarbe, type FreizeitKurz,
+  tageBisStart, freizeitFarbe, formatTagLang, type FreizeitKurz,
 } from './logik';
 
 const fz = (o: Partial<FreizeitKurz> & { id: string }): FreizeitKurz => ({
@@ -114,5 +114,13 @@ describe('Team', () => {
       { rolle: 'leitung', nachname: 'Berg', vorname: 'B' },
     ]);
     expect(s.map((x) => x.nachname)).toEqual(['Berg', 'Zorn', 'Adler', 'Ärmel']);
+  });
+});
+
+describe('formatTagLang', () => {
+  it('Wochentag, Tag ohne führende Null und ausgeschriebener Monat', () => {
+    expect(formatTagLang('2027-07-05')).toBe('Mo., 5. Juli');
+    expect(formatTagLang('2026-10-01')).toBe('Do., 1. Oktober');
+    expect(formatTagLang('2027-12-31')).toBe('Fr., 31. Dezember');
   });
 });
