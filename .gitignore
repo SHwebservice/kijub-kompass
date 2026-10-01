@@ -9,3 +9,4 @@ supabase/.temp
 supabase/.branches
 graphify-out
 .env.push
+.env.sicherung
