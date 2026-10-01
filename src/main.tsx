@@ -6,7 +6,10 @@ import { installiereFehlerMeldung } from './fehlermeldungen/melden';
 import { meldeFehler } from './fehlermeldungen/melder';
 import './styles/tokens.css';
 import './styles/base.css';
+import './styles/glas.css';
+import { starteDarstellung } from './theme/darstellung';
 
+starteDarstellung();
 installiereFehlerMeldung(meldeFehler);
 
 createRoot(document.getElementById('root')!).render(

@@ -4,6 +4,7 @@ import { Spinner } from './ui';
 import { NavLink, Outlet } from 'react-router-dom';
 import { navigation, type NavEintrag } from '../lib/rollen';
 import { useAuth } from '../lib/auth-kontext';
+import { DarstellungsKnopf } from './DarstellungsUmschalter';
 
 function Navigation({ eintraege, beschriftung }: { eintraege: NavEintrag[]; beschriftung: string }) {
   return (
@@ -31,7 +32,10 @@ export function AppShell() {
             <img src={LOGO} alt="" width="28" height="28" />
             <span>KiJuB-Kompass</span>
           </NavLink>
-          <div className="shell__nav-top"><Navigation eintraege={eintraege} beschriftung="Hauptnavigation" /></div>
+          <div className="shell__kopf-rechts">
+            <div className="shell__nav-top"><Navigation eintraege={eintraege} beschriftung="Hauptnavigation" /></div>
+            <DarstellungsKnopf />
+          </div>
         </div>
       </header>
       <main id="inhalt" className="shell__main" tabIndex={-1}>

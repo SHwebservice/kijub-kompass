@@ -90,3 +90,29 @@ describe('Kontrastrechnung selbst', () => {
     expect(ueber([0, 0, 0, 0.5], [255, 255, 255, 1])).toEqual([128, 128, 128, 1]);
   });
 });
+
+/** Glas: Text auf durchscheinender Fläche auf der stärksten Farbwolke (schlechtester Fall, die Wolken verlaufen nach außen weich aus). */
+describe.each(Object.entries(schemata))('Glas im %s Farbschema', (_name, schema) => {
+  const TEXTE = ['text', 'text-muted', 'text-hint', 'accent', 'danger', 'success', 'warning', 'orange'];
+  const grundMit = (glas: string, wolke: string): Farbe => ueber(farbe(schema[glas]!), ueber(farbe(schema[wolke]!), farbe(schema.bg!)));
+  const faelle = ['glas', 'glas-stark'].flatMap((g) => ['wolke-1', 'wolke-2', 'wolke-3'].flatMap((wo) => TEXTE.map((x) => [x, g, wo] as const)));
+
+  it.each(faelle)('%s auf %s über %s: mindestens 4,5 : 1', (text, glas, wolke) => {
+    expect(kontrast(farbe(schema[text]!), grundMit(glas, wolke)), `${text} auf ${glas} über ${wolke}`).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('Text auf Glas ohne Wolke darunter (am Rand der Seite) ist ebenfalls lesbar', () => {
+    for (const g of ['glas', 'glas-stark']) for (const x of TEXTE) {
+      const grund = ueber(farbe(schema[g]!), farbe(schema.bg!));
+      expect(kontrast(farbe(schema[x]!), grund), `${x} auf ${g}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
+
+describe('Dunkel als feste Wahl', () => {
+  it('„data-theme=dark“ hat dieselben Werte wie das Gerät im Dunkelmodus', () => {
+    const medien = css.slice(css.indexOf('@media (prefers-color-scheme: dark)'), css.indexOf("/* Feste Wahl"));
+    const fest = css.slice(css.indexOf(":root[data-theme='dark'] {"));
+    expect(werte(fest.slice(0, fest.indexOf('\n}')))).toEqual(werte(medien));
+  });
+});

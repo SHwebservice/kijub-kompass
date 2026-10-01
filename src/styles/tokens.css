@@ -5,27 +5,27 @@
   color-scheme: light dark;
 
   /* Flächen & Text */
-  --bg: #f2f4f8;
+  --bg: #eaf1ff;
   --surface: #ffffff;
   --surface-2: #edf0f5;
   --border: rgb(0 0 0 / 0.11);
   --border-strong: rgb(0 0 0 / 0.5);          /* Rahmen von Eingaben und Knöpfen: mindestens 3 : 1 */
   --text: #1a1a2e;
   --text-muted: #4a5068;
-  --text-hint: #5d637a;
+  --text-hint: #565c73;
 
   /* Marke */
   --accent: #1b4b8a;
   --accent-hover: #123672;
   --accent-bg: #e8eef8;
   --on-accent: #ffffff;
-  --orange: #c93a16;           /* dunkler als das Logo-Orange, damit Text darauf/daneben AA erreicht */
+  --orange: #b5320f;           /* dunkler als das Logo-Orange, damit Text darauf/daneben AA erreicht */
   --orange-bg: #fdeee9;
 
   /* Zustände */
   --danger: #b3261e;
   --danger-bg: #fcebea;
-  --success: #1e7a45;
+  --success: #1a6d3c;
   --success-bg: #e6f4ec;
   --warning: #8a5a00;
   --warning-bg: #fff4d6;
@@ -36,6 +36,18 @@
   --radius-lg: 20px;
   --shadow-soft: 0 4px 20px rgb(15 23 42 / 0.06);
   --focus-ring: 0 0 0 3px rgb(27 75 138 / 0.8);
+
+  /* Glas: durchscheinende Flächen auf Farbwolken. Lesbarkeit: tests/betrieb/kontrast.test.ts rechnet den schlechtesten Fall
+     (Text auf Glas auf der stärksten Wolke) mit; bei „Transparenz reduzieren“ oder hohem Kontrast werden die Flächen deckend (glas.css). */
+  --glas: rgb(255 255 255 / 0.62);
+  --glas-stark: rgb(255 255 255 / 0.74);
+  --glas-rand: rgb(255 255 255 / 0.85);
+  --glas-schatten: 0 6px 24px rgb(40 70 140 / 0.12);
+  --glas-schatten-stark: 0 8px 24px rgb(40 70 140 / 0.18);
+  --glas-blur: 18px;
+  --wolke-1: rgb(143 180 255 / 0.7);
+  --wolke-2: rgb(255 180 160 / 0.7);
+  --wolke-3: rgb(201 182 255 / 0.7);
 
   /* Abstände (4-px-Raster) */
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
@@ -55,8 +67,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #101420;
+  :root:not([data-theme='light']) {
+    --bg: #0d1226;
     --surface: #181d2c;
     --surface-2: #212738;
     --border: rgb(255 255 255 / 0.12);
@@ -81,5 +93,54 @@
 
     --shadow-soft: 0 4px 20px rgb(0 0 0 / 0.4);
     --focus-ring: 0 0 0 3px rgb(122 167 232 / 0.85);
+
+    --glas: rgb(24 29 44 / 0.66);
+    --glas-stark: rgb(24 29 44 / 0.8);
+    --glas-rand: rgb(255 255 255 / 0.16);
+    --glas-schatten: 0 8px 28px rgb(0 0 0 / 0.4);
+    --glas-schatten-stark: 0 8px 28px rgb(0 0 0 / 0.5);
+    --wolke-1: rgb(59 98 217 / 0.5);
+    --wolke-2: rgb(217 70 122 / 0.42);
+    --wolke-3: rgb(124 77 224 / 0.5);
   }
 }
+
+/* Feste Wahl in der App (Mehr → Darstellung): gleiche Werte wie oben; ein Test prüft, dass beide Blöcke übereinstimmen. */
+:root[data-theme='dark'] {
+  --bg: #0d1226;
+  --surface: #181d2c;
+  --surface-2: #212738;
+  --border: rgb(255 255 255 / 0.12);
+  --border-strong: rgb(255 255 255 / 0.45);
+  --text: #eef0f7;
+  --text-muted: #b4b9cc;
+  --text-hint: #9198b0;
+
+  --accent: #7aa7e8;
+  --accent-hover: #9dbdf0;
+  --accent-bg: #1f2c47;
+  --on-accent: #0b1220;
+  --orange: #ff8a65;
+  --orange-bg: #3a2019;
+
+  --danger: #ff8a80;
+  --danger-bg: #3a1f1d;
+  --success: #6fd49a;
+  --success-bg: #17301f;
+  --warning: #f2c35c;
+  --warning-bg: #36290a;
+
+  --shadow-soft: 0 4px 20px rgb(0 0 0 / 0.4);
+  --focus-ring: 0 0 0 3px rgb(122 167 232 / 0.85);
+
+  --glas: rgb(24 29 44 / 0.66);
+  --glas-stark: rgb(24 29 44 / 0.8);
+  --glas-rand: rgb(255 255 255 / 0.16);
+  --glas-schatten: 0 8px 28px rgb(0 0 0 / 0.4);
+  --glas-schatten-stark: 0 8px 28px rgb(0 0 0 / 0.5);
+  --wolke-1: rgb(59 98 217 / 0.5);
+  --wolke-2: rgb(217 70 122 / 0.42);
+  --wolke-3: rgb(124 77 224 / 0.5);
+}
+:root[data-theme='light'] { color-scheme: light; }
+:root[data-theme='dark'] { color-scheme: dark; }
