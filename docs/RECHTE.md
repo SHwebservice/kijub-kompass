@@ -93,6 +93,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Abwesenheiten (Urlaub/Krank) | L E Ä X | — | — | L E Ä X (Personen des Treffs) | L (eig.) | — |
 | Feiertage | L E Ä X | — | — | L (Treff) E Ä X (eigener Treff) | L | — |
 | Nachweis Teilzeitkräfte (Entwurf) | L Ä X | — | — | L (Treff) | eig.: L E Ä X | — · **Δ** lag nur lokal im Browser |
+| Nachweis für andere erstellen lassen (Migration 0022) | — | — | — | Treff (alle TZK oder eine Person) | — | — |
 | Nachweis einreichen | — | — | — | — | eig. | — |
 | Nachweis freigeben/ablehnen | alle | — | — | Treff | — | — |
 | Statistik Dienste/Stunden | L | — | — | L (Treff) | L (eig.) | — |

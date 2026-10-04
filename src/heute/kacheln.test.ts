@@ -101,7 +101,7 @@ describe('Schnellzugriff: Treffs', () => {
     expect(kachel(k, 'wuensche')).toMatchObject({ badge: 2, pfad: '/treffs/t1/dienstplan' });
     expect(kachel(k, 'nachweis')!.badge).toBe(3);
     expect(kachel(k, 'dienstplan')!.badge).toBe(1);
-    expect(kachel(k, 'monat')!.pfad).toBe('/treffs/t1/monat');
+    expect(kachel(k, 'monat')!.pfad).toBe('/treffs/t1/dienstplan?ansicht=monat');
     expect(kachel(k, 'abwesenheit')!.pfad).toBe('/treffs/t1/verwaltung');
   });
   it('wer in keinem Treff ist und nicht Koordination: keine Treff-Gruppe', () => {

@@ -1,4 +1,5 @@
 import { useCallback, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
@@ -17,6 +18,7 @@ import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
 import type { RolleInTreff } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, Spinner } from '../../components/ui';
 import { SonderdienstSheet, ZuteilenSheet } from './DienstSheets';
+import { MonatTab } from './MonatTab';
 
 type Ziel = { art: 'zuteilen'; datum: string; dienst: Dienst | null } | { art: 'sonder'; dienst: Dienst | null };
 
@@ -24,11 +26,14 @@ const WUNSCH_LABEL = { offen: 'Wunsch offen', bestaetigt: 'Wunsch bestätigt', a
 const WUNSCH_TON = { offen: 'warning', bestaetigt: 'success', abgelehnt: 'danger' } as const;
 const datumZeit = (iso: string) => `${formatDatum(iso.slice(0, 10))} ${iso.slice(11, 16)}`;
 
+interface AnsichtProps { treff: TreffDetailDaten; rolle: RolleInTreff; fokus: string; setFokus: (datum: string) => void }
+
 /** Dienstplan einer Kalenderwoche: Öffnungstage mit Zuteilung, Wünsche, Sonderdienste, Feiertage, Abwesenheiten und Wochenkommentare. */
-export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; rolle: RolleInTreff }) {
+function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
   const { ich } = useAuth();
   const heute = heuteIso();
-  const [montag, setMontag] = useState(() => montagVon(heute));
+  const montag = montagVon(fokus);
+  const setMontag = (m: string) => setFokus(m);
   const sonntag = addTage(montag, 6);
   const schluessel = `${t.id}-${montag}`;
 
@@ -149,7 +154,7 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
         <Button aria-label="Vorherige Woche" onClick={() => setMontag(addTage(montag, -7))}>←</Button>
         <div style={{ textAlign: 'center' }}>
           <strong>{wochenText(montag)}</strong>
-          {montag !== montagVon(heute) && <div><Button klein variante="ghost" onClick={() => setMontag(montagVon(heute))}>Zur aktuellen Woche</Button></div>}
+          {montag !== montagVon(heute) && <div><Button klein variante="ghost" onClick={() => setFokus(heute)}>Zur aktuellen Woche</Button></div>}
         </div>
         <Button aria-label="Nächste Woche" onClick={() => setMontag(addTage(montag, 7))}>→</Button>
       </div>
@@ -199,6 +204,33 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
         <SonderdienstSheet treffId={t.id} dienst={ziel.dienst} startDatum={montag <= heute && heute <= sonntag ? heute : montag} team={mitglieder}
           abwesenheiten={abwesenheiten.daten ?? []} schliessen={schliessen} geaendert={() => dienste.neuLaden()} />
       )}
+    </div>
+  );
+}
+
+/** Reiter „Dienstplan“: Wochen- oder Monatsansicht, umschaltbar. Der gewählte Zeitraum bleibt beim Umschalten erhalten; die Ansicht steht in der Adresse (?ansicht=monat). */
+export function DienstplanTab({ treff, rolle }: { treff: TreffDetailDaten; rolle: RolleInTreff }) {
+  const [params, setParams] = useSearchParams();
+  const ansicht = params.get('ansicht') === 'monat' ? 'monat' : 'woche';
+  const [fokus, setFokus] = useState(() => heuteIso());
+
+  function wechsle(neu: 'woche' | 'monat') {
+    if (neu === ansicht) return;
+    const heute = heuteIso();
+    // Von der Monats- zur Wochenansicht: im laufenden Monat zur heutigen Woche, sonst zur Woche des Monatsanfangs
+    if (neu === 'woche' && fokus.slice(0, 7) === heute.slice(0, 7)) setFokus(heute);
+    setParams(neu === 'monat' ? { ansicht: 'monat' } : {}, { replace: true });
+  }
+
+  return (
+    <div className="stack">
+      <div className="segment" role="group" aria-label="Ansicht des Dienstplans">
+        <button type="button" className="segment__knopf" aria-pressed={ansicht === 'woche'} onClick={() => wechsle('woche')}>Woche</button>
+        <button type="button" className="segment__knopf" aria-pressed={ansicht === 'monat'} onClick={() => wechsle('monat')}>Monat</button>
+      </div>
+      {ansicht === 'woche'
+        ? <WochenAnsicht treff={treff} rolle={rolle} fokus={fokus} setFokus={setFokus} />
+        : <MonatTab treff={treff} rolle={rolle} fokus={fokus} setFokus={setFokus} />}
     </div>
   );
 }

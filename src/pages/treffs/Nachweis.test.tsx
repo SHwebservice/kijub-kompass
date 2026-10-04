@@ -251,6 +251,51 @@ describe('Nachweis: Treffleitung und Koordination', () => {
   });
 });
 
+describe('Nachweis: Nachweise erstellen lassen (Treffleitung und Koordination)', () => {
+  beforeEach(() => { vi.mocked(api.erstelleNachweise).mockResolvedValue(2); });
+
+  it('ohne Nachweise: erklärt, was passiert, und erstellt alle auf einmal', async () => {
+    zeige(leitung, 'treffleitung');
+    expect(await screen.findByText(/Für 2 Teilzeitkräfte gibt es noch keinen Nachweis/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Alle 2 Nachweise erstellen' }));
+    expect(api.erstelleNachweise).toHaveBeenCalledWith('t1', monat, null);
+    expect(await screen.findByText('2 Nachweise wurden erstellt und aus dem Dienstplan befüllt.')).toBeInTheDocument();
+    expect(api.listeNachweise).toHaveBeenCalledTimes(2);      // danach neu geladen
+  });
+
+  it('je Person ein Knopf „Erstellen“; wer schon einen Nachweis hat, hat keinen', async () => {
+    vi.mocked(api.listeNachweise).mockResolvedValue([nachweis()]);
+    vi.mocked(api.erstelleNachweise).mockResolvedValue(1);
+    zeige(koord, 'koordination');
+    expect(await screen.findByText(/Für eine Teilzeitkraft gibt es noch keinen Nachweis/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nachweis für Anna Adler erstellen' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Nachweis für Ben Baum erstellen' }));
+    expect(api.erstelleNachweise).toHaveBeenCalledWith('t1', monat, 'ben');
+    expect(await screen.findByText('Ein Nachweis wurde erstellt und aus dem Dienstplan befüllt.')).toBeInTheDocument();
+  });
+
+  it('haben alle schon einen Nachweis, gibt es nichts zu erstellen', async () => {
+    vi.mocked(api.listeNachweise).mockResolvedValue([nachweis(), nachweis({ id: 'n2', person_id: 'ben', zeilen: [] })]);
+    zeige(leitung, 'treffleitung');
+    await screen.findByRole('list');
+    expect(screen.queryByText(/noch keinen Nachweis/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Nachweise? erstellen/ })).not.toBeInTheDocument();
+  });
+
+  it('zeigt Fehler beim Erstellen', async () => {
+    vi.mocked(api.erstelleNachweise).mockRejectedValue(new Error('x'));
+    zeige(leitung, 'treffleitung');
+    await userEvent.click(await screen.findByRole('button', { name: 'Alle 2 Nachweise erstellen' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/konnten nicht erstellt werden|x/);
+  });
+
+  it('Teilzeitkräfte selbst sehen diese Knöpfe nicht', async () => {
+    zeige(tzk, 'betreuerin');
+    await screen.findByRole('button', { name: 'Nachweis anlegen' });
+    expect(screen.queryByRole('button', { name: /erstellen/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('Barrierefreiheit (axe)', () => {
   it('keine Verstöße gegen gängige Regeln', async () => {
     vi.mocked(api.listeNachweise).mockResolvedValue([nachweis()]);

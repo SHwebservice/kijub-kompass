@@ -102,7 +102,7 @@ describe('Startseite: Schnellzugriff', () => {
     zeige(tzk);
     await screen.findByRole('navigation', { name: 'Schnellzugriff' });
     expect(await within(screen.getByRole('list', { name: 'Treffs' })).findByRole('link', { name: /Dienstplan\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/dienstplan');
-    expect(kachelLink('Treffs', /^Nachweis/)).toHaveAttribute('href', '/treffs/t1/nachweis');
+    expect(kachelLink('Treffs', /^Stundennachweis/)).toHaveAttribute('href', '/treffs/t1/nachweis');
     expect(kachelLink('Treffs', /^Absprachen/)).toHaveAttribute('href', '/treffs/t1/absprachen');
     expect(kachelLink('Treffs', 'Alle Treffs')).toHaveAttribute('href', '/treffs');
     expect(kachelLink('Wissen & Konto', 'Treffmappe')).toHaveAttribute('href', '/treffmappe');
@@ -115,8 +115,8 @@ describe('Startseite: Schnellzugriff', () => {
     zeige(treffleitung);
     const treffs = await screen.findByRole('list', { name: 'Treffs' });
     expect(await within(treffs).findByRole('link', { name: /Dienstwünsche\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/dienstplan');
-    expect(await within(treffs).findByRole('link', { name: /Nachweis\s*Offen:\s*3/ })).toHaveAttribute('href', '/treffs/t1/nachweis');
-    expect(within(treffs).getByRole('link', { name: 'Monatsplan' })).toHaveAttribute('href', '/treffs/t1/monat');
+    expect(await within(treffs).findByRole('link', { name: /Stundennachweis\s*Offen:\s*3/ })).toHaveAttribute('href', '/treffs/t1/nachweis');
+    expect(within(treffs).getByRole('link', { name: 'Monatsplan' })).toHaveAttribute('href', '/treffs/t1/dienstplan?ansicht=monat');
     expect(within(treffs).getByRole('link', { name: 'Abwesenheit & Feiertage' })).toHaveAttribute('href', '/treffs/t1/verwaltung');
   });
 
@@ -218,7 +218,7 @@ describe('Startseite: Koordination getrennt nach Bereichen', () => {
     zeige(tkOnly);
     const treffs = await screen.findByRole('list', { name: 'Treffs' });
     expect(await within(treffs).findByRole('link', { name: /Tagesprotokoll\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/protokoll');
-    expect(await within(treffs).findByRole('link', { name: /Nachweis\s*Offen:\s*2/ })).toBeInTheDocument();
+    expect(await within(treffs).findByRole('link', { name: /Stundennachweis\s*Offen:\s*2/ })).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Freizeiten' })).not.toBeInTheDocument();
     const verwaltung = screen.getByRole('list', { name: 'Verwaltung' });
     expect(verwaltung.querySelector('a[href="/treffs/neu"]')).not.toBeNull();

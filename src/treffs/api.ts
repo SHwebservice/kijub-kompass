@@ -270,6 +270,11 @@ export async function legeNachweisAn(treffId: string, personId: string, monat: s
   return id;
 }
 
+/** Treffleitung und Treffkoordination: erstellt die Nachweise eines Monats aus dem Dienstplan – für eine Person oder alle Teilzeitkräfte des Treffs. Liefert die Zahl neu erstellter Nachweise. */
+export async function erstelleNachweise(treffId: string, monat: string, personId: string | null = null): Promise<number> {
+  return Number(pruefe(await supabase.rpc('fn_nachweise_erstellen', { p_treff: treffId, p_monat: monat, p_person: personId })));
+}
+
 /** Ersetzt die aus Dienstplan und Abwesenheiten erzeugten Zeilen; manuelle bleiben. */
 export async function befuelleNachweis(id: string): Promise<void> {
   pruefe(await supabase.rpc('fn_nachweis_befuellen', { p_nachweis: id }));

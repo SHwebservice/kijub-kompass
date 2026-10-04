@@ -4,7 +4,7 @@ import { useLaden } from '../../lib/laden';
 import { fehlerText } from '../../lib/fehler';
 import { formatDatum, formatKurz, heuteIso } from '../../freizeiten/logik';
 import {
-  befuelleNachweis, holeTreffTeam, legeNachweisAn, listeNachweise, loescheNachweis, loescheZeile, setzeNachweisStatus, speichereUnterschrift, speichereZeile,
+  befuelleNachweis, erstelleNachweise, holeTreffTeam, legeNachweisAn, listeNachweise, loescheNachweis, loescheZeile, setzeNachweisStatus, speichereUnterschrift, speichereZeile,
   type TreffDetailDaten, type TreffTeamMitglied,
 } from '../../treffs/api';
 import { monatErster, monatText, monatVersatz } from '../../treffs/dienstplan';
@@ -206,6 +206,7 @@ export function NachweisTab({ treff: t, rolle }: { treff: TreffDetailDaten; roll
   const [offen, setOffen] = useState<string | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
+  const [erfolg, setErfolg] = useState<string | null>(null);
   const team = useLaden(() => holeTreffTeam(t.id), `treffteam-${t.id}`);
   const nachweise = useLaden(() => listeNachweise(t.id, monat), `nachweise-${t.id}-${monat}`);
   if (!ich) return null;
@@ -226,11 +227,24 @@ export function NachweisTab({ treff: t, rolle }: { treff: TreffDetailDaten; roll
     catch (e) { setFehler(fehlerText(e, 'Der Nachweis konnte nicht angelegt werden.')); } finally { setArbeitet(false); }
   }
 
-  const blaettern = (n: number) => { setMonat(monatVersatz(monat, n)); setOffen(null); setFehler(null); };
+  const ohneNachweis = tzk.filter((m) => !alle.some((x) => x.person_id === m.person_id));
+
+  /** Treffleitung und Koordination: Nachweise für eine Person oder alle Teilzeitkräfte erstellen lassen. */
+  async function erstellen(person: TreffTeamMitglied | null) {
+    setFehler(null); setErfolg(null); setArbeitet(true);
+    try {
+      const n = await erstelleNachweise(t.id, monat, person?.person_id ?? null);
+      setErfolg(n === 0 ? 'Es gab nichts zu erstellen.' : n === 1 ? 'Ein Nachweis wurde erstellt und aus dem Dienstplan befüllt.' : `${n} Nachweise wurden erstellt und aus dem Dienstplan befüllt.`);
+      nachweise.neuLaden();
+    } catch (e) { setFehler(fehlerText(e, 'Die Nachweise konnten nicht erstellt werden.')); } finally { setArbeitet(false); }
+  }
+
+  const blaettern = (n: number) => { setMonat(monatVersatz(monat, n)); setOffen(null); setFehler(null); setErfolg(null); };
 
   return (
     <div className="stack">
       {(ladefehler || fehler) && <Alert ton="error">{ladefehler ?? fehler}</Alert>}
+      {erfolg && <Alert ton="success">{erfolg}</Alert>}
 
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <Button aria-label="Vorheriger Monat" onClick={() => blaettern(-1)}>←</Button>
@@ -256,6 +270,15 @@ export function NachweisTab({ treff: t, rolle }: { treff: TreffDetailDaten; roll
         <Card>
           <h2>Teilzeitkräfte im {monatText(monat)}</h2>
           {tzk.length === 0 && <p>Im Team ist niemand in der Kategorie TZK.</p>}
+          {ohneNachweis.length > 0 && (
+            <>
+              <p>
+                {ohneNachweis.length === 1 ? 'Für eine Teilzeitkraft gibt es' : `Für ${ohneNachweis.length} Teilzeitkräfte gibt es`} noch keinen Nachweis.
+                Beim Erstellen werden die Zeilen aus dem Dienstplan und den Abwesenheiten befüllt. Die Teilzeitkräfte prüfen, ändern und reichen den Nachweis danach ein.
+              </p>
+              <p><Button variante="primary" laedt={arbeitet} onClick={() => void erstellen(null)}>{ohneNachweis.length === 1 ? 'Nachweis erstellen' : `Alle ${ohneNachweis.length} Nachweise erstellen`}</Button></p>
+            </>
+          )}
           <ul className="list">
             {tzk.map((m) => {
               const n = alle.find((x) => x.person_id === m.person_id);
@@ -268,6 +291,7 @@ export function NachweisTab({ treff: t, rolle }: { treff: TreffDetailDaten; roll
                     </div>
                   </div>
                   {n && <Button klein aria-pressed={gewaehlt === n.id} onClick={() => setOffen(gewaehlt === n.id ? null : n.id)}>{gewaehlt === n.id ? 'Schließen' : 'Öffnen'}</Button>}
+                  {!n && <Button klein disabled={arbeitet} aria-label={`Nachweis für ${m.vorname} ${m.nachname} erstellen`} onClick={() => void erstellen(m)}>Erstellen</Button>}
                 </li>
               );
             })}

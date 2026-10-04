@@ -8,7 +8,6 @@ import { TreffUebersicht } from './TreffUebersicht';
 import { TreffTeamTab } from './TreffTeamTab';
 import { TreffAbsprachenTab } from './TreffAbsprachenTab';
 import { DienstplanTab } from './DienstplanTab';
-import { MonatTab } from './MonatTab';
 import { VerwaltungTab } from './VerwaltungTab';
 import { NachweisTab } from './NachweisTab';
 import { ProtokollTab } from './ProtokollTab';
@@ -22,8 +21,7 @@ export const TREFF_TABS: TabDef[] = [
   { pfad: 'protokoll', label: 'Tagesprotokoll', sichtbar: (r) => r !== 'gast' },
   { pfad: 'notizen', label: 'Notizen', sichtbar: (r) => r !== 'gast' },
   { pfad: 'dienstplan', label: 'Dienstplan', sichtbar: (r) => r !== 'gast' },
-  { pfad: 'monat', label: 'Monat', sichtbar: (r) => r !== 'gast' },
-  { pfad: 'nachweis', label: 'Nachweis', sichtbar: (r) => r !== 'gast' },
+  { pfad: 'nachweis', label: 'Stundennachweis', sichtbar: (r) => r !== 'gast' },
   { pfad: 'absprachen', label: 'Absprachen', sichtbar: (r) => r !== 'gast' },
   { pfad: 'team', label: 'Team', sichtbar: (r) => r !== 'gast' },
   { pfad: 'verwaltung', label: 'Abwesenheit & Feiertage', sichtbar: (r) => r === 'treffleitung' || r === 'koordination' },
@@ -72,7 +70,7 @@ export function TreffDetail() {
         {tabs.some((x) => x.pfad === 'protokoll') && <Route path="protokoll" element={<ProtokollTab treff={d} rolle={rolle} />} />}
         {tabs.some((x) => x.pfad === 'notizen') && <Route path="notizen" element={<NotizenTab treff={d} />} />}
         {tabs.some((x) => x.pfad === 'dienstplan') && <Route path="dienstplan" element={<DienstplanTab treff={d} rolle={rolle} />} />}
-        {tabs.some((x) => x.pfad === 'monat') && <Route path="monat" element={<MonatTab treff={d} rolle={rolle} />} />}
+        {tabs.some((x) => x.pfad === 'dienstplan') && <Route path="monat" element={<Navigate to={`/treffs/${id}/dienstplan?ansicht=monat`} replace />} />}
         {tabs.some((x) => x.pfad === 'nachweis') && <Route path="nachweis" element={<NachweisTab treff={d} rolle={rolle} />} />}
         {tabs.some((x) => x.pfad === 'absprachen') && <Route path="absprachen" element={<TreffAbsprachenTab treff={d} rolle={rolle} />} />}
         {tabs.some((x) => x.pfad === 'team') && <Route path="team" element={<TreffTeamTab treff={d} rolle={rolle} />} />}

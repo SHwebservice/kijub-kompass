@@ -104,10 +104,10 @@ export function baueKacheln(k: KachelKontext): KachelGruppe[] {
       treffs.push(mitZielen('notizen', 'Notizen', '🗒️', '/treffs', k.treffs, 'notizen', z.offeneNotizen));
       treffs.push(mitZielen('dienstplan', 'Dienstplan', '🗓️', '/treffs', k.treffs, 'dienstplan', z.diensteHeute));
       treffs.push(mitZielen('treff-absprachen', 'Absprachen', '🤝', '/treffs', k.treffs, 'absprachen', z.treffAbsprachen));
-      if (k.kategorie === 'TZK' || k.treffleitung || k.treffkoordination) treffs.push(mitZielen('nachweis', 'Nachweis', '🧾', '/treffs', k.treffs, 'nachweis', k.treffleitung || k.treffkoordination ? z.nachweise : 0));
+      if (k.kategorie === 'TZK' || k.treffleitung || k.treffkoordination) treffs.push(mitZielen('nachweis', 'Stundennachweis', '🧾', '/treffs', k.treffs, 'nachweis', k.treffleitung || k.treffkoordination ? z.nachweise : 0));
       if (k.treffleitung || k.treffkoordination) {
         treffs.push(mitZielen('wuensche', 'Dienstwünsche', '✋', '/treffs', k.treffs, 'dienstplan', z.wuensche));
-        treffs.push(mitZielen('monat', 'Monatsplan', '📆', '/treffs', k.treffs, 'monat'));
+        treffs.push(mitZielen('monat', 'Monatsplan', '📆', '/treffs', k.treffs, 'dienstplan?ansicht=monat'));
         treffs.push(mitZielen('abwesenheit', 'Abwesenheit & Feiertage', '🏖️', '/treffs', k.treffs, 'verwaltung'));
       }
       treffs.push(mitZielen('treff-team', 'Team', '👥', '/treffs', k.treffs, 'team'));
