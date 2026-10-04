@@ -2,17 +2,16 @@ import { useCallback, useState } from 'react';
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
-import { fehlerText } from '../../lib/fehler';
-import { sendePush } from '../../mitteilungen/senden';
 import { formatKurz, heuteIso } from '../../freizeiten/logik';
-import { dienstStatistik, holeTreffTeam, listeAbwesenheiten, listeDienste, listeFeiertage, wendeMonatsmusterAn, type TreffDetailDaten } from '../../treffs/api';
+import { dienstStatistik, holeTreffTeam, listeAbwesenheiten, listeDienste, listeFeiertage, type TreffDetailDaten } from '../../treffs/api';
 import {
-  dienstZeit, feiertagAm, monatErster, monatTage, monatText, monatVersatz, musterTage, stundenText, tageskarten, type Dienst, type Muster,
+  dienstZeit, feiertagAm, monatErster, monatTage, monatText, monatVersatz, stundenText, tageskarten, type Dienst,
 } from '../../treffs/dienstplan';
-import { darfTreffVerwalten, oeffnungszeitText, sortiereTreffTeam, wochentagName } from '../../treffs/logik';
+import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
 import type { RolleInTreff } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, Spinner } from '../../components/ui';
 import { Einsatzmatrix } from './Einsatzmatrix';
+import { MonatEinteilen } from './MonatEinteilen';
 import { SonderdienstSheet, ZuteilenSheet } from './DienstSheets';
 
 type Ziel = { art: 'zuteilen'; datum: string; dienst: Dienst | null } | { art: 'sonder'; dienst: Dienst | null };
@@ -25,7 +24,7 @@ interface Props {
   setFokus?: (datum: string) => void;
 }
 
-/** Monatsansicht des Dienstplans: alle Dienste mit Zuteilung (Treffleitung und Koordination teilen hier ein), Statistik je Person und das Monatsmuster zum Massen-Einteilen. */
+/** Monatsansicht des Dienstplans: alle Dienste mit Zuteilung (Treffleitung und Koordination teilen hier ein), Statistik je Person und „Monat einteilen“ (je Person die Wochentage) zum schnellen Einteilen. */
 export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: setzeVonAussen }: Props) {
   const { ich } = useAuth();
   const [interner, setInterner] = useState(() => heuteIso());
@@ -42,12 +41,8 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
   const abwesenheiten = useLaden(() => listeAbwesenheiten(monat, letzter), `monat-abwesenheiten-${t.id}-${monat}`);
   useLive(['dienste', 'dienst_zuteilungen', 'feiertage', 'treff_team'], () => { dienste.neuLaden(); feiertage.neuLaden(); statistik.neuLaden(); team.neuLaden(); });
 
-  const [muster, setMuster] = useState<Muster>({});
   const [ziel, setZiel] = useState<Ziel | null>(null);
   const schliessen = useCallback(() => setZiel(null), []);
-  const [fehler, setFehler] = useState<string | null>(null);
-  const [erfolg, setErfolg] = useState<string | null>(null);
-  const [arbeitet, setArbeitet] = useState(false);
   if (!ich) return null;
 
   const verwaltung = darfTreffVerwalten(rolle);
@@ -55,38 +50,14 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
   const namen = Object.fromEntries(mitglieder.map((m) => [m.person_id, `${m.vorname} ${m.nachname}`]));
   const name = (id: string) => namen[id] ?? 'Jemand';
   const karten = tageskarten(tage, t.oeffnungszeiten, dienste.daten ?? []);
-  const betroffen = musterTage(monat, t.oeffnungszeiten, muster);
   const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? statistik.fehler ?? abwesenheiten.fehler;
   const geaendert = () => { dienste.neuLaden(); statistik.neuLaden(); };
 
-  const blaettern = (n: number) => { setFokus(monatVersatz(monat, n)); setMuster({}); setErfolg(null); setFehler(null); };
-
-  function waehle(wochentag: number, person: string, an: boolean) {
-    setMuster((m) => {
-      const alt = m[wochentag] ?? [];
-      return { ...m, [wochentag]: an ? [...alt, person] : alt.filter((p) => p !== person) };
-    });
-  }
-  const abwaehlen = (wochentag: number) => setMuster((m) => Object.fromEntries(Object.entries(m).filter(([k]) => Number(k) !== wochentag)));
-
-  async function anwenden() {
-    if (betroffen.length === 0) return;
-    if (!window.confirm(`Die Zuteilung an ${betroffen.length} ${betroffen.length === 1 ? 'Tag' : 'Tagen'} im ${monatText(monat)} wird ersetzt. Fortfahren?`)) return;
-    setArbeitet(true); setFehler(null); setErfolg(null);
-    try {
-      const n = await wendeMonatsmusterAn(t.id, monat, muster);
-      setErfolg(`Das Muster wurde auf ${n} ${n === 1 ? 'Tag' : 'Tage'} angewendet.`);
-      const betroffene = [...new Set(Object.values(muster).flat())];
-      if (betroffene.length) sendePush('dienstplan', t.id, { personen: betroffene });
-      setMuster({});
-      dienste.neuLaden(); statistik.neuLaden();
-    } catch (e) { setFehler(fehlerText(e, 'Das Muster konnte nicht angewendet werden.')); } finally { setArbeitet(false); }
-  }
+  const blaettern = (n: number) => setFokus(monatVersatz(monat, n));
 
   return (
     <div className="stack">
-      {(ladefehler || fehler) && <Alert ton="error">{ladefehler ?? fehler}</Alert>}
-      {erfolg && <Alert ton="success">{erfolg}</Alert>}
+      {ladefehler && <Alert ton="error">{ladefehler}</Alert>}
 
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <Button aria-label="Vorheriger Monat" onClick={() => blaettern(-1)}>←</Button>
@@ -97,6 +68,11 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
       {!dienste.laedt && (
         <Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={abwesenheiten.daten ?? []} feiertage={feiertage.daten ?? []}
           treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum="Monat" />
+      )}
+
+      {verwaltung && !dienste.laedt && (
+        <MonatEinteilen key={monat} treff={t} monat={monat} mitglieder={mitglieder} dienste={dienste.daten ?? []} abwesenheiten={abwesenheiten.daten ?? []}
+          feiertage={feiertage.daten ?? []} geaendert={geaendert} />
       )}
 
       <Card>
@@ -158,40 +134,6 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
           </table>
         )}
       </Card>
-
-      {verwaltung && (
-        <Card>
-          <h2>Monatsmuster</h2>
-          <p className="field__hint">
-            Wähle je Wochentag die Personen, die an allen Öffnungstagen des Monats eingeteilt werden. Die bisherige Zuteilung dieser Tage wird ersetzt;
-            Tage ohne Häkchen bleiben unverändert. Einzelne Tage änderst du danach im Dienstplan.
-          </p>
-          {t.oeffnungszeiten.length === 0 && <p>Der Treff hat noch keine Öffnungstage.</p>}
-          {t.oeffnungszeiten.map((o) => {
-            const aktiv = o.wochentag in muster;
-            return (
-              <fieldset key={o.wochentag} className="optionen">
-                <legend className="field__label">{wochentagName(o.wochentag)} · {oeffnungszeitText(o)}</legend>
-                <label className="option">
-                  <input type="checkbox" checked={aktiv} onChange={(e) => (e.target.checked ? setMuster((m) => ({ ...m, [o.wochentag]: [] })) : abwaehlen(o.wochentag))} />
-                  <span>An allen {wochentagName(o.wochentag)}en einteilen</span>
-                </label>
-                {aktiv && sortiereTreffTeam(mitglieder).map((m) => (
-                  <label key={m.person_id} className="option" style={{ marginLeft: 'var(--space-4)' }}>
-                    <input type="checkbox" checked={(muster[o.wochentag] ?? []).includes(m.person_id)}
-                      aria-label={`${wochentagName(o.wochentag)}: ${m.vorname} ${m.nachname}`}
-                      onChange={(e) => waehle(o.wochentag, m.person_id, e.target.checked)} />
-                    <span>{m.vorname} {m.nachname}{m.rolle === 'treffleitung' ? ' (Treffleitung)' : ''}</span>
-                  </label>
-                ))}
-              </fieldset>
-            );
-          })}
-          <Button variante="primary" laedt={arbeitet} disabled={betroffen.length === 0} onClick={() => void anwenden()}>
-            {betroffen.length === 0 ? 'Auf den Monat anwenden' : `Auf ${betroffen.length} ${betroffen.length === 1 ? 'Tag' : 'Tage'} anwenden`}
-          </Button>
-        </Card>
-      )}
 
       {ziel?.art === 'zuteilen' && (
         <ZuteilenSheet treffId={t.id} datum={ziel.datum} dienst={ziel.dienst} team={mitglieder} abwesenheiten={abwesenheiten.daten ?? []}

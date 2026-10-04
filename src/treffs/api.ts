@@ -4,6 +4,7 @@ import type { Notiz } from '../freizeiten/notizen';
 import type { NotizWerte } from '../freizeiten/api';
 import type { Abwesenheit, Dienst, Feiertag, SonderEingabe, StatistikZeile, Muster, WunschStatus } from './dienstplan';
 import { musterAlsJson } from './dienstplan';
+import type { Paar } from './monatsplan';
 import type { Nachweis, NachweisStatus, NachweisZeile } from './nachweis';
 import { oeffnungszeitenAusTagen, sortiereOeffnungszeiten, type Oeffnungszeit, type TageEingabe, type TreffMitglied, type WochenprogrammEintrag } from './logik';
 
@@ -209,6 +210,15 @@ export async function loescheDienst(id: string): Promise<void> {
 
 export async function wendeMonatsmusterAn(treffId: string, monat: string, muster: Muster): Promise<number> {
   return pruefe(await supabase.rpc('fn_dienste_monatsmuster', { p_treff: treffId, p_monat: monat, p_muster: musterAlsJson(muster) })) as number;
+}
+
+/**
+ * Ändert den Dienstplan eines Monats gezielt: Personen hinzufügen und entfernen, alles in einem Schritt (ganz oder gar nicht).
+ * Vorhandene Einteilungen bleiben, wenn sie nicht entfernt werden. Nur Treffleitung und Treffkoordination.
+ */
+export async function wendeDienstplanAn(treffId: string, monat: string, zuteilen: Paar[], entfernen: Paar[] = []): Promise<{ zugeteilt: number; entfernt: number }> {
+  const liste = (l: Paar[]) => l.map((x) => ({ datum: x.datum, person: x.person }));
+  return pruefe(await supabase.rpc('fn_dienstplan_anwenden', { p_treff: treffId, p_monat: monat, p_zuteilen: liste(zuteilen), p_entfernen: liste(entfernen) })) as { zugeteilt: number; entfernt: number };
 }
 
 export async function dienstStatistik(treffId: string, monat: string): Promise<StatistikZeile[]> {

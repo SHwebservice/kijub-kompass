@@ -7,7 +7,7 @@ import { MonatTab } from './MonatTab';
 import { VerwaltungTab } from './VerwaltungTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
-import { addTage, monatErster, monatText, monatVersatz, type Dienst } from '../../treffs/dienstplan';
+import { addTage, isoWochentag, monatErster, monatTage, monatText, monatVersatz, type Dienst } from '../../treffs/dienstplan';
 import { heuteIso } from '../../freizeiten/logik';
 
 vi.mock('../../treffs/api');
@@ -38,7 +38,7 @@ beforeEach(() => {
   vi.mocked(api.listeFeiertage).mockResolvedValue([]);
   vi.mocked(api.listeAbwesenheiten).mockResolvedValue([]);
   vi.mocked(api.dienstStatistik).mockResolvedValue([]);
-  vi.mocked(api.wendeMonatsmusterAn).mockResolvedValue(8);
+  vi.mocked(api.wendeDienstplanAn).mockResolvedValue({ zugeteilt: 8, entfernt: 0 });
   for (const fn of [api.speichereAbwesenheit, api.loescheAbwesenheiten, api.speichereFeiertag, api.loescheFeiertag] as const) {
     vi.mocked(fn as (...a: never[]) => Promise<void>).mockResolvedValue(undefined);
   }
@@ -58,7 +58,7 @@ describe('Monat: Übersicht und Statistik', () => {
     expect(within(tabelle).getByRole('row', { name: /Ben Baum 2 7,5 h/ })).toBeInTheDocument();
     expect(within(tabelle).getByRole('row', { name: /Lea Leitner 4 16 h/ })).toBeInTheDocument();
     expect(screen.getByText(/nur deine/)).toBeInTheDocument();
-    expect(screen.queryByText('Monatsmuster')).not.toBeInTheDocument();
+    expect(screen.queryByText('Monat einteilen')).not.toBeInTheDocument();
   });
 
   it('blättert die Monate', async () => {
@@ -80,54 +80,159 @@ function monatTage1(): string {
   throw new Error('unerreichbar');
 }
 
-describe('Monat: Monatsmuster', () => {
-  it('wendet das Muster nach Rückfrage an und meldet das Ergebnis', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderMitAuth(<MonatTab treff={nord} rolle="treffleitung" />, leitung);
-    await screen.findByText('Monatsmuster');
-    const knopf = screen.getByRole('button', { name: 'Auf den Monat anwenden' });
-    expect(knopf).toBeDisabled();
-    await userEvent.click(screen.getByLabelText(/An allen Montagen einteilen/));
-    await userEvent.click(screen.getByLabelText('Montag: Ben Baum'));
-    await userEvent.click(screen.getByLabelText('Montag: Lea Leitner'));
-    const anwenden = screen.getByRole('button', { name: /^Auf \d+ Tage anwenden$/ });
-    await userEvent.click(anwenden);
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringMatching(/Die Zuteilung an \d+ Tagen im .* wird ersetzt/));
-    expect(api.wendeMonatsmusterAn).toHaveBeenCalledWith('t1', monat, { 1: ['ben', 'lea'] });
-    expect(await screen.findByText('Das Muster wurde auf 8 Tage angewendet.')).toBeInTheDocument();
-    expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben', 'lea'] });      // wer im Muster steht, erfährt es
+describe('Monat einteilen: Wochentage je Person', () => {
+  const tageMit = (wochentag: number) => monatTage(monat).filter((d) => isoWochentag(d) === wochentag);
+  const montage = tageMit(1);
+  const mittwoche = tageMit(3);
+  const ersterMontag = montage[0]!;
+  const zeige = (szene: Szene = leitung, rolle: 'treffleitung' | 'koordination' | 'betreuerin' = 'treffleitung') => renderMitAuth(<MonatTab treff={nord} rolle={rolle} />, szene);
+  const kreuze = async (...namen: string[]) => { for (const n of namen) await userEvent.click(await screen.findByLabelText(n)); };
+  const speichern = () => userEvent.click(screen.getByRole('button', { name: /Einteilungen? speichern/ }));
+  const aufruf = () => vi.mocked(api.wendeDienstplanAn).mock.calls.at(-1)!;
+
+  it('teilt je Person die gewählten Wochentage für den ganzen Monat ein und meldet das Ergebnis', async () => {
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await kreuze('Anna Adler: Montag', 'Ben Baum: Montag', 'Ben Baum: Mittwoch');
+    const erwartet = montage.length * 2 + mittwoche.length;
+    await speichern();
+    const [treffId, m, zuteilen, entfernen] = aufruf();
+    expect([treffId, m]).toEqual(['t1', monat]);
+    expect(zuteilen).toHaveLength(erwartet);
+    expect(zuteilen.filter((x) => x.datum === ersterMontag).map((x) => x.person).sort()).toEqual(['ben', 'ich']);
+    expect(entfernen).toEqual([]);
+    expect(await screen.findByText('8 Einteilungen gespeichert.')).toBeInTheDocument();
+    expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben', 'ich'] });          // wer neu eingeteilt ist, erfährt es
+    expect(screen.getByLabelText('Anna Adler: Montag')).not.toBeChecked();                             // die Auswahl ist danach leer
   });
 
-  it('bricht ohne Rückfrage-Zustimmung ab', async () => {
+  it('die Vorschau sagt vorher, wie viele Einteilungen an wie vielen Tagen entstehen', async () => {
+    zeige();
+    await screen.findByText('Monat einteilen');
+    expect(screen.getByText('Wähle Wochentage, dann siehst du hier, was passiert.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Einteilung speichern' })).toBeDisabled();
+    await kreuze('Anna Adler: Montag');
+    expect(await screen.findByText(`${montage.length} neue Einteilungen`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `${montage.length} Einteilungen speichern` })).toBeEnabled();
+  });
+
+  it('vorhandene Einteilungen bleiben: weitere Personen kommen dazu, schon Eingetragene werden nicht doppelt gesendet', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: ersterMontag, personen: ['lea'] }), dienst({ id: 'd2', datum: montage[1]!, personen: ['ben'] })]);
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await kreuze('Lea Leitner: Montag', 'Ben Baum: Montag');
+    expect(await screen.findByText(/2 Einteilungen sind schon eingetragen und bleiben/)).toBeInTheDocument();
+    await speichern();
+    const [, , zuteilen, entfernen] = aufruf();
+    expect(zuteilen.some((x) => x.datum === ersterMontag && x.person === 'lea')).toBe(false);
+    expect(zuteilen.some((x) => x.datum === ersterMontag && x.person === 'ben')).toBe(true);           // zweite Person am selben Tag
+    expect(entfernen).toEqual([]);
+  });
+
+  it('Urlaub und Krankheit: ohne Entscheidung wird ausgelassen; wer „trotzdem einteilen“ wählt, teilt ein', async () => {
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: 'u', person_id: 'ben', datum: ersterMontag, typ: 'urlaub', notiz: null }]);
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await kreuze('Ben Baum: Montag');
+    expect(await screen.findByText(/Ben Baum ist am .* im Urlaub/)).toBeInTheDocument();
+    expect(screen.getByText('1 Einteilung wird wegen eines Konflikts ausgelassen.')).toBeInTheDocument();
+    await speichern();
+    expect(aufruf()[2]).toHaveLength(montage.length - 1);
+    expect(aufruf()[2].some((x) => x.datum === ersterMontag)).toBe(false);
+
+    await kreuze('Ben Baum: Montag');
+    await userEvent.click(await screen.findByRole('checkbox', { name: /Ben Baum ist am .* im Urlaub/ }));
+    await speichern();
+    expect(aufruf()[2]).toHaveLength(montage.length);
+  });
+
+  it('Feiertag: eine Entscheidung für den ganzen Tag; „Alle trotzdem einteilen“ und „Keine einteilen“', async () => {
+    vi.mocked(api.listeFeiertage).mockResolvedValue([{ id: 'f', treff_id: null, datum: ersterMontag, bezeichnung: 'Stadtfest' }]);
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await kreuze('Anna Adler: Montag', 'Ben Baum: Montag');
+    expect(await screen.findByText(/ist ein Feiertag \(Stadtfest\)/)).toBeInTheDocument();
+    expect(screen.getByText(/\(2 Einteilungen\)/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Alle trotzdem einteilen' }));
+    expect(screen.getByRole('checkbox', { name: /Feiertag/ })).toBeChecked();
+    await speichern();
+    expect(aufruf()[2]).toHaveLength(montage.length * 2);
+  });
+
+  it('„ersetzen“ entfernt andere Personen der betroffenen Tage – nach Rückfrage', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: ersterMontag, personen: ['ben', 'lea'] })]);
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await userEvent.click(screen.getByLabelText(/Bisherige Einteilung der betroffenen Tage ersetzen/));
+    await kreuze('Lea Leitner: Montag');
+    expect(await screen.findByText('1 bisherige Einteilung wird entfernt.')).toBeInTheDocument();
+    await speichern();
+    expect(window.confirm).toHaveBeenCalledWith('1 bisherige Einteilung wird entfernt. Fortfahren?');
+    expect(aufruf()[3]).toEqual([{ datum: ersterMontag, person: 'ben' }]);
+    expect(await screen.findByText(/gespeichert/)).toBeInTheDocument();
+  });
+
+  it('ohne Zustimmung zur Rückfrage wird nichts gespeichert', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false);
-    renderMitAuth(<MonatTab treff={nord} rolle="koordination" />, koord);
-    await screen.findByText('Monatsmuster');
-    await userEvent.click(screen.getByLabelText(/An allen Mittwochen einteilen/));
-    await userEvent.click(screen.getByRole('button', { name: /^Auf \d+ Tage anwenden$/ }));
-    expect(api.wendeMonatsmusterAn).not.toHaveBeenCalled();
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: ersterMontag, personen: ['ben'] })]);
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await userEvent.click(screen.getByLabelText(/Bisherige Einteilung der betroffenen Tage ersetzen/));
+    await kreuze('Lea Leitner: Montag');
+    await speichern();
+    expect(api.wendeDienstplanAn).not.toHaveBeenCalled();
   });
 
-  it('ein Wochentag ohne Häkchen wird nicht gesendet; Abwählen entfernt ihn wieder', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderMitAuth(<MonatTab treff={nord} rolle="treffleitung" />, leitung);
-    await screen.findByText('Monatsmuster');
-    await userEvent.click(screen.getByLabelText(/An allen Montagen einteilen/));
-    await userEvent.click(screen.getByLabelText(/An allen Mittwochen einteilen/));
-    await userEvent.click(screen.getByLabelText('Mittwoch: Ben Baum'));
-    await userEvent.click(screen.getByLabelText(/An allen Montagen einteilen/));     // Montag wieder weg
-    await userEvent.click(screen.getByRole('button', { name: /^Auf \d+ Tage anwenden$/ }));
-    expect(api.wendeMonatsmusterAn).toHaveBeenCalledWith('t1', monat, { 3: ['ben'] });
-    expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben'] });
+  it('Im Modus „zusätzlich“ gibt es keine Rückfrage', async () => {
+    const bestaetigen = vi.spyOn(window, 'confirm');
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await kreuze('Anna Adler: Montag');
+    await speichern();
+    expect(bestaetigen).not.toHaveBeenCalled();
   });
 
-  it('zeigt Fehler der Datenbank', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.mocked(api.wendeMonatsmusterAn).mockRejectedValue(new Error('x'));
-    renderMitAuth(<MonatTab treff={nord} rolle="treffleitung" />, leitung);
-    await screen.findByText('Monatsmuster');
-    await userEvent.click(screen.getByLabelText(/An allen Montagen einteilen/));
-    await userEvent.click(screen.getByRole('button', { name: /^Auf \d+ Tage anwenden$/ }));
-    expect(await screen.findByText('Das Muster konnte nicht angewendet werden.')).toBeInTheDocument();
+  it('„Zurücksetzen“ leert die Auswahl', async () => {
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await kreuze('Anna Adler: Montag');
+    await userEvent.click(screen.getByRole('button', { name: 'Zurücksetzen' }));
+    expect(screen.getByLabelText('Anna Adler: Montag')).not.toBeChecked();
+  });
+
+  it('Koordination darf auch; Teilzeitkräfte sehen „Monat einteilen“ nicht', async () => {
+    const { unmount } = zeige(koord, 'koordination');
+    expect(await screen.findByText('Monat einteilen')).toBeInTheDocument();
+    unmount();
+    zeige(betreuerin, 'betreuerin');
+    await screen.findByText(monatText(monat));
+    expect(screen.queryByText('Monat einteilen')).not.toBeInTheDocument();
+  });
+
+  it('beim Blättern in einen anderen Monat beginnt die Auswahl neu', async () => {
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await kreuze('Anna Adler: Montag');
+    await userEvent.click(screen.getByRole('button', { name: 'Nächster Monat' }));
+    await screen.findByText(monatText(monatVersatz(monat, 1)));
+    expect(await screen.findByLabelText('Anna Adler: Montag')).not.toBeChecked();
+  });
+
+  it('zeigt Fehler der Datenbank und behält die Auswahl', async () => {
+    vi.mocked(api.wendeDienstplanAn).mockRejectedValue(new Error('x'));
+    zeige();
+    await screen.findByText('Monat einteilen');
+    await kreuze('Anna Adler: Montag');
+    await speichern();
+    expect(await screen.findByText('Der Dienstplan konnte nicht gespeichert werden.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Anna Adler: Montag')).toBeChecked();
+  });
+
+  it('Regeltage und Höchststunden der Teilzeitkraft stehen als Hinweis dabei', async () => {
+    vi.mocked(api.holeTreffTeam).mockResolvedValue([...team.slice(0, 1), { ...team[1]!, tzk_regeltage: 'Mo, Mi', tzk_max_stunden: 40 }, ...team.slice(2)]);
+    zeige();
+    expect(await screen.findByText('Regeltage: Mo, Mi · höchstens 40 Std./Monat')).toBeInTheDocument();
   });
 });
 
