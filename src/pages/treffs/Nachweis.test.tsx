@@ -4,6 +4,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { sendePush } from '../../mitteilungen/senden';
 import * as api from '../../treffs/api';
+import { ladeNachweisPdf } from '../../treffs/nachweisPdf';
 import { NachweisTab } from './NachweisTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
@@ -12,6 +13,7 @@ import { heuteIso } from '../../freizeiten/logik';
 import type { Nachweis } from '../../treffs/nachweis';
 
 vi.mock('../../treffs/api');
+vi.mock('../../treffs/nachweisPdf', () => ({ ladeNachweisPdf: vi.fn() }));
 
 const nord = treff({ id: 't1', name: 'Treff Nord' });
 const monat = monatErster(heuteIso());
@@ -150,17 +152,22 @@ describe('Nachweis: TZK (eigener Nachweis)', () => {
     expect(api.loescheNachweis).toHaveBeenCalledWith('n1');
   });
 
-  it('PDF: setzt den Dateinamen als Titel und druckt', async () => {
-    vi.mocked(api.listeNachweise).mockResolvedValue([nachweis()]);
-    const drucken = vi.spyOn(window, 'print').mockImplementation(() => { titelBeimDruck = document.title; });
-    let titelBeimDruck = '';
-    const vorher = document.title;
+  it('PDF: lädt den Nachweis mit Treff, Monat, Name, Zeilen und Unterschrift herunter', async () => {
+    vi.mocked(api.listeNachweise).mockResolvedValue([nachweis({ unterschrift: 'Anna Adler' })]);
     zeige(tzk, 'betreuerin');
     await tabelle();
-    await userEvent.click(screen.getByRole('button', { name: 'Als PDF speichern / drucken' }));
-    expect(drucken).toHaveBeenCalled();
-    expect(titelBeimDruck).toBe(`${monat.slice(2, 4)}_${monat.slice(5, 7)}_Adler_Anna`);
-    expect(document.title).toBe(vorher);
+    await userEvent.click(screen.getByRole('button', { name: 'Als PDF herunterladen' }));
+    expect(ladeNachweisPdf).toHaveBeenCalledWith(expect.objectContaining({ treff: 'Treff Nord', monat, vorname: 'Anna', nachname: 'Adler', unterschrift: 'Anna Adler' }));
+    expect(vi.mocked(ladeNachweisPdf).mock.calls[0]![0].zeilen).toHaveLength(3);
+  });
+
+  it('PDF: Fehler beim Erstellen werden gemeldet', async () => {
+    vi.mocked(api.listeNachweise).mockResolvedValue([nachweis()]);
+    vi.mocked(ladeNachweisPdf).mockRejectedValue(new Error('x'));
+    zeige(tzk, 'betreuerin');
+    await tabelle();
+    await userEvent.click(screen.getByRole('button', { name: 'Als PDF herunterladen' }));
+    expect(await screen.findByText('Das PDF konnte nicht erstellt werden.')).toBeInTheDocument();
   });
 
   it('blättert die Monate und lädt neu', async () => {

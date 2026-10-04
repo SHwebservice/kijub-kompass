@@ -8,8 +8,9 @@ import {
   type TreffDetailDaten, type TreffTeamMitglied,
 } from '../../treffs/api';
 import { monatErster, monatText, monatVersatz } from '../../treffs/dienstplan';
+import { ladeNachweisPdf } from '../../treffs/nachweisPdf';
 import {
-  darfEigenenNachweisFuehren, darfEinreichen, darfFreigabeAufheben, darfFreigeben, darfNachweisLoeschen, darfZeilenBearbeiten, darfZurueckgeben, dateiname,
+  darfEigenenNachweisFuehren, darfEinreichen, darfFreigabeAufheben, darfFreigeben, darfNachweisLoeschen, darfZeilenBearbeiten, darfZurueckgeben,
   parseZeiten, sortiereZeilen, STATUS_LABEL, stundenWert, summe, validiereZeile, type Nachweis, type NachweisStatus, type NachweisZeile,
 } from '../../treffs/nachweis';
 import type { RolleInTreff } from '../../lib/rollen';
@@ -89,7 +90,6 @@ function NachweisEditor({ treff: t, monat, nachweis: n, person, rolle, istEigene
   const bearbeitbar = darfZeilenBearbeiten(n.status, rolle, istEigener);
   const vorname = person?.vorname ?? '';
   const nachname = person?.nachname ?? '';
-  const titel = dateiname(monat, vorname, nachname);
 
   async function lauf(fn: () => Promise<void>) {
     setFehler(null); setArbeitet(true);
@@ -97,11 +97,11 @@ function NachweisEditor({ treff: t, monat, nachweis: n, person, rolle, istEigene
   }
   const still = (p: Promise<void>) => p.catch(() => undefined);
 
-  function drucken() {
-    const vorher = document.title;
-    document.title = titel;              // der Browser schlägt den Titel als Dateinamen vor
-    window.print();
-    document.title = vorher;
+  /** Lädt den Nachweis als PDF (A4, Aussehen wie das Formular „Nachweis der Teilzeitkräfte“). */
+  async function pdfLaden() {
+    setFehler(null); setArbeitet(true);
+    try { await ladeNachweisPdf({ treff: t.name, monat, vorname, nachname, zeilen, unterschrift: n.unterschrift }); }
+    catch { setFehler('Das PDF konnte nicht erstellt werden.'); } finally { setArbeitet(false); }
   }
 
   return (
@@ -174,26 +174,11 @@ function NachweisEditor({ treff: t, monat, nachweis: n, person, rolle, istEigene
         {istEigener && n.status === 'entwurf' && unterschrift.trim() !== (n.unterschrift ?? '') && (
           <Button disabled={arbeitet} onClick={() => void still(lauf(() => speichereUnterschrift(n.id, unterschrift)))}>Unterschrift speichern</Button>
         )}
-        <Button onClick={drucken}>Als PDF speichern / drucken</Button>
+        <Button disabled={arbeitet} onClick={() => void pdfLaden()}>Als PDF herunterladen</Button>
         {darfNachweisLoeschen(n.status, rolle, istEigener) && (
           <Button variante="danger" disabled={arbeitet}
             onClick={() => { if (window.confirm('Diesen Nachweis mit allen Zeilen löschen?')) void still(lauf(async () => { await loescheNachweis(n.id); geloescht(); })); }}>Löschen</Button>
         )}
-      </div>
-
-      {/* Druckvorlage (A4): nur beim Drucken sichtbar */}
-      <div className="nachweis-druck" aria-hidden="true">
-        <h1>Nachweis der Teilzeitkräfte</h1>
-        <p><strong>{vorname} {nachname}</strong> · {t.name} · {monatText(monat)}</p>
-        <table>
-          <thead><tr><th>Tag</th><th>Zeiten</th><th>Stunden</th></tr></thead>
-          <tbody>
-            {zeilen.map((z) => <tr key={z.id}><td>{formatKurz(z.datum)}</td><td>{z.zeiten ?? ''}</td><td>{stundenText(z.stunden)}</td></tr>)}
-          </tbody>
-          <tfoot><tr><th colSpan={2}>Summe</th><td>{stundenText(summe(zeilen))} Stunden</td></tr></tfoot>
-        </table>
-        <p>Unterschrift: {n.unterschrift ?? '________________'}</p>
-        <p>Status: {STATUS_LABEL[n.status]}</p>
       </div>
     </Card>
   );
