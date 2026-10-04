@@ -53,7 +53,7 @@ const TEXT: [string, string][] = [
   ['text-hint', 'surface'], ['text-hint', 'bg'], ['text-hint', 'surface-2'],
   ['accent', 'surface'], ['accent', 'bg'], ['accent', 'accent-bg'], ['accent', 'surface-2'],
   ['on-accent', 'accent'], ['on-accent', 'accent-hover'],
-  ['danger', 'surface'], ['danger', 'danger-bg'], ['success', 'surface'], ['success', 'success-bg'],
+  ['danger', 'surface'], ['danger', 'accent-bg'], ['orange', 'accent-bg'], ['text-muted', 'accent-bg'], ['warning', 'surface-2'], ['danger', 'surface-2'], ['danger', 'danger-bg'], ['success', 'surface'], ['success', 'success-bg'],
   ['warning', 'surface'], ['warning', 'warning-bg'], ['orange', 'surface'], ['orange', 'orange-bg'],
 ];
 /** Rahmen von Eingaben, Fokusring und Zustandsfarben als Bedienelement (mindestens 3 : 1). */

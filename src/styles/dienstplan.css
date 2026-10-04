@@ -1,0 +1,36 @@
+/* KiJuB-Kompass · Einsatz-Matrix des Dienstplans („Wer arbeitet wann“).
+   Die festen Spalten (Person, Kopfzeile) sind deckend, damit beim seitlichen Wischen nichts durchscheint. */
+
+.einsatz-wrap { overflow-x: auto; position: relative; border: 1px solid var(--glas-rand); border-radius: var(--radius); background: var(--surface); }
+.einsatz-wrap:focus-visible { box-shadow: var(--focus-ring); }
+.einsatz { border-collapse: separate; border-spacing: 0; width: 100%; font-size: var(--fs-sm); }
+.einsatz th, .einsatz td { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.einsatz tbody tr:last-child th, .einsatz tbody tr:last-child td { border-bottom: 1px solid var(--border-strong); }
+.einsatz tfoot th, .einsatz tfoot td { border-bottom: 0; font-weight: 600; }
+
+.einsatz thead th { background: var(--surface-2); font-weight: 600; line-height: 1.15; vertical-align: bottom; }
+.einsatz__tag span { display: block; }
+.einsatz__zahl { font-size: 1.05rem; }
+.einsatz__tag--heute { box-shadow: inset 0 -3px 0 var(--accent); }
+.einsatz__tag--feiertag { color: var(--warning); }
+.einsatz__tag--leer, .einsatz__leer { color: var(--danger); }
+.einsatz__zelle--heute { background: var(--accent-bg); }
+
+.einsatz__person { position: sticky; left: 0; z-index: 1; min-width: 7.5rem; text-align: left !important; background: var(--surface); font-weight: 600; }
+.einsatz thead .einsatz__person { background: var(--surface-2); z-index: 2; }
+.einsatz__rolle { font-weight: 400; color: var(--text-muted); }
+.einsatz__summe { color: var(--text-muted); font-weight: 600; border-left: 1px solid var(--border); }
+
+.einsatz__ich th, .einsatz__ich td { background: var(--accent-bg); }
+.einsatz__ich .einsatz__rolle { color: var(--text); }
+
+.einsatz__dienst { color: var(--accent); font-size: 1.1rem; line-height: 1; }
+.einsatz__sonder { color: var(--orange); font-size: 1.05rem; line-height: 1; }
+.einsatz__abwesend { color: var(--danger); font-weight: 700; }
+.einsatz__wunsch { color: var(--text-muted); font-weight: 700; }
+
+.einsatz__warnung { color: var(--danger); font-weight: 600; margin: 0 0 var(--space-2); }
+.einsatz__legende { list-style: none; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: var(--space-2) 0 0; padding: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+
+/* Personen als Schilder in der Tagesliste */
+.einsatz__schilder { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }

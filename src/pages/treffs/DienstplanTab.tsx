@@ -18,6 +18,7 @@ import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
 import type { RolleInTreff } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, Spinner } from '../../components/ui';
 import { SonderdienstSheet, ZuteilenSheet } from './DienstSheets';
+import { Einsatzmatrix } from './Einsatzmatrix';
 import { MonatTab } from './MonatTab';
 
 type Ziel = { art: 'zuteilen'; datum: string; dienst: Dienst | null } | { art: 'sonder'; dienst: Dienst | null };
@@ -167,6 +168,10 @@ function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
       {laedt && <Spinner />}
       {!laedt && karten.length === 0 && (
         <Card><p>{t.oeffnungszeiten.length === 0 ? 'Der Treff hat noch keine Öffnungstage.' : 'In dieser Woche gibt es keinen Dienst.'}</p></Card>
+      )}
+      {!laedt && (
+        <Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={abwesenheiten.daten ?? []} feiertage={feiertage.daten ?? []}
+          treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum="Woche" />
       )}
       {!laedt && karten.map(karte)}
 

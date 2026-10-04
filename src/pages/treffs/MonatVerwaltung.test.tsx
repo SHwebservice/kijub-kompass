@@ -52,8 +52,9 @@ describe('Monat: Übersicht und Statistik', () => {
     renderMitAuth(<MonatTab treff={nord} rolle="betreuerin" />, betreuerin);
     expect(await screen.findByText(monatText(monat))).toBeInTheDocument();
     const liste = await screen.findByRole('list', { name: 'Dienste im Monat' });
-    expect(within(liste).getByText('Lea Leitner, Ben Baum')).toBeInTheDocument();
-    const tabelle = await screen.findByRole('table');
+    expect(within(liste).getByText('Lea Leitner')).toBeInTheDocument();
+    expect(within(liste).getByText('Ben Baum')).toBeInTheDocument();
+    const tabelle = await screen.findByRole('table', { name: 'Dienste und Stunden je Person' });
     expect(within(tabelle).getByRole('row', { name: /Ben Baum 2 7,5 h/ })).toBeInTheDocument();
     expect(within(tabelle).getByRole('row', { name: /Lea Leitner 4 16 h/ })).toBeInTheDocument();
     expect(screen.getByText(/nur deine/)).toBeInTheDocument();

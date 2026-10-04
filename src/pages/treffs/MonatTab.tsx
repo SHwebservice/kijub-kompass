@@ -12,6 +12,7 @@ import {
 import { darfTreffVerwalten, oeffnungszeitText, sortiereTreffTeam, wochentagName } from '../../treffs/logik';
 import type { RolleInTreff } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, Spinner } from '../../components/ui';
+import { Einsatzmatrix } from './Einsatzmatrix';
 import { SonderdienstSheet, ZuteilenSheet } from './DienstSheets';
 
 type Ziel = { art: 'zuteilen'; datum: string; dienst: Dienst | null } | { art: 'sonder'; dienst: Dienst | null };
@@ -93,8 +94,13 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
         <Button aria-label="Nächster Monat" onClick={() => blaettern(1)}>→</Button>
       </div>
 
+      {!dienste.laedt && (
+        <Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={abwesenheiten.daten ?? []} feiertage={feiertage.daten ?? []}
+          treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum="Monat" />
+      )}
+
       <Card>
-        <h2>Übersicht</h2>
+        <h2>Tage im Monat</h2>
         {verwaltung && <p><Button klein onClick={() => setZiel({ art: 'sonder', dienst: null })}>+ Sonderdienst</Button></p>}
         {dienste.laedt && <Spinner />}
         {!dienste.laedt && karten.length === 0 && <p>In diesem Monat gibt es keine Öffnungstage.</p>}
@@ -113,9 +119,11 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
                     {verwaltung && offeneWuensche > 0 && <Badge ton="accent">{offeneWuensche === 1 ? '1 Wunsch' : `${offeneWuensche} Wünsche`}</Badge>}
                   </div>
                   {eintraege.map((d) => (
-                    <div key={d.id} className="list__meta">
-                      {d.ist_sonder && <Badge ton="warning">Sonderdienst: {d.bezeichnung}{dienstZeit(d) ? ` ${dienstZeit(d)}` : ''}</Badge>}
-                      <span>{d.personen.length ? d.personen.map(name).join(', ') : 'niemand eingeteilt'}</span>
+                    <div key={d.id}>
+                      {d.ist_sonder && <div className="list__meta"><Badge ton="warning">Sonderdienst: {d.bezeichnung}{dienstZeit(d) ? ` ${dienstZeit(d)}` : ''}</Badge></div>}
+                      <div className="einsatz__schilder">
+                        {d.personen.length ? d.personen.map((pid) => <Badge key={pid} ton={pid === ich.id ? 'accent' : 'neutral'}>{name(pid)}</Badge>) : <span className="field__hint">niemand eingeteilt</span>}
+                      </div>
                     </div>
                   ))}
                   {eintraege.length === 0 && <div className="field__hint">niemand eingeteilt</div>}
@@ -140,7 +148,7 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
         {statistik.laedt && <Spinner />}
         {!statistik.laedt && (statistik.daten?.length ?? 0) === 0 && <p>Keine Daten.</p>}
         {(statistik.daten?.length ?? 0) > 0 && (
-          <table className="tabelle">
+          <table className="tabelle" aria-label="Dienste und Stunden je Person">
             <thead><tr><th scope="col">Person</th><th scope="col">Dienste</th><th scope="col">Stunden</th></tr></thead>
             <tbody>
               {[...statistik.daten!].sort((a, b) => name(a.person_id).localeCompare(name(b.person_id), 'de')).map((z) => (

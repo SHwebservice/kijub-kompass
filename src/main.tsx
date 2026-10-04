@@ -8,6 +8,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/glas.css';
 import './styles/startseite.css';
+import './styles/dienstplan.css';
 import { starteDarstellung } from './theme/darstellung';
 
 starteDarstellung();
