@@ -133,6 +133,98 @@ describe('Personen: Tabelle mit Zuordnungen', () => {
     expect(screen.queryByText('Überschneidung')).not.toBeInTheDocument();
   });
 
+  describe('Überschneidung ansehen und akzeptieren', () => {
+    /** Anna ist in Sommer 1 (Leitung) und Sommer 2 (Team): die beiden überschneiden sich. */
+    const mitUeberschneidung = () => vi.mocked(zApi.listeFreizeitTeams).mockResolvedValue([
+      { freizeit_id: 'f1', person_id: 'anna', rolle: 'leitung' }, { freizeit_id: 'f2', person_id: 'anna', rolle: 'teamer' },
+    ]);
+    const FREIGABE: zApi.UeberschneidungFreigabe = { person_id: 'anna', freizeit_a: 'f1', freizeit_b: 'f2', notiz: 'nur am Wochenende', akzeptiert_von: 'ben', akzeptiert_am: '2027-01-05T10:00:00Z' };
+    beforeEach(() => {
+      vi.mocked(zApi.listeUeberschneidungsFreigaben).mockResolvedValue([]);
+      vi.mocked(zApi.akzeptiereUeberschneidung).mockResolvedValue(undefined);
+      vi.mocked(zApi.widerrufeUeberschneidung).mockResolvedValue(undefined);
+    });
+
+    it('die Warnung ist anklickbar und zeigt beide Freizeiten mit Zeitraum, Rolle und Link', async () => {
+      mitUeberschneidung();
+      const u = await zurTabelle();
+      await u.click(await screen.findByRole('button', { name: 'Überschneidung von Anna Adler ansehen' }));
+      const dialog = await screen.findByRole('dialog', { name: /Überschneidung · Anna Adler/ });
+      expect(within(dialog).getByRole('link', { name: 'Sommer 1' })).toHaveAttribute('href', '/freizeiten/f1/team');
+      expect(within(dialog).getByRole('link', { name: 'Sommer 2' })).toHaveAttribute('href', '/freizeiten/f2/team');
+      expect(dialog).toHaveTextContent('Leitung');
+      expect(dialog).toHaveTextContent('TeamerIn');
+      expect(within(dialog).getByText('Gleichzeitig an:').parentElement).toHaveTextContent(/\d\d\.\d\d\.\d{4} – \d\d\.\d\d\.\d{4}/);
+    });
+
+    it('„Überschneidung akzeptieren“ speichert mit Notiz, und die Warnung verschwindet', async () => {
+      mitUeberschneidung();
+      const u = await zurTabelle();
+      await u.click(await screen.findByRole('button', { name: 'Überschneidung von Anna Adler ansehen' }));
+      const dialog = await screen.findByRole('dialog');
+      await u.type(within(dialog).getByLabelText('Notiz (optional)'), 'nur am Wochenende');
+      await u.click(within(dialog).getByRole('button', { name: 'Überschneidung akzeptieren' }));
+      expect(zApi.akzeptiereUeberschneidung).toHaveBeenCalledWith('anna', 'f1', 'f2', 'nur am Wochenende');
+      expect(await within(dialog).findByText('Akzeptiert')).toBeInTheDocument();
+      await u.click(within(dialog).getByRole('button', { name: 'Schließen' }));
+      expect(screen.queryByRole('button', { name: 'Überschneidung von Anna Adler ansehen' })).not.toBeInTheDocument();
+      expect(zelle('Anna Adler', 'Sommer 1').title).toBe('');
+      expect(screen.getByRole('button', { name: 'Akzeptierte Überschneidung von Anna Adler ansehen' })).toBeInTheDocument();
+    });
+
+    it('eine bereits akzeptierte Überschneidung warnt nicht, zeigt aber Wer, Wann und Notiz und lässt sich zurücknehmen', async () => {
+      mitUeberschneidung();
+      vi.mocked(zApi.listeUeberschneidungsFreigaben).mockResolvedValue([FREIGABE]);
+      const u = await zurTabelle();
+      expect(screen.queryByRole('button', { name: 'Überschneidung von Anna Adler ansehen' })).not.toBeInTheDocument();
+      await u.click(await screen.findByRole('button', { name: 'Akzeptierte Überschneidung von Anna Adler ansehen' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toHaveTextContent('von Ben Baum am 05.01.2027');
+      expect(dialog).toHaveTextContent('„nur am Wochenende“');
+      await u.click(within(dialog).getByRole('button', { name: 'Akzeptanz zurücknehmen' }));
+      expect(zApi.widerrufeUeberschneidung).toHaveBeenCalledWith('anna', 'f1', 'f2');
+      await u.click(within(dialog).getByRole('button', { name: 'Schließen' }));
+      expect(await screen.findByRole('button', { name: 'Überschneidung von Anna Adler ansehen' })).toBeInTheDocument();      // Warnung ist zurück
+    });
+
+    it('nach dem Zuordnen führt der Hinweis zur Überschneidung („Ansehen und akzeptieren“)', async () => {
+      const u = await zurTabelle();
+      await u.selectOptions(zelle('Anna Adler', 'Sommer 2'), 'teamer');
+      expect(await screen.findByText(/Achtung: Anna Adler ist zur selben Zeit auch eingeteilt in Sommer 1/)).toBeInTheDocument();
+      await u.click(screen.getByRole('button', { name: 'Ansehen und akzeptieren' }));
+      const dialog = await screen.findByRole('dialog', { name: /Überschneidung · Anna Adler/ });
+      await u.click(within(dialog).getByRole('button', { name: 'Überschneidung akzeptieren' }));
+      expect(zApi.akzeptiereUeberschneidung).toHaveBeenCalledWith('anna', 'f1', 'f2', null);
+    });
+
+    it('im Zuordnungsfenster einer Person klappt das Schild die Überschneidung auf', async () => {
+      mitUeberschneidung();
+      const u = userEvent.setup();
+      zeige();
+      await screen.findByText('Anna Adler');
+      await u.click(screen.getAllByRole('button', { name: 'Zuordnungen von Anna Adler' })[0]!);
+      const dialog = await screen.findByRole('dialog', { name: /Zuordnungen · Anna Adler/ });
+      const schild = await within(dialog).findByRole('button', { name: /Überschneidung: Sommer 2/ });
+      expect(schild).toHaveAttribute('aria-expanded', 'false');
+      await u.click(schild);
+      expect(schild).toHaveAttribute('aria-expanded', 'true');
+      await u.click(within(dialog).getByRole('button', { name: 'Überschneidung akzeptieren' }));
+      expect(zApi.akzeptiereUeberschneidung).toHaveBeenCalledWith('anna', 'f1', 'f2', null);
+      expect(await within(dialog).findAllByRole('button', { name: /Überschneidung akzeptiert/ })).toHaveLength(2);      // beide Freizeiten zeigen das Schild jetzt neutral
+    });
+
+    it('Fehler beim Akzeptieren werden im Fenster gezeigt, die Warnung bleibt', async () => {
+      mitUeberschneidung();
+      vi.mocked(zApi.akzeptiereUeberschneidung).mockRejectedValue({ code: '42501', message: 'row-level security' });
+      const u = await zurTabelle();
+      await u.click(await screen.findByRole('button', { name: 'Überschneidung von Anna Adler ansehen' }));
+      const dialog = await screen.findByRole('dialog');
+      await u.click(within(dialog).getByRole('button', { name: 'Überschneidung akzeptieren' }));
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Dafür fehlt die Berechtigung.');
+      expect(within(dialog).queryByText('Akzeptiert')).not.toBeInTheDocument();
+    });
+  });
+
   it('ein Fehler beim Speichern wird angezeigt, die Anzeige bleibt beim alten Stand', async () => {
     vi.mocked(zApi.setzeFreizeitRolle).mockRejectedValue({ code: '42501', message: 'row-level security' });
     const u = await zurTabelle();

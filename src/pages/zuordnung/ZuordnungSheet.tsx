@@ -2,19 +2,20 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { phase } from '../../freizeiten/logik';
 import {
-  darfInTreff, FREIZEIT_ROLLEN, konflikteFuer, konfliktText, personName, spaltenZeitraum, TREFF_ROLLEN,
+  darfInTreff, FREIZEIT_ROLLEN, konflikteFuer, konfliktText, personName, spaltenZeitraum, TREFF_ROLLEN, ueberschneidungsPaare,
   type FreizeitSpalte,
 } from '../../zuordnung/logik';
 import type { Bereich, PersonZeile } from '../../zuordnung/api';
 import { Sheet } from '../../components/Sheet';
-import { Badge } from '../../components/ui';
 import { RollenAuswahl } from './RollenAuswahl';
+import { UeberschneidungDetail, type UeberschneidungsDaten } from './UeberschneidungDetail';
 import type { ZuordnungsAnsicht } from './ZuordnungsTabelle';
 
 interface Props extends Omit<ZuordnungsAnsicht, 'spalten'> {
   person: PersonZeile;
   /** Alle Freizeiten (auch vergangene). */
   freizeiten: FreizeitSpalte[];
+  ueberschneidung: UeberschneidungsDaten;
   heute: string;
   /** Person zur Koordination eines Bereichs machen bzw. zurücknehmen. */
   aendereKoordination: (person: PersonZeile, bereich: Bereich, an: boolean) => void;
@@ -22,8 +23,9 @@ interface Props extends Omit<ZuordnungsAnsicht, 'spalten'> {
 }
 
 /** Alle Zuordnungen einer Person auf einen Blick: jede Freizeit und jeder Treff mit Auswahl. Gut für das Handy, wo die Tabelle zu breit ist. */
-export function ZuordnungSheet({ person, freizeiten, treffs, z, heute, aendereFreizeit, aendereTreff, aendereKoordination, gesperrt, schliessen }: Props) {
+export function ZuordnungSheet({ person, freizeiten, treffs, z, akzeptiert, ueberschneidung, heute, aendereFreizeit, aendereTreff, aendereKoordination, gesperrt, schliessen }: Props) {
   const [vergangene, setVergangene] = useState(false);
+  const [detailFuer, setDetailFuer] = useState<string | null>(null);        // Freizeit, deren Überschneidungen gerade aufgeklappt sind
   const sichtbar = freizeiten
     .filter((f) => f.status === 'geplant' && (vergangene || phase(f, heute) !== 'vergangen' || z.freizeitRolle(f.id, person.id) !== null))
     .sort((a, b) => a.start_datum.localeCompare(b.start_datum) || a.name.localeCompare(b.name, 'de'));
@@ -52,19 +54,29 @@ export function ZuordnungSheet({ person, freizeiten, treffs, z, heute, aendereFr
       {sichtbar.length === 0 && <p>Keine laufenden oder kommenden Freizeiten.</p>}
       <ul className="list" aria-label="Freizeiten">
         {sichtbar.map((f) => {
-          const konflikte = konflikteFuer(person.id, f, freizeiten, z);
+          const konflikte = konflikteFuer(person.id, f, freizeiten, z, akzeptiert);
           const rolle = z.freizeitRolle(f.id, person.id);
+          const paare = rolle ? ueberschneidungsPaare(person.id, freizeiten, z).filter((p) => p.a.id === f.id || p.b.id === f.id) : [];
+          const offen = detailFuer === f.id;
           return (
             <li key={f.id} className="list__item">
               <div className="list__main">
                 <Link className="list__title" to={`/freizeiten/${f.id}/team`} onClick={schliessen}>{f.name}</Link>
                 <div className="list__meta">
                   <span>{spaltenZeitraum(f)}</span>
-                  {rolle && konflikte.length > 0 && <Badge ton="warning">Überschneidung: {konflikte.map(konfliktText).join(', ')}</Badge>}
+                  {paare.length > 0 && (
+                    <button type="button" className={`badge badge--knopf${konflikte.length > 0 ? ' badge--warning' : ''}`} aria-expanded={offen}
+                      onClick={() => setDetailFuer(offen ? null : f.id)}>
+                      {konflikte.length > 0 ? `Überschneidung: ${konflikte.map(konfliktText).join(', ')}` : 'Überschneidung akzeptiert'} {offen ? '▴' : '▾'}
+                    </button>
+                  )}
                 </div>
               </div>
               <RollenAuswahl label={`${f.name}`} wert={rolle} optionen={FREIZEIT_ROLLEN} disabled={gesperrtFuer(rolle)} warnung={!!rolle && konflikte.length > 0}
                 aendere={(r) => aendereFreizeit(person, f, r)} />
+              {offen && paare.length > 0 && (
+                <div className="ueberschneidung__ausgeklappt"><UeberschneidungDetail person={person} paare={paare} daten={ueberschneidung} gesperrt={gesperrt} schliessen={schliessen} /></div>
+              )}
             </li>
           );
         })}

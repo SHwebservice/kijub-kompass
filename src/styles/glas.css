@@ -59,4 +59,17 @@ body::before {
   .shell__header, .shell__nav-bottom { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 
+/* Überschneidungen von Freizeiten (Personen → Zuordnungen) */
+.badge--knopf { border: 0; font: inherit; font-size: inherit; cursor: pointer; text-align: left; }
+.badge--knopf:hover { text-decoration: underline; }
+.ueberschneidungen { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.ueberschneidung { padding: var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); }
+.ueberschneidung__paar { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2) var(--space-3); }
+.ueberschneidung__freizeit { min-width: 0; flex: 1 1 10rem; font-weight: 600; overflow-wrap: anywhere; }
+.ueberschneidung__freizeit .field__hint { font-weight: 400; }
+.ueberschneidung__und { color: var(--text-muted); align-self: center; }
+.ueberschneidung__zeit { margin: var(--space-2) 0; }
+.ueberschneidung__notiz { font-style: italic; color: var(--text-muted); }
+.ueberschneidung__ausgeklappt { flex: 1 0 100%; }
+
 @media print { body::before { display: none; } }

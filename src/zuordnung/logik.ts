@@ -81,21 +81,42 @@ export function mitTreffRolle(liste: TreffTeamZeile[], treffId: string, personId
 export const ueberschneiden = (a: Pick<FreizeitSpalte, 'start_datum' | 'ende_datum'>, b: Pick<FreizeitSpalte, 'start_datum' | 'ende_datum'>) =>
   a.start_datum <= b.ende_datum && b.start_datum <= a.ende_datum;
 
-/** Andere (nicht abgesagte) Freizeiten, in denen die Person zur selben Zeit eingeteilt ist. */
-export function konflikteFuer<T extends FreizeitSpalte>(personId: string, freizeit: FreizeitSpalte, freizeiten: T[], z: Zuordnungen): T[] {
-  return freizeiten.filter((f) => f.id !== freizeit.id && f.status === 'geplant' && z.freizeitRolle(f.id, personId) !== null && ueberschneiden(f, freizeit));
+/** Schlüssel eines akzeptierten Paares: Person und die beiden Freizeiten, unabhängig von der Reihenfolge. */
+export const paarSchluessel = (personId: string, a: string, b: string) => (a < b ? `${personId}:${a}:${b}` : `${personId}:${b}:${a}`);
+
+/** Akzeptierte Überschneidungen (Schlüssel aus `paarSchluessel`): dafür gibt es keine Warnung mehr. */
+export type Akzeptiert = ReadonlySet<string>;
+
+/** Andere (nicht abgesagte) Freizeiten, in denen die Person zur selben Zeit eingeteilt ist – ohne die bewusst akzeptierten. */
+export function konflikteFuer<T extends FreizeitSpalte>(personId: string, freizeit: FreizeitSpalte, freizeiten: T[], z: Zuordnungen, akzeptiert?: Akzeptiert): T[] {
+  return freizeiten.filter((f) => f.id !== freizeit.id && f.status === 'geplant' && z.freizeitRolle(f.id, personId) !== null && ueberschneiden(f, freizeit)
+    && !akzeptiert?.has(paarSchluessel(personId, f.id, freizeit.id)));
 }
 
-/** IDs aller Freizeiten, in denen die Person mit einer anderen Freizeit kollidiert. */
-export function kollidierende(personId: string, freizeiten: FreizeitSpalte[], z: Zuordnungen): Set<string> {
-  const meine = freizeiten.filter((f) => f.status === 'geplant' && z.freizeitRolle(f.id, personId) !== null);
+/** IDs aller Freizeiten, in denen die Person mit einer anderen Freizeit kollidiert (akzeptierte Paare zählen nicht). */
+export function kollidierende(personId: string, freizeiten: FreizeitSpalte[], z: Zuordnungen, akzeptiert?: Akzeptiert): Set<string> {
   const ids = new Set<string>();
-  for (let i = 0; i < meine.length; i += 1) {
-    for (let j = i + 1; j < meine.length; j += 1) {
-      if (ueberschneiden(meine[i]!, meine[j]!)) { ids.add(meine[i]!.id); ids.add(meine[j]!.id); }
-    }
+  for (const p of ueberschneidungsPaare(personId, freizeiten, z)) {
+    if (akzeptiert?.has(paarSchluessel(personId, p.a.id, p.b.id))) continue;
+    ids.add(p.a.id); ids.add(p.b.id);
   }
   return ids;
+}
+
+export interface UeberschneidungsPaar<T extends FreizeitSpalte = FreizeitSpalte> { a: T; b: T; rolleA: FreizeitRolle; rolleB: FreizeitRolle }
+
+/** Alle Paare von Freizeiten, die sich für die Person zeitlich überschneiden – auch die akzeptierten. Früher beginnende Freizeit zuerst. */
+export function ueberschneidungsPaare<T extends FreizeitSpalte>(personId: string, freizeiten: T[], z: Zuordnungen): UeberschneidungsPaar<T>[] {
+  const meine = freizeiten
+    .filter((f) => f.status === 'geplant' && z.freizeitRolle(f.id, personId) !== null)
+    .sort((x, y) => x.start_datum.localeCompare(y.start_datum) || x.name.localeCompare(y.name, 'de') || x.id.localeCompare(y.id));
+  const paare: UeberschneidungsPaar<T>[] = [];
+  for (let i = 0; i < meine.length; i += 1) {
+    for (let j = i + 1; j < meine.length; j += 1) {
+      if (ueberschneiden(meine[i]!, meine[j]!)) paare.push({ a: meine[i]!, b: meine[j]!, rolleA: z.freizeitRolle(meine[i]!.id, personId)!, rolleB: z.freizeitRolle(meine[j]!.id, personId)! });
+    }
+  }
+  return paare;
 }
 
 /** Text für einen Hinweis, z. B. „Sommer 1 (01.07.–05.07.2027)“. */

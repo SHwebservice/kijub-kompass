@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
-  anzahlen, darfInTreff, FREIZEIT_ROLLEN, kollidierende, konflikteFuer, konfliktText, ohneLeitungIds, personName, spaltenZeitraum, TREFF_ROLLEN,
-  type FreizeitRolle, type FreizeitSpalte, type FreizeitTeamZeile, type TreffRolle, type TreffSpalte, type Zuordnungen,
+  anzahlen, darfInTreff, FREIZEIT_ROLLEN, kollidierende, konflikteFuer, konfliktText, ohneLeitungIds, personName, spaltenZeitraum, TREFF_ROLLEN, ueberschneidungsPaare,
+  type Akzeptiert, type FreizeitRolle, type FreizeitSpalte, type FreizeitTeamZeile, type TreffRolle, type TreffSpalte, type Zuordnungen,
 } from '../../zuordnung/logik';
 import type { PersonZeile } from '../../zuordnung/api';
 import { Badge } from '../../components/ui';
@@ -13,6 +13,8 @@ export interface ZuordnungsAnsicht {
   treffs: TreffSpalte[];
   freizeitTeams: FreizeitTeamZeile[];
   z: Zuordnungen;
+  /** Bewusst akzeptierte Überschneidungen: dafür gibt es keine Warnung. */
+  akzeptiert: Akzeptiert;
   aendereFreizeit: (person: PersonZeile, f: FreizeitSpalte, rolle: FreizeitRolle | null) => void;
   aendereTreff: (person: PersonZeile, t: TreffSpalte, rolle: TreffRolle | null) => void;
   gesperrt: boolean;
@@ -21,10 +23,12 @@ export interface ZuordnungsAnsicht {
 interface Props extends ZuordnungsAnsicht {
   personen: PersonZeile[];
   oeffne: (p: PersonZeile) => void;
+  /** Öffnet die Überschneidungen einer Person (Freizeiten ansehen, akzeptieren). */
+  oeffneUeberschneidung: (p: PersonZeile) => void;
 }
 
 /** Die Personen-Tabelle mit einer Spalte je Freizeit und je Treff. Eine Auswahl in der Zelle ordnet zu, ändert die Rolle oder entfernt. */
-export function ZuordnungsTabelle({ personen, spalten, treffs, freizeitTeams, z, aendereFreizeit, aendereTreff, gesperrt, oeffne }: Props) {
+export function ZuordnungsTabelle({ personen, spalten, treffs, freizeitTeams, z, akzeptiert, aendereFreizeit, aendereTreff, gesperrt, oeffne, oeffneUeberschneidung }: Props) {
   const keineLeitung = ohneLeitungIds(spalten, freizeitTeams);
 
   return (
@@ -54,7 +58,8 @@ export function ZuordnungsTabelle({ personen, spalten, treffs, freizeitTeams, z,
         </thead>
         <tbody>
           {personen.map((p) => {
-            const kollision = kollidierende(p.id, spalten, z);
+            const kollision = kollidierende(p.id, spalten, z, akzeptiert);
+            const akzeptierte = kollision.size === 0 && ueberschneidungsPaare(p.id, spalten, z).length > 0;
             return (
               <tr key={p.id} className={p.aktiv ? undefined : 'zuordnung__inaktiv'}>
                 <th scope="row" className="zuordnung__person">
@@ -62,11 +67,14 @@ export function ZuordnungsTabelle({ personen, spalten, treffs, freizeitTeams, z,
                   <div className="zuordnung__klein">
                     {p.kategorie}
                     {!p.aktiv && ' · deaktiviert'}
-                    {kollision.size > 0 && <> <Badge ton="warning">Überschneidung</Badge></>}
+                    {kollision.size > 0 && <> <button type="button" className="badge badge--warning badge--knopf" onClick={() => oeffneUeberschneidung(p)}
+                      aria-label={`Überschneidung von ${personName(p)} ansehen`}>Überschneidung</button></>}
+                    {akzeptierte && <> <button type="button" className="badge badge--knopf" onClick={() => oeffneUeberschneidung(p)}
+                      aria-label={`Akzeptierte Überschneidung von ${personName(p)} ansehen`}>Überschneidung akzeptiert</button></>}
                   </div>
                 </th>
                 {spalten.map((f) => {
-                  const konflikte = kollision.has(f.id) ? konflikteFuer(p.id, f, spalten, z) : [];
+                  const konflikte = kollision.has(f.id) ? konflikteFuer(p.id, f, spalten, z, akzeptiert) : [];
                   return (
                     <td key={f.id}>
                       <RollenAuswahl label={`${personName(p)}: ${f.name}`} wert={z.freizeitRolle(f.id, p.id)} optionen={FREIZEIT_ROLLEN} disabled={gesperrt || !p.aktiv}

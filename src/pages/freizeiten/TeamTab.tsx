@@ -7,8 +7,8 @@ import {
 } from '../../freizeiten/api';
 import { ROLLEN_LABEL, sortiereTeam } from '../../freizeiten/logik';
 import type { RolleInFreizeit } from '../../lib/rollen';
-import { freizeitTeamHinzufuegen, listeFreizeitTeams } from '../../zuordnung/api';
-import { FREIZEIT_ROLLEN, indexiere, kandidatenFuer, konfliktText, konflikteFuer, personName } from '../../zuordnung/logik';
+import { freizeitTeamHinzufuegen, listeFreizeitTeams, listeUeberschneidungsFreigaben } from '../../zuordnung/api';
+import { FREIZEIT_ROLLEN, indexiere, kandidatenFuer, konfliktText, konflikteFuer, paarSchluessel, personName } from '../../zuordnung/logik';
 import { MehrfachZuordnung } from '../zuordnung/MehrfachZuordnung';
 import { Alert, Badge, Button, EmptyState, Spinner } from '../../components/ui';
 
@@ -48,10 +48,16 @@ export function TeamTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDaten;
   const mitglieder = sortiereTeam(team.daten ?? []);
   const imTeam = new Set(mitglieder.map((m) => m.person_id));
   // Für den Hinweis „zur selben Zeit schon woanders eingeteilt“: alle Freizeiten und Teams (nur für die Koordination geladen)
-  const andere = useLaden(async () => (verwaltung ? { freizeiten: await listeFreizeiten(), teams: await listeFreizeitTeams() } : null), `team-konflikte-${verwaltung}`);
+  /** Die akzeptierten Überschneidungen; ohne Recht oder bei einem Fehler gilt: keine (dann warnt der Hinweis wie bisher). */
+  const akzeptierteLaden = async () => { try { return (await listeUeberschneidungsFreigaben()) ?? []; } catch { return []; } };
+  const andere = useLaden(async () => (verwaltung ? {
+    freizeiten: await listeFreizeiten(), teams: await listeFreizeitTeams(),
+    // Bewusst akzeptierte Überschneidungen (nur die Freizeitenkoordination darf sie lesen; für andere ist die Liste leer)
+    akzeptiert: new Set((await akzeptierteLaden()).map((x) => paarSchluessel(x.person_id, x.freizeit_a, x.freizeit_b))),
+  } : null), `team-konflikte-${verwaltung}`);
   const zuordnungen = indexiere(andere.daten?.teams ?? [], []);
   const kandidaten = kandidatenFuer(personen.daten ?? [], imTeam, { suche: '', kategorie: '' }).map((p) => {
-    const k = konflikteFuer(p.id, f, andere.daten?.freizeiten ?? [], zuordnungen);
+    const k = konflikteFuer(p.id, f, andere.daten?.freizeiten ?? [], zuordnungen, andere.daten?.akzeptiert);
     return { id: p.id, name: personName(p), kategorie: p.kategorie, ...(k.length ? { hinweis: `zur selben Zeit: ${k.map(konfliktText).join(', ')}` } : {}) };
   });
 

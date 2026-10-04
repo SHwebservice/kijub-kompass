@@ -7,13 +7,14 @@ import { listeFreizeiten } from '../freizeiten/api';
 import { listeTreffs } from '../treffs/api';
 import { bestaetigeTreffEntfernen } from '../zuordnung/entfernen';
 import { listePersonenVoll, setzeKoordination, type Bereich, type PersonZeile } from '../zuordnung/api';
-import { useZuordnungsdaten } from '../zuordnung/daten';
+import { useUeberschneidungen, useZuordnungsdaten } from '../zuordnung/daten';
 import {
-  filterePersonen, indexiere, konflikteFuer, konfliktText, personName, verfuegbareJahre, waehleFreizeiten, zusammenfassung,
+  filterePersonen, indexiere, konflikteFuer, konfliktText, personName, ueberschneidungsPaare, verfuegbareJahre, waehleFreizeiten, zusammenfassung,
   type FreizeitRolle, type FreizeitSpalte, type TreffRolle, type TreffSpalte, type Zeitraum,
 } from '../zuordnung/logik';
 import { ZuordnungsTabelle } from './zuordnung/ZuordnungsTabelle';
 import { ZuordnungSheet } from './zuordnung/ZuordnungSheet';
+import { UeberschneidungSheet, type UeberschneidungsDaten } from './zuordnung/UeberschneidungDetail';
 import { useAuth } from '../lib/auth-kontext';
 import { PersonEntfernen, type Modus, type Uebersicht } from './PersonEntfernen';
 import { Alert, EmptyState, PageHeader, Spinner } from '../components/ui';
@@ -45,10 +46,12 @@ export function Personen() {
   const [mitDeaktivierten, setMitDeaktivierten] = useState(false);
   const [zuordnungPerson, setZuordnungPerson] = useState<PersonZeile | null>(null);
   const [zuordnungFehler, setZuordnungFehler] = useState<string | null>(null);
-  const [zuordnungHinweis, setZuordnungHinweis] = useState<string | null>(null);
+  const [zuordnungHinweis, setZuordnungHinweis] = useState<{ text: string; person: PersonZeile } | null>(null);
+  const [ueberschneidungPerson, setUeberschneidungPerson] = useState<PersonZeile | null>(null);
   const [speichert, setSpeichert] = useState(false);
   const heute = heuteIso();
   const zd = useZuordnungsdaten();
+  const ue = useUeberschneidungen();
   const freizeitenL = useLaden(listeFreizeiten, 'personen-freizeiten');
   const treffsL = useLaden(listeTreffs, 'personen-treffs');
   const freizeiten: FreizeitSpalte[] = freizeitenL.daten ?? [];
@@ -57,15 +60,15 @@ export function Personen() {
   const spalten = waehleFreizeiten(freizeiten, zeitraum, heute);
   const jahre = verfuegbareJahre(freizeiten);
 
-  async function zuordnungAendern(aktion: () => Promise<void>, hinweis?: () => string | null) {
+  async function zuordnungAendern(aktion: () => Promise<void>, hinweis?: () => { text: string; person: PersonZeile } | null) {
     setZuordnungFehler(null); setZuordnungHinweis(null); setSpeichert(true);
     try { await aktion(); setZuordnungHinweis(hinweis?.() ?? null); } catch (e) { setZuordnungFehler(fehlerText(e, 'Die Zuordnung konnte nicht gespeichert werden.')); } finally { setSpeichert(false); }
   }
   const aendereFreizeit = (p: PersonZeile, f: FreizeitSpalte, rolle: FreizeitRolle | null) => void zuordnungAendern(
     () => zd.setzeFreizeit(f.id, p.id, rolle),
     () => {
-      const k = rolle ? konflikteFuer(p.id, f, freizeiten, z) : [];
-      return k.length ? `Achtung: ${personName(p)} ist zur selben Zeit auch eingeteilt in ${k.map(konfliktText).join(', ')}.` : null;
+      const k = rolle ? konflikteFuer(p.id, f, freizeiten, z, ue.akzeptiert) : [];
+      return k.length ? { text: `Achtung: ${personName(p)} ist zur selben Zeit auch eingeteilt in ${k.map(konfliktText).join(', ')}.`, person: p } : null;
     });
   const aendereKoordination = (p: PersonZeile, bereich: Bereich, an: boolean) => void zuordnungAendern(async () => { await setzeKoordination(p.id, bereich, an); neuLaden(); });
   const aendereTreff = (p: PersonZeile, t: TreffSpalte, rolle: TreffRolle | null) => void zuordnungAendern(async () => {
@@ -154,7 +157,9 @@ export function Personen() {
 
   // Die Listenansicht zeigt wie bisher alle Personen; die Zuordnungstabelle lässt Deaktivierte standardmäßig weg
   const gefiltert = filterePersonen(zeilen ?? [], { suche, kategorie, mitDeaktivierten: ansicht === 'liste' || mitDeaktivierten });
-  const ansichtDaten = { spalten, treffs, freizeitTeams: zd.freizeitTeams, z, aendereFreizeit, aendereTreff, gesperrt: speichert || zd.laedt };
+  const ansichtDaten = { spalten, treffs, freizeitTeams: zd.freizeitTeams, z, akzeptiert: ue.akzeptiert, aendereFreizeit, aendereTreff, gesperrt: speichert || zd.laedt };
+  const nameVon = (id: string | null) => { const x = (zeilen ?? []).find((q) => q.id === id); return x ? personName(x) : 'jemand'; };
+  const ueberschneidung: UeberschneidungsDaten = { einzelheiten: ue.einzelheiten, akzeptiere: ue.akzeptiere, widerrufe: ue.widerrufe, nameVon };
 
   return (
     <>
@@ -173,13 +178,18 @@ export function Personen() {
         <Filterleiste ansicht={ansicht} setzeAnsicht={setAnsicht} suche={suche} setzeSuche={setSuche} kategorie={kategorie} setzeKategorie={setKategorie}
           zeitraum={zeitraum} setzeZeitraum={setZeitraum} jahre={jahre} mitDeaktivierten={mitDeaktivierten} setzeMitDeaktivierten={setMitDeaktivierten} />
         {(zuordnungFehler ?? zd.fehler ?? freizeitenL.fehler ?? treffsL.fehler) && <Alert ton="error">{zuordnungFehler ?? zd.fehler ?? freizeitenL.fehler ?? treffsL.fehler}</Alert>}
-        {zuordnungHinweis && <Alert ton="warning">{zuordnungHinweis}</Alert>}
+        {zuordnungHinweis && (
+          <Alert ton="warning">
+            {zuordnungHinweis.text}{' '}
+            <button type="button" className="linklike" onClick={() => setUeberschneidungPerson(zuordnungHinweis.person)}>Ansehen und akzeptieren</button>
+          </Alert>
+        )}
         {zeilen === null && !fehler && <Spinner />}
         {zeilen !== null && gefiltert.length === 0 && <EmptyState titel="Keine Personen gefunden" />}
         {ansicht === 'zuordnung' && gefiltert.length > 0 && (
           spalten.length === 0 && treffs.length === 0 && !freizeitenL.laedt && !treffsL.laedt
             ? <p>Für diesen Zeitraum gibt es keine Freizeiten und noch keine Treffs.</p>
-            : <ZuordnungsTabelle personen={gefiltert} {...ansichtDaten} oeffne={setZuordnungPerson} />
+            : <ZuordnungsTabelle personen={gefiltert} {...ansichtDaten} oeffne={setZuordnungPerson} oeffneUeberschneidung={setUeberschneidungPerson} />
         )}
         {ansicht === 'liste' && (
           <PersonenListe personen={gefiltert} zusammenfassung={(p) => zusammenfassung(p.id, freizeiten, z, heute)} ichId={ich?.id} arbeitet={arbeitet}
@@ -189,7 +199,11 @@ export function Personen() {
       </div>
       {zuordnungPerson && (
         <ZuordnungSheet person={zeilen?.find((x) => x.id === zuordnungPerson.id) ?? zuordnungPerson} freizeiten={freizeiten} heute={heute}
-          {...ansichtDaten} aendereKoordination={aendereKoordination} schliessen={() => setZuordnungPerson(null)} />
+          {...ansichtDaten} ueberschneidung={ueberschneidung} aendereKoordination={aendereKoordination} schliessen={() => setZuordnungPerson(null)} />
+      )}
+      {ueberschneidungPerson && (
+        <UeberschneidungSheet person={zeilen?.find((x) => x.id === ueberschneidungPerson.id) ?? ueberschneidungPerson} paare={ueberschneidungsPaare(ueberschneidungPerson.id, freizeiten, z)}
+          daten={ueberschneidung} gesperrt={ue.laedt} schliessen={() => setUeberschneidungPerson(null)} />
       )}
     </>
   );

@@ -66,3 +66,33 @@ export async function setzeKoordination(personId: string, bereich: Bereich, an: 
   const spalte = bereich === 'freizeiten' ? 'ist_freizeitkoordination' : 'ist_treffkoordination';
   pruefe(await supabase.from('personen').update({ [spalte]: an }).eq('id', personId));
 }
+
+/* ───── Überschneidungen akzeptieren (Migration 0023, nur Freizeitenkoordination) ───── */
+
+export interface UeberschneidungFreigabe {
+  person_id: string;
+  freizeit_a: string;
+  freizeit_b: string;
+  notiz: string | null;
+  akzeptiert_von: string | null;
+  akzeptiert_am: string;
+}
+
+const geordnet = (x: string, y: string): [string, string] => (x < y ? [x, y] : [y, x]);
+
+export async function listeUeberschneidungsFreigaben(): Promise<UeberschneidungFreigabe[]> {
+  return pruefe(await supabase.from('freizeit_ueberschneidungen_ok').select('person_id, freizeit_a, freizeit_b, notiz, akzeptiert_von, akzeptiert_am').limit(20000)) as UeberschneidungFreigabe[];
+}
+
+/** Die Überschneidung zweier Freizeiten für diese Person akzeptieren; die Warnung entfällt. */
+export async function akzeptiereUeberschneidung(personId: string, freizeitX: string, freizeitY: string, notiz: string | null): Promise<void> {
+  const [a, b] = geordnet(freizeitX, freizeitY);
+  pruefe(await supabase.from('freizeit_ueberschneidungen_ok').upsert(
+    { person_id: personId, freizeit_a: a, freizeit_b: b, notiz: notiz?.trim() ? notiz.trim() : null }, { onConflict: 'person_id,freizeit_a,freizeit_b' }));
+}
+
+/** Nimmt die Akzeptanz zurück; die Warnung erscheint wieder. */
+export async function widerrufeUeberschneidung(personId: string, freizeitX: string, freizeitY: string): Promise<void> {
+  const [a, b] = geordnet(freizeitX, freizeitY);
+  pruefe(await supabase.from('freizeit_ueberschneidungen_ok').delete().eq('person_id', personId).eq('freizeit_a', a).eq('freizeit_b', b));
+}

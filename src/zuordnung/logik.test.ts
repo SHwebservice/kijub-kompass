@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   anzahlen, darfInTreff, filterePersonen, indexiere, kandidatenFuer, kollidierende, konfliktText, konflikteFuer, mitFreizeitRolle, mitTreffRolle, ohneLeitungIds,
-  ueberschneiden, entfernenFrage, verfuegbareJahre, waehleFreizeiten, zusammenfassung, type FreizeitSpalte, type FreizeitTeamZeile, type PersonMini, type TreffTeamZeile,
+  paarSchluessel, ueberschneidungsPaare, ueberschneiden, entfernenFrage, verfuegbareJahre, waehleFreizeiten, zusammenfassung, type FreizeitSpalte, type FreizeitTeamZeile, type PersonMini, type TreffTeamZeile,
 } from './logik';
 
 const f = (id: string, start: string, ende: string, o: Partial<FreizeitSpalte> = {}): FreizeitSpalte => ({ id, name: `Freizeit ${id}`, start_datum: start, ende_datum: ende, status: 'geplant', ...o });
@@ -54,6 +54,33 @@ describe('Überschneidungen', () => {
   });
   it('Text für Hinweise', () => {
     expect(konfliktText(a)).toBe('Freizeit a (01.07.2027 – 05.07.2027)');
+  });
+
+  describe('akzeptierte Überschneidungen', () => {
+    it('der Schlüssel eines Paares hängt nicht von der Reihenfolge ab', () => {
+      expect(paarSchluessel('anna', 'a', 'b')).toBe(paarSchluessel('anna', 'b', 'a'));
+      expect(paarSchluessel('anna', 'a', 'b')).not.toBe(paarSchluessel('ben', 'a', 'b'));
+    });
+    it('ein akzeptiertes Paar warnt nicht mehr – nur für diese Person und dieses Paar', () => {
+      const ok = new Set([paarSchluessel('anna', 'a', 'b')]);
+      expect(konflikteFuer('anna', b, [a, b, c], z, ok)).toEqual([]);
+      expect(konflikteFuer('anna', a, [a, b, c], z, ok)).toEqual([]);
+      expect([...kollidierende('anna', [a, b, c], z, ok)]).toEqual([]);
+      const andere = new Set([paarSchluessel('ben', 'a', 'b'), paarSchluessel('anna', 'a', 'c')]);
+      expect(konflikteFuer('anna', b, [a, b, c], z, andere).map((x) => x.id)).toEqual(['a']);
+      expect([...kollidierende('anna', [a, b, c], z, andere)].sort()).toEqual(['a', 'b']);
+    });
+    it('ueberschneidungsPaare: alle Paare der Person, auch akzeptierte, früher beginnende zuerst; abgesagte nicht', () => {
+      const paare = ueberschneidungsPaare('anna', [c, b, a], z);
+      expect(paare.map((x) => [x.a.id, x.b.id, x.rolleA, x.rolleB])).toEqual([['a', 'b', 'teamer', 'leitung']]);
+      expect(ueberschneidungsPaare('ben', [a, ab], z)).toEqual([]);
+      expect(ueberschneidungsPaare('carla', [a, b], z)).toEqual([]);
+    });
+    it('mehrere Überschneidungen ergeben mehrere Paare', () => {
+      const d = f('d', '2027-07-03', '2027-07-04');
+      const z2 = indexiere([...team, { freizeit_id: 'd', person_id: 'anna', rolle: 'teamer' }], []);
+      expect(ueberschneidungsPaare('anna', [a, b, d], z2).map((x) => `${x.a.id}${x.b.id}`)).toEqual(['ad', 'ab', 'db']);
+    });
   });
 });
 
