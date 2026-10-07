@@ -57,7 +57,7 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
 
   const zelleSetzen = (datum: string, person: string, wert: boolean, einzeln: boolean) => {
     if (!b) return;
-    // Beim Ziehen werden Tage mit Urlaub, Krankheit oder Feiertag übersprungen; einzeln angeklickt entscheidet die Treffleitung selbst.
+    // Beim Ziehen werden Tage mit Urlaub oder Krankheit übersprungen; einzeln angeklickt entscheidet die Treffleitung selbst. Feiertage und Schließzeiten sind gar nicht bearbeitbar.
     if (!einzeln && wert && konfliktAm(datum, person, abwesenheiten, feiertage, treffId)) return;
     b.aendern((e) => setze(b.gespeichert, e, datum, person, wert));
   };
@@ -73,7 +73,7 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
     const { entwurf, ausgelassen } = zeileFuellen(b.gespeichert, b.entwurf, person, abwesenheiten, feiertage, treffId);
     b.aendern(() => entwurf);
     setHinweis(ausgelassen > 0
-      ? `${name}: ${ausgelassen === 1 ? 'ein Tag' : `${ausgelassen} Tage`} mit Urlaub, Krankheit oder Feiertag ausgelassen – zum Einteilen einzeln anklicken.`
+      ? `${name}: ${ausgelassen === 1 ? 'ein Tag' : `${ausgelassen} Tage`} mit Urlaub oder Krankheit ausgelassen – zum Einteilen einzeln anklicken.`
       : null);
   };
 
@@ -92,7 +92,7 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
               <th scope="col" className="einsatz__person">Person</th>
               {spalten.map((s) => (
                 <th key={s.datum} scope="col" title={s.geschlossen ?? s.feiertag ?? undefined}
-                  className={`einsatz__tag${s.heute ? ' einsatz__tag--heute' : ''}${s.unbesetzt ? ' einsatz__tag--leer' : ''}${s.feiertag ? ' einsatz__tag--feiertag' : ''}${s.geschlossen ? ' einsatz__tag--zu' : ''}`}>
+                  className={`einsatz__tag${s.heute ? ' einsatz__tag--heute' : ''}${s.unbesetzt ? ' einsatz__tag--leer' : ''}${s.feiertag ? ' einsatz__tag--feiertag' : ''}${s.geschlossen || s.feiertag ? ' einsatz__tag--zu' : ''}`}>
                   <span aria-hidden="true">{s.wochentag}</span>
                   <span aria-hidden="true" className="einsatz__zahl">{s.tag}</span>
                   <span className="sr-only">{`${s.wochentag} ${s.tag}.${s.heute ? ' (heute)' : ''}${s.feiertag ? `, Feiertag: ${s.feiertag}` : ''}${s.geschlossen ? `, ${s.geschlossen}` : ''}`}</span>
@@ -130,7 +130,7 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
                         {c.wunsch && <><span className="einsatz__wunsch" aria-hidden="true">?</span><span className="sr-only">wünscht den Dienst</span></>}
                       </>
                     );
-                    if (!b || !bearbeitbar(karte)) return <td key={s.datum} className={`${s.heute ? 'einsatz__zelle--heute' : ''}${s.geschlossen ? ' einsatz__zelle--zu' : ''}`.trim() || undefined}>{inhalt}</td>;
+                    if (!b || !bearbeitbar(karte)) return <td key={s.datum} className={`${s.heute ? 'einsatz__zelle--heute' : ''}${s.geschlossen || s.feiertag ? ' einsatz__zelle--zu' : ''}`.trim() || undefined}>{inhalt}</td>;
 
                     const vorherDrin = eingeteilt(b.gespeichert, new Map(), s.datum, z.person_id);
                     const neu = c.dienst && !vorherDrin;

@@ -5,7 +5,8 @@ import type { Oeffnungszeit } from './logik';
 /**
  * Einen Monat einteilen: je Person die Wochentage, an denen sie arbeitet. Daraus entsteht die Liste der Änderungen,
  * die die Treffleitung vor dem Speichern sieht. Vorhandene Einteilungen bleiben (weitere Personen kommen dazu) – außer im Modus „ersetzen“.
- * Konflikte (Urlaub oder Krankheit, Feiertag) entscheidet die Treffleitung selbst: Ohne Erlaubnis wird nicht eingeteilt.
+ * Konflikte (Urlaub oder Krankheit) entscheidet die Treffleitung selbst: Ohne Erlaubnis wird nicht eingeteilt.
+ * An Feiertagen und in Schließzeiten ist der Treff zu (seit 0027 auch an Feiertagen): Dort wird gar nicht eingeteilt.
  * Reine Fachlogik ohne Datenbank und Oberfläche.
  */
 
@@ -17,10 +18,10 @@ export interface Paar { datum: string; person: string }
 export interface Konflikt {
   /** Eindeutiger Schlüssel; wer ihn erlaubt, wird trotzdem eingeteilt. */
   schluessel: string;
-  art: 'abwesend' | 'feiertag';
+  art: 'abwesend';
   datum: string;
-  /** Betroffene Person (nur bei Abwesenheit). */
-  person: string | null;
+  /** Betroffene Person. */
+  person: string;
   text: string;
   /** Wie viele Einteilungen daran hängen. */
   betrifft: number;
@@ -66,22 +67,15 @@ export function planeMonat(e: PlanEingabe): MonatsPlan {
 
   for (const datum of monatTage(e.monat)) {
     if (!e.oeffnungszeiten.some((o) => o.wochentag === isoWochentag(datum))) continue;          // nur Öffnungstage
-    if (geschlossenAm(datum, e.schliesszeiten ?? [])) continue;                                    // nicht in Schließzeiten
+    if (geschlossenAm(datum, e.schliesszeiten ?? []) || feiertagAm(datum, e.feiertage, e.treffId)) continue;   // zu: Schließzeit oder Feiertag
     const wochentag = isoWochentag(datum);
     const gewollt = Object.entries(e.muster).filter(([, tageDerPerson]) => tageDerPerson.includes(wochentag)).map(([person]) => person);
     // „ersetzen“ betrifft nur Tage, an denen das Muster etwas vorsieht
     const vorhanden = e.dienste.find((d) => d.datum === datum && !d.ist_sonder)?.personen ?? [];
-    const feiertag = feiertagAm(datum, e.feiertage, e.treffId);
 
     for (const person of gewollt) {
       if (vorhanden.includes(person)) { schonDa += 1; continue; }
       const schluessel: string[] = [];
-      if (feiertag) {
-        const k = `feiertag:${datum}`;
-        schluessel.push(k);
-        const alt = konflikte.get(k);
-        konflikte.set(k, alt ? { ...alt, betrifft: alt.betrifft + 1 } : { schluessel: k, art: 'feiertag', datum, person: null, text: `${formatKurz(datum)} ist ein Feiertag (${feiertag.bezeichnung})`, betrifft: 1 });
-      }
       const weg = abwesendeAm(datum, e.abwesenheiten).find((a) => a.person_id === person);
       if (weg) {
         const k = `abwesend:${person}:${datum}`;
@@ -98,7 +92,7 @@ export function planeMonat(e: PlanEingabe): MonatsPlan {
 
   return {
     zuteilen: sortiert(zuteilen), entfernen: sortiert(entfernen), schonDa,
-    konflikte: [...konflikte.values()].sort((a, b) => a.datum.localeCompare(b.datum) || (a.art === 'feiertag' ? -1 : 1)),
+    konflikte: [...konflikte.values()].sort((a, b) => a.datum.localeCompare(b.datum) || a.person.localeCompare(b.person)),
     tage: [...tage].sort(),
   };
 }

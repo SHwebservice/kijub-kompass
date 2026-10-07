@@ -5,7 +5,7 @@ import { useLive } from '../../lib/live';
 import { formatKurz, heuteIso } from '../../freizeiten/logik';
 import { dienstStatistik, holeTreffTeam, listeAbwesenheiten, listeDienste, listeFeiertage, listeSchliesszeiten, type TreffDetailDaten } from '../../treffs/api';
 import {
-  dienstZeit, feiertagAm, monatErster, monatTage, monatText, monatVersatz, schliesszeitText, stundenText, tageskarten, type Dienst,
+  dienstZeit, feiertagAm, geschlosseneZeiten, monatErster, monatTage, monatText, monatVersatz, schliesszeitText, stundenText, tageskarten, type Dienst,
 } from '../../treffs/dienstplan';
 import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
 import { LEERER_ENTWURF, mitEntwurf, type Entwurf } from '../../treffs/entwurf';
@@ -56,7 +56,8 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
   const mitglieder = team.daten ?? [];
   const namen = Object.fromEntries(mitglieder.map((m) => [m.person_id, `${m.vorname} ${m.nachname}`]));
   const name = (id: string) => namen[id] ?? 'Jemand';
-  const karten = tageskarten(tage, t.oeffnungszeiten, dienste.daten ?? [], schliesszeiten.daten ?? []);
+  const zu = geschlosseneZeiten(schliesszeiten.daten ?? [], feiertage.daten ?? [], t.id);       // Schließzeiten und Feiertage
+  const karten = tageskarten(tage, t.oeffnungszeiten, dienste.daten ?? [], zu);
   const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? statistik.fehler ?? abwesenheiten.fehler ?? schliesszeiten.fehler;
   const geaendert = () => { dienste.neuLaden(); statistik.neuLaden(); };
 
@@ -89,7 +90,7 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
 
       {verwaltung && !dienste.laedt && (
         <MonatEinteilen key={monat} treff={t} monat={monat} mitglieder={mitglieder} dienste={dienste.daten ?? []} abwesenheiten={abwesenheiten.daten ?? []}
-          feiertage={feiertage.daten ?? []} schliesszeiten={schliesszeiten.daten ?? []} geaendert={geaendert} />
+          feiertage={feiertage.daten ?? []} schliesszeiten={zu} geaendert={geaendert} />
       )}
 
       <Card>
@@ -109,7 +110,7 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
                   <div className="list__meta">
                     {k.oeffnung && <span>{oeffnungszeitText(k.oeffnung)}</span>}
                     {f && <Badge ton="warning">{f.bezeichnung}</Badge>}
-                    {k.geschlossen && <Badge>{schliesszeitText(k.geschlossen)}</Badge>}
+                    {k.geschlossen && !k.geschlossen.feiertag && <Badge>{schliesszeitText(k.geschlossen)}</Badge>}
                     {verwaltung && offeneWuensche > 0 && <Badge ton="accent">{offeneWuensche === 1 ? '1 Wunsch' : `${offeneWuensche} Wünsche`}</Badge>}
                   </div>
                   {eintraege.map((d) => (

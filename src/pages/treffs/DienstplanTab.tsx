@@ -11,7 +11,7 @@ import {
   listeSchliesszeiten, listeTreffAbsprachen, loescheDienstplanKommentar, wuenscheDienst, wunschZuruecknehmen, type TreffDetailDaten,
 } from '../../treffs/api';
 import {
-  abwesendeAm, addTage, darfWuenschen, dienstZeit, eigenerWunsch, feiertagAm, montagVon, offeneWuensche, schliesszeitText, tageskarten, wochenTage, wochenText,
+  abwesendeAm, addTage, darfWuenschen, dienstZeit, eigenerWunsch, feiertagAm, geschlosseneZeiten, montagVon, offeneWuensche, schliesszeitText, tageskarten, wochenTage, wochenText,
   type Dienst, type Tageskarte,
 } from '../../treffs/dienstplan';
 import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
@@ -60,7 +60,7 @@ function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
   const mitglieder = team.daten ?? [];
   const namen = Object.fromEntries(mitglieder.map((m) => [m.person_id, `${m.vorname} ${m.nachname}`]));
   const name = (id: string) => namen[id] ?? 'Jemand';
-  const karten = tageskarten(wochenTage(montag), t.oeffnungszeiten, dienste.daten ?? [], schliesszeiten.daten ?? []);
+  const karten = tageskarten(wochenTage(montag), t.oeffnungszeiten, dienste.daten ?? [], geschlosseneZeiten(schliesszeiten.daten ?? [], feiertage.daten ?? [], t.id));
   const wuensche = offeneWuensche(karten);
   const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? abwesenheiten.fehler ?? absprachen.fehler ?? kommentare.fehler ?? schliesszeiten.fehler;
   const laedt = team.laedt || dienste.laedt;
@@ -102,7 +102,7 @@ function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
         <h3>{formatKurz(k.datum)}{istHeute ? ' · heute' : ''}{zeit ? ` · ${zeit}` : ''}</h3>
         <div className="list__meta" style={{ marginBottom: 'var(--space-2)' }}>
           {feiertag && <Badge ton="warning">Feiertag: {feiertag.bezeichnung}</Badge>}
-          {k.geschlossen && <Badge>{schliesszeitText(k.geschlossen)}</Badge>}
+          {k.geschlossen && !k.geschlossen.feiertag && <Badge>{schliesszeitText(k.geschlossen)}</Badge>}
           {absprachenAmTag.length > 0 && <Badge ton="accent">📌 {absprachenAmTag.length === 1 ? 'Absprache' : `${absprachenAmTag.length} Absprachen`}</Badge>}
           {weg.map((a) => <Badge key={a.id} ton="danger">{name(a.person_id)}: {a.typ === 'urlaub' ? 'Urlaub' : 'krank'}</Badge>)}
         </div>

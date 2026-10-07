@@ -22,7 +22,18 @@ export interface Dienst {
 
 export interface Feiertag { id: string; treff_id: string | null; datum: string; bezeichnung: string }
 /** Zeitraum, in dem ein Treff geschlossen ist (von und bis einschließlich). */
-export interface Schliesszeit { id: string; treff_id: string; von: string; bis: string; grund: string }
+export interface Schliesszeit {
+  id: string; treff_id: string; von: string; bis: string; grund: string;
+  /** Aus einem Feiertag entstanden (seit 0027 schließen Feiertage den Treff); der Grund ist dann die Bezeichnung. */
+  feiertag?: boolean;
+}
+
+/** Alle Tage, an denen der Treff zu ist: Schließzeiten und Feiertage (dieses Treffs oder aller Treffs). */
+export function geschlosseneZeiten(schliesszeiten: Schliesszeit[], feiertage: Feiertag[], treffId: string): Schliesszeit[] {
+  const aus = feiertage.filter((f) => f.treff_id === null || f.treff_id === treffId)
+    .map((f): Schliesszeit => ({ id: `feiertag-${f.id}`, treff_id: treffId, von: f.datum, bis: f.datum, grund: f.bezeichnung, feiertag: true }));
+  return [...schliesszeiten, ...aus];
+}
 export interface Abwesenheit { id: string; person_id: string; datum: string; typ: 'urlaub' | 'krank'; notiz: string | null }
 
 /* ───── Kalender ───── */
@@ -88,7 +99,8 @@ export interface Tageskarte {
 export const geschlossenAm = (datum: string, schliesszeiten: Schliesszeit[]) => schliesszeiten.find((s) => s.von <= datum && datum <= s.bis) ?? null;
 
 /** „Schließzeit: Sommerpause“ bzw. „Geschlossen“ ohne Grund. */
-export const schliesszeitText = (s: Pick<Schliesszeit, 'grund'>) => (s.grund.trim() ? `Geschlossen: ${s.grund.trim()}` : 'Geschlossen');
+export const schliesszeitText = (s: Pick<Schliesszeit, 'grund' | 'feiertag'>) =>
+  (s.feiertag ? `Feiertag: ${s.grund.trim()}` : s.grund.trim() ? `Geschlossen: ${s.grund.trim()}` : 'Geschlossen');
 
 /** Karten für alle Tage, an denen der Treff öffnet oder ein Dienst existiert (auch Sonderdienste an Schließtagen). */
 export function tageskarten(tage: string[], oeffnungszeiten: Oeffnungszeit[], dienste: Dienst[], schliesszeiten: Schliesszeit[] = []): Tageskarte[] {

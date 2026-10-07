@@ -149,7 +149,7 @@ export function VerwaltungTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
 
       <Card>
         <h2>Feiertage</h2>
-        <p className="field__hint">Feiertage werden im Dienstplan angezeigt und im Nachweis vermerkt.</p>
+        <p className="field__hint">An Feiertagen ist der Treff geschlossen wie in einer Schließzeit: kein Einteilen, kein Wünschen, kein Tagesprotokoll. Im Nachweis werden sie vermerkt.</p>
         <form onSubmit={feiertagSpeichern} noValidate>
           <div className="row" style={{ alignItems: 'flex-start' }}>
             <div style={{ flex: '1 1 150px' }}><TextField label="Datum" type="date" value={f.datum} onChange={(e) => setF({ ...f, datum: e.target.value })} /></div>

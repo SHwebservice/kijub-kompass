@@ -95,21 +95,19 @@ describe('planeMonat: Konflikte entscheidet die Treffleitung', () => {
     expect(p.zuteilen.some((x) => x.datum === '2027-03-15')).toBe(false);
   });
 
-  it('Feiertag: eine Entscheidung für den ganzen Tag, die Zahl der betroffenen Einteilungen steht dabei', () => {
+  it('Feiertag (seit 0027): der Treff ist zu – kein Konflikt, an diesem Tag wird nicht eingeteilt', () => {
     const feiertage = [{ id: 'f', treff_id: null, datum: '2027-03-01', bezeichnung: 'Fest' }];
     const p = plan({ muster: { anna: [1], ben: [1] }, feiertage });
     expect(p.zuteilen.some((x) => x.datum === '2027-03-01')).toBe(false);
-    expect(p.konflikte).toEqual([{ schluessel: 'feiertag:2027-03-01', art: 'feiertag', datum: '2027-03-01', person: null, text: 'Mo 01.03. ist ein Feiertag (Fest)', betrifft: 2 }]);
-    const erlaubt = plan({ muster: { anna: [1], ben: [1] }, feiertage, erlaubt: new Set(['feiertag:2027-03-01']) });
-    expect(erlaubt.zuteilen.filter((x) => x.datum === '2027-03-01')).toHaveLength(2);
+    expect(p.zuteilen.filter((x) => x.datum === '2027-03-08')).toHaveLength(2);
+    expect(p.konflikte).toEqual([]);
   });
 
-  it('Feiertag und Urlaub am selben Tag: beides muss erlaubt sein', () => {
+  it('Feiertag und Urlaub am selben Tag: kein Konflikt (der Treff ist ohnehin zu)', () => {
     const feiertage = [{ id: 'f', treff_id: null, datum: '2027-03-08', bezeichnung: 'Fest' }];
-    const nurFeiertag = plan({ muster: { anna: [1] }, feiertage, abwesenheiten: urlaub, erlaubt: new Set(['feiertag:2027-03-08']) });
-    expect(nurFeiertag.zuteilen.some((x) => x.datum === '2027-03-08')).toBe(false);
-    const beides = plan({ muster: { anna: [1] }, feiertage, abwesenheiten: urlaub, erlaubt: new Set(['feiertag:2027-03-08', 'abwesend:anna:2027-03-08']) });
-    expect(beides.zuteilen.some((x) => x.datum === '2027-03-08')).toBe(true);
+    const p = plan({ muster: { anna: [1] }, feiertage, abwesenheiten: urlaub, erlaubt: new Set(['abwesend:anna:2027-03-08']) });
+    expect(p.zuteilen.some((x) => x.datum === '2027-03-08')).toBe(false);
+    expect(p.konflikte.map((k) => k.datum)).not.toContain('2027-03-08');
   });
 
   it('wer an einem Konflikt-Tag schon eingetragen ist, löst keinen Konflikt aus', () => {

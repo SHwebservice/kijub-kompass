@@ -93,7 +93,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Mehrere Wünsche auf einmal bestätigen (Migration 0025) | alle | — | — | ja (nur Dienste des eigenen Treffs) | — | — |
 | Dienstplan-Kommentare | alle | — | — | L E X | L E (eig.) X (eig.) | — |
 | Abwesenheiten (Urlaub/Krank) | L E Ä X | — | — | L E Ä X (Personen des Treffs) | L (eig.) | — |
-| Feiertage | L E Ä X | — | — | L (Treff) E Ä X (eigener Treff) | L | — |
+| Feiertage (schließen seit 0027 den Treff wie eine Schließzeit) | L E Ä X | — | — | L (Treff) E Ä X (eigener Treff) | L | — |
 | Schließzeiten des Treffs (Migration 0026) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L | — · an Schließtagen kein regulärer Dienst (weder einteilen noch wünschen), kein Protokoll nötig |
 | Nachweis Teilzeitkräfte (Entwurf) | L Ä X | — | — | L (Treff) | eig.: L E Ä X | — · **Δ** lag nur lokal im Browser |
 | Nachweis für andere erstellen lassen (Migration 0022) | — | — | — | Treff (alle TZK oder eine Person) | — | — |

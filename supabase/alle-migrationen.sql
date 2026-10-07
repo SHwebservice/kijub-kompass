@@ -1,7 +1,7 @@
 -- KiJuB-Kompass · alle Migrationen in einer Datei (GENERIERT – nicht von Hand ändern)
 -- Erzeugt mit: npm run sql:bundle
 -- Nur für ein LEERES Projekt gedacht: einmal komplett im SQL Editor ausführen.
--- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql, 0014_betrieb.sql, 0015_mitteilungen.sql, 0016_tagesprotokoll.sql, 0017_mitteilungen_mehr.sql, 0018_koordination_getrennt.sql, 0019_fehlermeldungen.sql, 0020_heute.sql, 0021_bewerbung_rolle_treff_aufraeumen.sql, 0022_nachweise_erstellen.sql, 0023_ueberschneidung_akzeptiert.sql, 0024_dienstplan_anwenden.sql, 0025_wuensche_bestaetigen.sql, 0026_schliesszeiten_farbe.sql
+-- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql, 0014_betrieb.sql, 0015_mitteilungen.sql, 0016_tagesprotokoll.sql, 0017_mitteilungen_mehr.sql, 0018_koordination_getrennt.sql, 0019_fehlermeldungen.sql, 0020_heute.sql, 0021_bewerbung_rolle_treff_aufraeumen.sql, 0022_nachweise_erstellen.sql, 0023_ueberschneidung_akzeptiert.sql, 0024_dienstplan_anwenden.sql, 0025_wuensche_bestaetigen.sql, 0026_schliesszeiten_farbe.sql, 0027_feiertag_schliesst.sql
 
 -- ════════ 0001_stammdaten.sql ════════
 -- KiJuB-Kompass · 0001 Stammdaten
@@ -3731,3 +3731,16 @@ end $$;
 -- ===== 4) Farbe je Freizeit =====
 alter table freizeiten add column farbe text
   check (farbe is null or farbe in ('blau', 'orange', 'gruen', 'lila', 'gold', 'petrol', 'pink', 'oliv', 'tuerkis', 'rost'));
+
+-- ════════ 0027_feiertag_schliesst.sql ════════
+-- KiJuB-Kompass · 0027: Feiertage schließen den Treff
+--
+-- Bisher waren Feiertage nur ein Hinweis (die Treffleitung konnte trotzdem einteilen). Jetzt gilt ein Feiertag – für diesen Treff oder
+-- für alle Treffs – wie ein Tag einer Schließzeit: Der reguläre Dienst lässt sich weder einteilen noch wünschen (Trigger aus 0026),
+-- es ist kein Tagesprotokoll nötig und es gibt keine Erinnerung (wie schon bisher). Sonderdienste bleiben möglich.
+
+create or replace function ist_geschlossen(p_treff uuid, p_datum date) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $$
+  select exists (select 1 from treff_schliesszeiten where treff_id = p_treff and p_datum between von and bis)
+      or exists (select 1 from feiertage where datum = p_datum and (treff_id is null or treff_id = p_treff))
+$$;

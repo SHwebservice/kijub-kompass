@@ -182,14 +182,19 @@ describe('Dienstplan: Treffleitung', () => {
     expect(api.setzeZuteilung).toHaveBeenCalledWith('d1', ['ich'], ['ben']);
   });
 
-  it('markiert Abwesende und Feiertage im Zuteilungsfenster', async () => {
+  it('markiert Abwesende im Zuteilungsfenster', async () => {
     vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: 'x', person_id: 'ben', datum: mo, typ: 'krank', notiz: null }]);
-    vi.mocked(api.listeFeiertage).mockResolvedValue([{ id: 'f', treff_id: 't1', datum: mo, bezeichnung: 'Feiertag X' }]);
     await zeige(leitung, 'treffleitung');
     await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Zuteilen' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/abwesend: krank/)).toBeInTheDocument();
-    expect(within(dialog).getByText('Feiertag: Feiertag X')).toBeInTheDocument();
+  });
+
+  it('Feiertag (seit 0027): Tag ist zu – Schild, kein Zuteilen, kein Wünschen', async () => {
+    vi.mocked(api.listeFeiertage).mockResolvedValue([{ id: 'f', treff_id: 't1', datum: mo, bezeichnung: 'Feiertag X' }]);
+    await zeige(leitung, 'treffleitung');
+    expect(await within(tag(mo)).findByText('Feiertag: Feiertag X')).toBeInTheDocument();
+    expect(within(tag(mo)).queryByRole('button', { name: 'Zuteilen' })).not.toBeInTheDocument();
   });
 
   it('meldet Fehler beim Speichern und lässt das Fenster offen', async () => {

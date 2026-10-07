@@ -45,7 +45,7 @@ export function MatrixLeiste({ treffId, monat, karten, team, abwesenheiten, feie
   const melde = (r: ZeileErgebnis, was: string) => {
     const neu = aenderungen(r.entwurf).zuteilen.length - zuteilen.length;
     setEntwurf(r.entwurf);
-    setHinweis(`${was}: ${neu > 0 ? anzahl(neu, 'Einteilung', 'Einteilungen') + ' dazu' : 'nichts Neues'}${r.ausgelassen > 0 ? `, ${anzahl(r.ausgelassen, 'Tag', 'Tage')} mit Urlaub, Krankheit oder Feiertag ausgelassen` : ''}.`);
+    setHinweis(`${was}: ${neu > 0 ? anzahl(neu, 'Einteilung', 'Einteilungen') + ' dazu' : 'nichts Neues'}${r.ausgelassen > 0 ? `, ${anzahl(r.ausgelassen, 'Tag', 'Tage')} mit Urlaub oder Krankheit ausgelassen` : ''}.`);
   };
 
   async function vormonat() {

@@ -147,17 +147,16 @@ describe('Monat einteilen: Wochentage je Person', () => {
     expect(aufruf()[2]).toHaveLength(montage.length);
   });
 
-  it('Feiertag: eine Entscheidung für den ganzen Tag; „Alle trotzdem einteilen“ und „Keine einteilen“', async () => {
+  it('Feiertag (seit 0027): der Tag ist zu – kein Konflikt, keine Einteilung, kein Zuteilen-Knopf', async () => {
     vi.mocked(api.listeFeiertage).mockResolvedValue([{ id: 'f', treff_id: null, datum: ersterMontag, bezeichnung: 'Stadtfest' }]);
     zeige();
     await screen.findByText('Monat einteilen');
     await kreuze('Anna Adler: Montag', 'Ben Baum: Montag');
-    expect(await screen.findByText(/ist ein Feiertag \(Stadtfest\)/)).toBeInTheDocument();
-    expect(screen.getByText(/\(2 Einteilungen\)/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Alle trotzdem einteilen' }));
-    expect(screen.getByRole('checkbox', { name: /Feiertag/ })).toBeChecked();
+    expect(screen.queryByText(/Feiertag/, { selector: '.optionen *' })).not.toBeInTheDocument();
     await speichern();
-    expect(aufruf()[2]).toHaveLength(montage.length * 2);
+    expect(aufruf()[2]).toHaveLength((montage.length - 1) * 2);
+    expect(aufruf()[2].some((x) => x.datum === ersterMontag)).toBe(false);
+    expect(screen.getAllByRole('button', { name: /^Zuteilen am / })).toHaveLength(montage.length + mittwoche.length - 1);
   });
 
   it('„ersetzen“ entfernt andere Personen der betroffenen Tage – nach Rückfrage', async () => {

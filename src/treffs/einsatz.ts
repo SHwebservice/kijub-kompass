@@ -54,7 +54,7 @@ export function baueEinsatz(
     const feiertag = feiertagAm(k.datum, feiertage, treffId);
     return {
       datum: k.datum, wochentag: wochentagKurz(k.datum), tag: Number(k.datum.slice(8, 10)), heute: k.datum === heute,
-      feiertag: feiertag?.bezeichnung ?? null, geschlossen: k.geschlossen ? schliesszeitText(k.geschlossen) : null, besetzung: personen.size,
+      feiertag: feiertag?.bezeichnung ?? null, geschlossen: k.geschlossen && !k.geschlossen.feiertag ? schliesszeitText(k.geschlossen) : null, besetzung: personen.size,
       unbesetzt: !!k.oeffnung && personen.size === 0 && k.datum >= heute && !feiertag && !k.geschlossen,
     };
   });

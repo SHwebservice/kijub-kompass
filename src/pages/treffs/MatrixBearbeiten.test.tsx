@@ -73,7 +73,7 @@ describe('Einsatz-Matrix bearbeiten (Monat)', () => {
     await userEvent.click(screen.getByRole('button', { name: /Ben Baum: an allen Öffnungstagen/ }));
     const offen = montage.length + mittwoche.length;
     expect(screen.getByText(`${offen - 1} neue Einteilungen`)).toBeInTheDocument();
-    expect(screen.getByText(/Ben Baum: ein Tag mit Urlaub, Krankheit oder Feiertag ausgelassen/)).toBeInTheDocument();
+    expect(screen.getByText(/Ben Baum: ein Tag mit Urlaub oder Krankheit ausgelassen/)).toBeInTheDocument();
     expect(zelle('Ben Baum', montage[1]!)).toHaveAttribute('aria-pressed', 'false');
 
     await userEvent.click(zelle('Ben Baum', montage[1]!));                                          // einzeln: trotzdem einteilen

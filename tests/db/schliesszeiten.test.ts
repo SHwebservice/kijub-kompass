@@ -82,6 +82,15 @@ describe('Schließzeiten: Dienstplan', () => {
     expect(await als(db, betr, () => fehler(() => q(`select fn_dienst_wunsch($1, ${tag(41)})`, [treff])))).toMatch(/geschlossen/);   // erneut wünschen: nein
   });
 
+  it('Feiertage schließen den Treff ebenso (0027) – für diesen Treff oder alle, nicht für andere Treffs', async () => {
+    const ft = await dienst(50);
+    await q(`insert into feiertage (treff_id, datum, bezeichnung) values (null, ${tag(50)}, 'Feiertag'), ($1, ${tag(51)}, 'Anderswo')`, [anderer]);
+    expect(await als(db, tl, () => fehler(() => q(`insert into dienst_zuteilungen (dienst_id, person_id) values ($1, $2)`, [ft, betr.id])))).toMatch(/geschlossen/);
+    expect(await als(db, betr, () => fehler(() => q(`select fn_dienst_wunsch($1, ${tag(50)})`, [treff])))).toMatch(/geschlossen/);
+    const r = await q<{ a: boolean; b: boolean }>(`select ist_geschlossen($1, ${tag(50)}) as a, ist_geschlossen($1, ${tag(51)}) as b`, [treff]);
+    expect(r.rows[0]).toEqual({ a: true, b: false });
+  });
+
   it('Sonderdienste bleiben in der Schließzeit möglich', async () => {
     await als(db, tl, () => q(`insert into dienst_zuteilungen (dienst_id, person_id) values ($1, $2)`, [sonder, betr.id]));
     expect((await q(`select 1 from dienst_zuteilungen where dienst_id = $1`, [sonder])).rows).toHaveLength(1);
