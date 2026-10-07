@@ -12,6 +12,7 @@ import {
 } from '../../freizeiten/logik';
 import { rolleInFreizeit } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../../components/ui';
+import { fzStreifen } from '../../components/FreizeitFarbe';
 
 type Tab = 'meine' | 'alle' | 'vergangen';
 const TAB_LABEL: Record<Tab, string> = { meine: 'Meine', alle: 'Alle kommenden', vergangen: 'Vergangene' };
@@ -120,7 +121,7 @@ export function FreizeitenListe() {
               const kannBewerben = !rollen.freizeitkoordination && rollen.bewerbend && !istMein && !bewerbungsStatus
                 && darfBeworbenWerden(f, heute, vorlauf.daten ?? 7);
               return (
-                <li key={f.id} className="list__item">
+                <li key={f.id} className="list__item fz-streifen" style={fzStreifen(f)}>
                   <div className="list__main">
                     <Link className="list__title" to={`/freizeiten/${f.id}`}>{f.name}</Link>
                     <div className="list__meta">

@@ -112,6 +112,14 @@ describe('Entwurf der Einsatz-Matrix', () => {
     expect(l.mitKonflikt).toEqual([{ dienst: 'b', person: 'ben', datum: '2027-03-08' }]);
   });
 
+  it('Schließzeit: Tage sind nicht bearbeitbar, Wünsche dort gelten als Konflikt', () => {
+    const zu = [{ id: 's', treff_id: 't1', von: '2027-03-03', bis: '2027-03-08', grund: 'Pause' }];
+    const k = tageskarten(tage, oeffnung, [dienst({ id: 'b', datum: '2027-03-08', wuensche: [{ person_id: 'carla', status: 'offen' }] })], zu);
+    expect(setze(k, LEERER_ENTWURF, '2027-03-03', 'ben', true)).toBe(LEERER_ENTWURF);
+    expect(aenderungen(zeileFuellen(k, LEERER_ENTWURF, 'ben', [], [], 't1').entwurf).zuteilen.map((p) => p.datum)).toEqual(['2027-03-01', '2027-03-10']);
+    expect(offeneWunschListe(k, [], [], 't1').mitKonflikt).toHaveLength(1);
+  });
+
   it('Stunden: reguläre Dienste und Sonderdienste', () => {
     expect(stundenVon(karten, 'anna')).toBe(6);                                                    // 4 h + 2 h Ausflug
     const e = setze(karten, LEERER_ENTWURF, '2027-03-03', 'anna', true);

@@ -42,6 +42,7 @@ beforeEach(() => {
   vi.mocked(api.loescheProtokoll).mockResolvedValue(undefined);
   vi.mocked(api.legeAufgabeAn).mockResolvedValue(undefined);
   vi.mocked(treffApi.listeFeiertage).mockResolvedValue([]);
+  vi.mocked(treffApi.listeSchliesszeiten).mockResolvedValue([]);
   vi.mocked(fzApi.holeNamen).mockResolvedValue({ ben: 'Ben Baum' });
 });
 

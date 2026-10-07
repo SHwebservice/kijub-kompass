@@ -4,7 +4,7 @@ import { neueDb } from './harness';
 const TABELLEN = [
   'dienst_wuensche', 'dienst_zuteilungen', 'dienste', 'dienstplan_kommentare', 'feiertage', 'freizeit_slots', 'freizeit_team',
   'lebensmittel_eingang', 'lebensmittel_verbrauch', 'notiz_bestaetigungen', 'notiz_kommentare', 'notizen', 'plan_eintraege',
-  'treff_aufgaben', 'treff_plan_eintraege', 'treff_protokolle', 'treff_team',
+  'treff_aufgaben', 'treff_plan_eintraege', 'treff_protokolle', 'treff_schliesszeiten', 'treff_team',
 ];
 
 describe('Live-Aktualisierung (Migrationen 0011, 0012 und 0016)', () => {

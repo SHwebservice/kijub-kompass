@@ -1,5 +1,5 @@
 import { formatKurz } from '../freizeiten/logik';
-import { abwesendeAm, feiertagAm, isoWochentag, monatTage, type Abwesenheit, type Dienst, type Feiertag } from './dienstplan';
+import { abwesendeAm, feiertagAm, geschlossenAm, isoWochentag, monatTage, type Abwesenheit, type Dienst, type Feiertag, type Schliesszeit } from './dienstplan';
 import type { Oeffnungszeit } from './logik';
 
 /**
@@ -47,6 +47,8 @@ export interface PlanEingabe {
   dienste: Dienst[];
   abwesenheiten: Abwesenheit[];
   feiertage: Feiertag[];
+  /** Schließzeiten: an diesen Tagen wird nicht eingeteilt (kein Konflikt, der Treff ist zu). */
+  schliesszeiten?: Schliesszeit[];
   /** Erlaubte Konflikte (Schlüssel aus `Konflikt.schluessel`). */
   erlaubt: ReadonlySet<string>;
   /** Name einer Person für die Konflikttexte. */
@@ -64,6 +66,7 @@ export function planeMonat(e: PlanEingabe): MonatsPlan {
 
   for (const datum of monatTage(e.monat)) {
     if (!e.oeffnungszeiten.some((o) => o.wochentag === isoWochentag(datum))) continue;          // nur Öffnungstage
+    if (geschlossenAm(datum, e.schliesszeiten ?? [])) continue;                                    // nicht in Schließzeiten
     const wochentag = isoWochentag(datum);
     const gewollt = Object.entries(e.muster).filter(([, tageDerPerson]) => tageDerPerson.includes(wochentag)).map(([person]) => person);
     // „ersetzen“ betrifft nur Tage, an denen das Muster etwas vorsieht

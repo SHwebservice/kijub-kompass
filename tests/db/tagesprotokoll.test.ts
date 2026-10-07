@@ -169,7 +169,7 @@ describe('fn_protokoll_erinnerungen', () => {
   // Zeitfenster: Öffnungszeit seit 15 Minuten bis 3 Stunden vorbei. Kurz nach Mitternacht (Ortszeit) ist der Test nicht aussagekräftig.
   const nachMitternacht = async () => (await q<{ m: number }>(`select extract(hour from (now() at time zone 'Europe/Berlin'))::int * 60 + extract(minute from (now() at time zone 'Europe/Berlin'))::int as m`)).rows[0]!.m < 30;
 
-  it('meldet einen Treff, dessen Öffnung vor 30 Minuten endete, und bittet Treffleitung und heute Eingeteilte', async () => {
+  it('meldet einen Treff, dessen Öffnung vor 30 Minuten endete, und bittet das ganze aktive Team (seit 0026)', async () => {
     if (await nachMitternacht()) return;
     await q(`delete from treff_protokolle where treff_id = $1 and datum = $2`, [treff, await heute()]);
     await oeffne(treff, 30);
@@ -178,7 +178,7 @@ describe('fn_protokoll_erinnerungen', () => {
     const r = await erinnere();
     expect(r).toHaveLength(1);
     expect(r[0]!.treff).toBe(treff);
-    expect(new Set(r[0]!.empfaenger)).toEqual(new Set([tl.id, betr.id]));
+    expect(new Set(r[0]!.empfaenger)).toEqual(new Set([tl.id, betr.id, betr2.id]));          // auch wer heute nicht eingeteilt ist; nicht die Koordination
     expect(r[0]!.titel).toBe('Tagesprotokoll fehlt · Kindertreff');
     expect(r[0]!.url).toBe(`/treffs/${treff}/protokoll`);
   });
@@ -207,6 +207,15 @@ describe('fn_protokoll_erinnerungen', () => {
     await q(`insert into feiertage (treff_id, datum, bezeichnung) values (null, $1, 'Feiertag')`, [await heute()]);
     expect(await erinnere()).toEqual([]);
     await q(`delete from feiertage`);
+    expect(await erinnere()).toHaveLength(1);
+  });
+
+  it('nicht in einer Schließzeit (0026)', async () => {
+    if (await nachMitternacht()) return;
+    await q(`delete from mitteilungen_log where art = 'protokoll_erinnerung'`);
+    await q(`insert into treff_schliesszeiten (treff_id, von, bis, grund) values ($1, $2::date - 3, $2::date + 3, 'Sommerpause')`, [treff, await heute()]);
+    expect(await erinnere()).toEqual([]);
+    await q(`delete from treff_schliesszeiten`);
     expect(await erinnere()).toHaveLength(1);
   });
 

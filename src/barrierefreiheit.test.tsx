@@ -55,6 +55,7 @@ beforeEach(() => {
   vi.mocked(treffApi.listeMeineDienste).mockResolvedValue([]);
   vi.mocked(treffApi.holeTreffTeam).mockResolvedValue([treffMitglied({ person_id: 'b', vorname: 'Ben', nachname: 'Baum', kategorie: 'TZK' })]);
   vi.mocked(treffApi.listeFeiertage).mockResolvedValue([]);
+  vi.mocked(treffApi.listeSchliesszeiten).mockResolvedValue([]);
   vi.mocked(heuteApi.ladeHeute).mockResolvedValue({
     ...leererStand(), bewerbungen: 2, vorschlaege: 1, fehler: 1, bestand: [{ ort_id: 'o', name: 'Milch', einheit: 'l', rest: 1, status: 'knapp' }], orte: { o: 'Au' },
     seit: new Date(Date.now() - 7200000).toISOString(), neu: [{ zeit: new Date().toISOString(), art: 'hinweis', text: 'Sonnencreme', quelle: 'Sommer 1', url: '/freizeiten/f1/hinweise' }], neuGesamt: 1,

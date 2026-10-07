@@ -16,7 +16,7 @@ Rollen: **Koordination**, **Freizeitleitung**, **TeamerIn**, **Treffleitung**, *
 | Verwaltung (Bewerbungen, Personen, Planung, Inhalte …) | ja, mit Zahlen | – | – | – | – | – |
 | Karte „Heute“ (Tagesprogramm, Dienste) | ja | ja | ja | ja | ja | – |
 | „Das wartet auf dich“ (Hinweise/Absprachen bestätigen) | ja | ja | Hinweise | ja | ja | – |
-| Karte „Tagesprotokoll fehlt“ (Treff heute geöffnet, nichts geschrieben) | ja | – | – | ja | ja | – |
+| Karte „Tagesprotokoll fehlt“ (Treff heute geöffnet, nichts geschrieben; nicht an Feiertagen und in Schließzeiten) | nur in Treffs, in deren Team sie ist (seit 0026) | – | – | ja | ja | – |
 | Leitungs-Karte (knappe Lebensmittel, nicht gesehene Hinweise) | ja | ja | – | – | – | – |
 | Treffleitungs-Karte (offene Dienstwünsche) | ja | – | – | ja | – | – |
 | Koordinations-Karte (Bewerbungen, Vorschläge, Freizeit ohne Leitung) | ja | – | – | – | – | – |
@@ -24,7 +24,7 @@ Rollen: **Koordination**, **Freizeitleitung**, **TeamerIn**, **Treffleitung**, *
 
 *Die Spalte „Koordination“ gilt seit Migration 0018 je Bereich (Abschnitt 3): Freizeiten, Lebensmittel und Bewerbungen für die Freizeitenkoordination, Treffs, Protokolle und Nachweise für die Treffkoordination.*
 
-Tagesprotokolle darf die Koordination **lesen und bearbeiten**; sie bekommt dazu aber **keine Mitteilungen** (weder wenn eines geschrieben wurde, noch wenn eines fehlt).
+Tagesprotokolle darf die Koordination **lesen und bearbeiten**; sie bekommt dazu aber **keine Mitteilungen** (weder wenn eines geschrieben wurde, noch wenn eines fehlt). Seit Migration 0026 zeigt ihr auch die Startseite nicht an, wo ein Protokoll fehlt oder geschrieben wurde (kein Hinweis im Kachelraster, keine Zahl an der Kachel, nichts unter „Neu seit deinem letzten Besuch“) – außer in Treffs, in deren Team sie selbst ist. Bei Bedarf liest sie es im Treff nach (Reiter „Tagesprotokoll“).
 
 ## 2. Mitteilungen (Web-Push)
 
@@ -42,7 +42,7 @@ Es gibt keine Einstellung je Mitteilungsart und keine Ruhezeiten: Jede Person sc
 | Neue Bewerbung | Freizeitenkoordination | 0015, 0018 |
 | Neuer Katalog-Vorschlag | beide Koordinationen | 0015 |
 | Manuelle Mitteilung | von der Koordination gewählte Gruppe | 0015 |
-| **Tagesprotokoll fehlt** (abends, 15 Minuten bis 3 Stunden nach Ende der Öffnungszeit, einmal je Treff und Tag, nicht an Feiertagen) | **Treffleitung und die heute im Dienstplan Eingeteilten** – nicht die Koordination | 0016 |
+| **Tagesprotokoll fehlt** (abends, 15 Minuten bis 3 Stunden nach Ende der Öffnungszeit, einmal je Treff und Tag, nicht an Feiertagen und in Schließzeiten) | **das ganze Team des Treffs** – nicht die Koordination | 0016, 0026 |
 | **Bewerbung angenommen** | die Person, die sich beworben hat (eine Absage löst keine Mitteilung aus) | 0017 |
 | **Nachweis eingereicht** | Treffleitung des Treffs (ohne Treffleitung: Treffkoordination) | 0017, 0018 |
 | **Lebensmittel knapp oder leer** (nach einer Verbrauchsbuchung; je Artikel und Stand einmal in 24 Stunden) | Freizeitenkoordination, die nachkauft (nicht die buchende Person selbst) | 0017, 0018 |
@@ -55,14 +55,14 @@ Freizeitenkoordination und Treffkoordination; eine Person kann beides sein. Was 
 
 | | Freizeitenkoordination | Treffkoordination |
 |---|---|---|
-| Kacheln und Karten | Freizeiten, Lebensmittel, Bewerbungen, Saison-Überblick, „Freizeit ohne Leitung“ | Treffs, Tagesprotokolle, Nachweise, Dienstwünsche, „Tagesprotokoll fehlt“ |
+| Kacheln und Karten | Freizeiten, Lebensmittel, Bewerbungen, Saison-Überblick, „Freizeit ohne Leitung“ | Treffs, Nachweise, Dienstwünsche (Tagesprotokolle nur als Weg in die Treffs, ohne „fehlt“) |
 | Verwaltung (Kacheln/„Mehr“) | Bewerbungen, Neue Freizeit, KiJuKo-Import | Neuer Treff |
 | Gemeinsame Verwaltung | Personen, Orte, Katalog (Vorschläge, Import), Quiz-Fragen, Mitteilung senden | dasselbe |
 | Mitteilungen | neue Bewerbung, Absprache in einer Freizeit, Lebensmittel knapp/leer | Nachweis eingereicht (wenn ein Treff keine Treffleitung hat) |
 | Mitteilung senden an … | alle, Koordination, Leitungen, TeamerInnen/BetreuerInnen, **eine Freizeit** | alle, Koordination, Leitungen, TeamerInnen/BetreuerInnen, **einen Treff** |
 | Protokolle | – | lesen und bearbeiten (keine Mitteilung) |
 
-Neue Katalog-Vorschläge gehen an **beide** (gemeinsamer Katalog). Die Erinnerung „Tagesprotokoll fehlt“ geht weiterhin nur an Treffleitung und Eingeteilte.
+Neue Katalog-Vorschläge gehen an **beide** (gemeinsamer Katalog). Die Erinnerung „Tagesprotokoll fehlt“ geht an das ganze Team des Treffs, nie an die Koordination.
 
 ## 4. „Neu seit deinem letzten Besuch“ (Startseite)
 
@@ -72,7 +72,7 @@ Unter den Kacheln erscheint eine Karte mit dem, was **andere** seit dem letzten 
 |---|---|
 | Hinweise und Absprachen der aktuellen Freizeiten und Treffs | Team (Hinweise), Leitung und Koordination des Bereichs (Absprachen) |
 | Neuer Eintrag im Wochenplan der aktuellen Freizeiten | Team und Freizeitenkoordination |
-| Protokoll geändert, neue Notiz, neuer Kommentar im Dienstplan | Team des Treffs, Treffkoordination |
+| Protokoll geändert | Team des Treffs (seit 0026 nicht mehr die Treffkoordination) |
 | Neue Bewerbung | Freizeitenkoordination |
 | Neuer Katalog-Vorschlag | jede Koordination |
 | Nachweis eingereicht | Treffleitung, Treffkoordination |

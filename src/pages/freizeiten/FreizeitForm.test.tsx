@@ -53,8 +53,21 @@ describe('Neue Freizeit', () => {
     expect(api.speichereFreizeit).toHaveBeenCalledTimes(1);
     const [id, form] = vi.mocked(api.speichereFreizeit).mock.calls[0]!;
     expect(id).toBeNull();
-    expect(form).toMatchObject({ name: '  Herbst im Siedlerheim ', start_datum: '2027-10-11', ende_datum: '2027-10-15', ferienzeitraum: 'herbst', ferienwoche: 2, ort_id: 'o2', tags: ['Küche'], status: 'geplant' });
+    expect(form).toMatchObject({ name: '  Herbst im Siedlerheim ', start_datum: '2027-10-11', ende_datum: '2027-10-15', ferienzeitraum: 'herbst', ferienwoche: 2, ort_id: 'o2', tags: ['Küche'], status: 'geplant', farbe: '' });
     expect(await screen.findByTestId('andere-seite')).toBeInTheDocument();
+  });
+
+  it('Farbe: „Automatisch“ ist vorgewählt, eine Farbe der Palette lässt sich wählen (Migration 0026)', async () => {
+    await neu();
+    const farbe = screen.getByRole('group', { name: 'Farbe' });
+    expect(within(farbe).getByLabelText('Automatisch')).toBeChecked();
+    expect(within(farbe).getAllByRole('radio')).toHaveLength(11);
+    await userEvent.click(within(farbe).getByLabelText('Petrol'));
+    await userEvent.type(screen.getByLabelText('Name'), 'Zeltlager');
+    await userEvent.type(screen.getByLabelText('Start'), '2027-10-11');
+    await userEvent.type(screen.getByLabelText('Ende'), '2027-10-15');
+    await userEvent.click(screen.getByRole('button', { name: 'Freizeit anlegen' }));
+    expect(vi.mocked(api.speichereFreizeit).mock.calls[0]![1].farbe).toBe('petrol');
   });
 
   it('prüft Ende nach Start und Ferienwoche', async () => {

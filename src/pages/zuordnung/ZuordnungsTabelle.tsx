@@ -5,6 +5,7 @@ import {
 } from '../../zuordnung/logik';
 import type { PersonZeile } from '../../zuordnung/api';
 import { Badge } from '../../components/ui';
+import { FzPunkt } from '../../components/FreizeitFarbe';
 import { RollenAuswahl } from './RollenAuswahl';
 
 export interface ZuordnungsAnsicht {
@@ -46,7 +47,7 @@ export function ZuordnungsTabelle({ personen, spalten, treffs, freizeitTeams, z,
               const n = anzahlen(f.id, freizeitTeams);
               return (
                 <th key={f.id} scope="col" className="zuordnung__kopf">
-                  <Link to={`/freizeiten/${f.id}/team`}>{f.name}</Link>
+                  <FzPunkt freizeit={f} /><Link to={`/freizeiten/${f.id}/team`}>{f.name}</Link>
                   <div className="zuordnung__klein">{spaltenZeitraum(f)}</div>
                   <div className="zuordnung__klein">{n.leitung} Leitung · {n.teamer} Team</div>
                   {keineLeitung.has(f.id) && <Badge ton="danger">Keine Leitung</Badge>}

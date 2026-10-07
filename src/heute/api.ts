@@ -20,8 +20,10 @@ export interface HeuteAnfrage {
   teamFreizeiten: string[];
   /** Freizeiten, deren Wochenplan von heute gezeigt wird. */
   planFreizeiten: string[];
-  /** Treffs der Kacheln (Protokoll von heute, offene Notizen, Neuigkeiten). */
+  /** Treffs der Kacheln (offene Notizen, Neuigkeiten). */
   kachelTreffs: string[];
+  /** Treffs, für die „Protokoll fehlt“ und „Protokoll neu“ gelten – nur die eigenen, nicht alle der Treffkoordination (Migration 0026). */
+  protokollTreffs: string[];
   bestand?: boolean;
   nachweise?: boolean;
   bewerbungen?: boolean;
@@ -48,6 +50,8 @@ export interface HeuteDaten {
   fehler: number;
   /** Treffs, für die heute schon ein Protokoll geschrieben wurde. */
   protokolliert: string[];
+  /** Angefragte Treffs, die heute wegen Feiertag oder Schließzeit geschlossen sind. */
+  geschlossen: string[];
   offeneNotizen: Record<string, number>;
   seit: string | null;
   neu: Neuigkeit[];
@@ -71,6 +75,7 @@ export function heuteDatenAus(r: Record<string, unknown>): HeuteDaten {
     nachweise: Number(r.nachweise ?? 0),
     fehler: Number(r.fehler ?? 0),
     protokolliert: liste<string>(r.protokolliert),
+    geschlossen: liste<string>(r.geschlossen),
     offeneNotizen: karte<number>(r.offene_notizen),
     seit: typeof r.seit === 'string' ? r.seit : null,
     neu: liste<Neuigkeit>(r.neu),
@@ -80,7 +85,7 @@ export function heuteDatenAus(r: Record<string, unknown>): HeuteDaten {
 
 export async function ladeHeute(a: HeuteAnfrage): Promise<HeuteDaten> {
   const anfrage: Record<string, unknown> = {
-    notiz_freizeiten: a.notizFreizeiten, notiz_treffs: a.notizTreffs, team_freizeiten: a.teamFreizeiten, plan_freizeiten: a.planFreizeiten, kachel_treffs: a.kachelTreffs,
+    notiz_freizeiten: a.notizFreizeiten, notiz_treffs: a.notizTreffs, team_freizeiten: a.teamFreizeiten, plan_freizeiten: a.planFreizeiten, kachel_treffs: a.kachelTreffs, protokoll_treffs: a.protokollTreffs,
     bestand: a.bestand ?? false, nachweise: a.nachweise ?? false, bewerbungen: a.bewerbungen ?? false, vorschlaege: a.vorschlaege ?? false, fehler: a.fehler ?? false,
     besuch: a.besuch ?? false,
   };

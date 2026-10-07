@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { fehlerText } from '../../lib/fehler';
 import { sendePush } from '../../mitteilungen/senden';
 import { wendeDienstplanAn, type TreffDetailDaten, type TreffTeamMitglied } from '../../treffs/api';
-import { monatText, type Abwesenheit, type Dienst, type Feiertag } from '../../treffs/dienstplan';
+import { monatText, type Abwesenheit, type Dienst, type Feiertag, type Schliesszeit } from '../../treffs/dienstplan';
 import { planeMonat, type Modus, type PersonMuster } from '../../treffs/monatsplan';
 import { sortiereTreffTeam, wochentagName } from '../../treffs/logik';
 import { Alert, Button, Card } from '../../components/ui';
@@ -15,6 +15,8 @@ interface Props {
   dienste: Dienst[];
   abwesenheiten: Abwesenheit[];
   feiertage: Feiertag[];
+  /** An diesen Tagen ist der Treff zu: Es wird nicht eingeteilt. */
+  schliesszeiten?: Schliesszeit[];
   /** Nach dem Speichern: Dienste und Statistik neu laden. */
   geaendert: () => void;
 }
@@ -25,7 +27,7 @@ const anzahl = (n: number, einzahl: string, mehrzahl: string) => `${n} ${n === 1
  * Monat einteilen: je Person die Wochentage ankreuzen, unten die Vorschau – wie viele Einteilungen, was schon da ist und welche Konflikte
  * (Urlaub, Krankheit, Feiertag) es gibt. Konflikte entscheidet die Treffleitung selbst. Vorhandene Einteilungen bleiben; weitere Personen kommen dazu.
  */
-export function MonatEinteilen({ treff: t, monat, mitglieder, dienste, abwesenheiten, feiertage, geaendert }: Props) {
+export function MonatEinteilen({ treff: t, monat, mitglieder, dienste, abwesenheiten, feiertage, schliesszeiten = [], geaendert }: Props) {
   const [muster, setMuster] = useState<PersonMuster>({});
   const [modus, setModus] = useState<Modus>('hinzufuegen');
   const [erlaubt, setErlaubt] = useState<ReadonlySet<string>>(new Set());
@@ -37,7 +39,7 @@ export function MonatEinteilen({ treff: t, monat, mitglieder, dienste, abwesenhe
   const namen = Object.fromEntries(team.map((m) => [m.person_id, `${m.vorname} ${m.nachname}`]));
   const wochentage = [...new Set(t.oeffnungszeiten.map((o) => o.wochentag))].sort((a, b) => a - b);
   const plan = planeMonat({
-    monat, treffId: t.id, oeffnungszeiten: t.oeffnungszeiten, muster, modus, dienste, abwesenheiten, feiertage, erlaubt, name: (id) => namen[id] ?? 'Jemand',
+    monat, treffId: t.id, oeffnungszeiten: t.oeffnungszeiten, muster, modus, dienste, abwesenheiten, feiertage, schliesszeiten, erlaubt, name: (id) => namen[id] ?? 'Jemand',
   });
   const gewaehlt = Object.values(muster).some((l) => l.length > 0);
   const ausgelassen = plan.konflikte.filter((k) => !erlaubt.has(k.schluessel)).reduce((n, k) => n + k.betrifft, 0);

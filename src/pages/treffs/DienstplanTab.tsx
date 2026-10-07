@@ -8,10 +8,10 @@ import { sendePush } from '../../mitteilungen/senden';
 import { formatDatum, formatKurz, heuteIso } from '../../freizeiten/logik';
 import {
   entscheideWunsch, holeTreffTeam, legeDienstplanKommentarAn, listeAbwesenheiten, listeDienste, listeDienstplanKommentare, listeFeiertage,
-  listeTreffAbsprachen, loescheDienstplanKommentar, wuenscheDienst, wunschZuruecknehmen, type TreffDetailDaten,
+  listeSchliesszeiten, listeTreffAbsprachen, loescheDienstplanKommentar, wuenscheDienst, wunschZuruecknehmen, type TreffDetailDaten,
 } from '../../treffs/api';
 import {
-  abwesendeAm, addTage, darfWuenschen, dienstZeit, eigenerWunsch, feiertagAm, montagVon, offeneWuensche, tageskarten, wochenTage, wochenText,
+  abwesendeAm, addTage, darfWuenschen, dienstZeit, eigenerWunsch, feiertagAm, montagVon, offeneWuensche, schliesszeitText, tageskarten, wochenTage, wochenText,
   type Dienst, type Tageskarte,
 } from '../../treffs/dienstplan';
 import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
@@ -43,10 +43,11 @@ function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
   const dienste = useLaden(() => listeDienste(t.id, montag, sonntag), `dienste-${schluessel}`);
   const feiertage = useLaden(() => listeFeiertage(t.id, montag, sonntag), `feiertage-${schluessel}`);
   const abwesenheiten = useLaden(() => listeAbwesenheiten(montag, sonntag), `abwesenheiten-${schluessel}`);
+  const schliesszeiten = useLaden(() => listeSchliesszeiten(t.id, montag, sonntag), `schliesszeiten-${schluessel}`);
   const absprachen = useLaden(() => listeTreffAbsprachen(t.id), `treffabsprachen-${t.id}`);
   const kommentare = useLaden(() => listeDienstplanKommentare(t.id, montag), `dp-kommentare-${schluessel}`);
-  const neuLaden = () => { dienste.neuLaden(); feiertage.neuLaden(); kommentare.neuLaden(); absprachen.neuLaden(); team.neuLaden(); };
-  useLive(['dienste', 'dienst_zuteilungen', 'dienst_wuensche', 'feiertage', 'dienstplan_kommentare', 'notizen', 'treff_team'], neuLaden);
+  const neuLaden = () => { dienste.neuLaden(); feiertage.neuLaden(); schliesszeiten.neuLaden(); kommentare.neuLaden(); absprachen.neuLaden(); team.neuLaden(); };
+  useLive(['dienste', 'dienst_zuteilungen', 'dienst_wuensche', 'feiertage', 'treff_schliesszeiten', 'dienstplan_kommentare', 'notizen', 'treff_team'], neuLaden);
 
   const [ziel, setZiel] = useState<Ziel | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -59,9 +60,9 @@ function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
   const mitglieder = team.daten ?? [];
   const namen = Object.fromEntries(mitglieder.map((m) => [m.person_id, `${m.vorname} ${m.nachname}`]));
   const name = (id: string) => namen[id] ?? 'Jemand';
-  const karten = tageskarten(wochenTage(montag), t.oeffnungszeiten, dienste.daten ?? []);
+  const karten = tageskarten(wochenTage(montag), t.oeffnungszeiten, dienste.daten ?? [], schliesszeiten.daten ?? []);
   const wuensche = offeneWuensche(karten);
-  const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? abwesenheiten.fehler ?? absprachen.fehler ?? kommentare.fehler;
+  const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? abwesenheiten.fehler ?? absprachen.fehler ?? kommentare.fehler ?? schliesszeiten.fehler;
   const laedt = team.laedt || dienste.laedt;
 
   async function aktion(fn: () => Promise<void>) {
@@ -101,6 +102,7 @@ function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
         <h3>{formatKurz(k.datum)}{istHeute ? ' · heute' : ''}{zeit ? ` · ${zeit}` : ''}</h3>
         <div className="list__meta" style={{ marginBottom: 'var(--space-2)' }}>
           {feiertag && <Badge ton="warning">Feiertag: {feiertag.bezeichnung}</Badge>}
+          {k.geschlossen && <Badge>{schliesszeitText(k.geschlossen)}</Badge>}
           {absprachenAmTag.length > 0 && <Badge ton="accent">📌 {absprachenAmTag.length === 1 ? 'Absprache' : `${absprachenAmTag.length} Absprachen`}</Badge>}
           {weg.map((a) => <Badge key={a.id} ton="danger">{name(a.person_id)}: {a.typ === 'urlaub' ? 'Urlaub' : 'krank'}</Badge>)}
         </div>
@@ -124,7 +126,7 @@ function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
               </ul>
             )}
             <div className="row" style={{ marginTop: 'var(--space-2)', gap: 'var(--space-2)' }}>
-              {verwaltung && <Button klein onClick={() => setZiel({ art: 'zuteilen', datum: k.datum, dienst: k.regulaer })}>Zuteilen</Button>}
+              {verwaltung && (!k.geschlossen || (k.regulaer?.personen.length ?? 0) > 0) && <Button klein onClick={() => setZiel({ art: 'zuteilen', datum: k.datum, dienst: k.regulaer })}>Zuteilen</Button>}
               {w && rolle === 'betreuerin' && <Badge ton={WUNSCH_TON[w]}>{WUNSCH_LABEL[w]}</Badge>}
               {darfWuenschen(rolle, k, ich!.id, heute) && (
                 <Button klein disabled={arbeitet} onClick={() => void aktion(async () => { await wuenscheDienst(t.id, k.datum); sendePush('wunsch_neu', t.id, { datum: k.datum }); })}>Dienst wünschen</Button>

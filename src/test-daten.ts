@@ -12,7 +12,7 @@ export function inTagen(n: number): string {
 export const freizeit = (o: Partial<FreizeitZeile> & { id: string }): FreizeitZeile => ({
   name: `Freizeit ${o.id}`, status: 'geplant', ferienzeitraum: null, ferienwoche: null,
   start_datum: inTagen(30), ende_datum: inTagen(34), ort_id: null, ort_name: null,
-  max_teilnehmende: null, alter_von: null, alter_bis: null, tags: [], ...o,
+  max_teilnehmende: null, alter_von: null, alter_bis: null, tags: [], farbe: null, ...o,
 });
 
 export const freizeitDetail = (o: Partial<FreizeitDetailDaten> & { id: string }): FreizeitDetailDaten => ({

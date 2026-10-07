@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 import { ApiFehler } from '../lib/fehler';
 import type { Notiz } from '../freizeiten/notizen';
 import type { NotizWerte } from '../freizeiten/api';
-import type { Abwesenheit, Dienst, Feiertag, SonderEingabe, StatistikZeile, Muster, WunschStatus } from './dienstplan';
+import type { Abwesenheit, Dienst, Feiertag, Schliesszeit, SonderEingabe, StatistikZeile, Muster, WunschStatus } from './dienstplan';
 import { musterAlsJson } from './dienstplan';
 import type { Paar } from './monatsplan';
 import type { Nachweis, NachweisStatus, NachweisZeile } from './nachweis';
@@ -167,6 +167,12 @@ export async function listeFeiertage(treffId: string, von: string, bis: string):
     .or(`treff_id.eq.${treffId},treff_id.is.null`).gte('datum', von).lte('datum', bis).order('datum')) as Feiertag[];
 }
 
+/** Schließzeiten des Treffs, die den Zeitraum berühren (Migration 0026). */
+export async function listeSchliesszeiten(treffId: string, von: string, bis: string): Promise<Schliesszeit[]> {
+  return pruefe(await supabase.from('treff_schliesszeiten').select('id, treff_id, von, bis, grund')
+    .eq('treff_id', treffId).lte('von', bis).gte('bis', von).order('von')) as Schliesszeit[];
+}
+
 /** Abwesenheiten, die die angemeldete Person sehen darf (eigene; Treffleitung und Koordination die ihres Teams). */
 export async function listeAbwesenheiten(von: string, bis: string): Promise<Abwesenheit[]> {
   return pruefe(await supabase.from('abwesenheiten').select('id, person_id, datum, typ, notiz')
@@ -263,6 +269,14 @@ export async function speichereFeiertag(treffId: string | null, datum: string, b
 
 export async function loescheFeiertag(id: string): Promise<void> {
   pruefe(await supabase.from('feiertage').delete().eq('id', id));
+}
+
+export async function speichereSchliesszeit(treffId: string, von: string, bis: string, grund: string): Promise<void> {
+  pruefe(await supabase.from('treff_schliesszeiten').insert({ treff_id: treffId, von, bis, grund: grund.trim() }));
+}
+
+export async function loescheSchliesszeit(id: string): Promise<void> {
+  pruefe(await supabase.from('treff_schliesszeiten').delete().eq('id', id));
 }
 
 /* ───── Nachweis der Teilzeitkräfte ───── */

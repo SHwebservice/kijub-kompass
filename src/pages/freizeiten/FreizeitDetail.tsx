@@ -5,6 +5,7 @@ import { holeFreizeit } from '../../freizeiten/api';
 import { ferienText, heuteIso, phase, zeitraumText } from '../../freizeiten/logik';
 import { istLeitungOderKoordination, rolleInFreizeit, type RolleInFreizeit } from '../../lib/rollen';
 import { Alert, Badge, EmptyState, Spinner } from '../../components/ui';
+import { FzPunkt } from '../../components/FreizeitFarbe';
 import { Uebersicht } from './Uebersicht';
 import { TeamTab } from './TeamTab';
 import { PlanTab } from './PlanTab';
@@ -43,7 +44,7 @@ export function FreizeitDetail() {
       <p><Link to="/freizeiten">← Alle Freizeiten</Link></p>
       <div className="page-header">
         <div>
-          <h1 style={{ marginBottom: 'var(--space-2)' }}>{d.name}</h1>
+          <h1 style={{ marginBottom: 'var(--space-2)' }}><FzPunkt freizeit={d} />{d.name}</h1>
           <div className="list__meta">
             <span>{zeitraumText(d.start_datum, d.ende_datum)}</span>
             {d.ferienzeitraum && <span>{ferienText(d)}</span>}

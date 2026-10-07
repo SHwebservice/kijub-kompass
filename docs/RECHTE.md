@@ -34,7 +34,7 @@ Wo in den Tabellen unten „Koordination“ steht, gilt:
 | Bereich | Wer | Tabellen und Funktionen |
 |---|---|---|
 | Freizeiten | Freizeitenkoordination | Freizeiten, Team, Slots/Wochenplan, Hinweise und Absprachen der Freizeiten (samt Kommentaren), Lebensmittel, Verpflegung/Material, Bewerbungen (entscheiden), KiJuKo-Import, Kontaktdaten der Freizeit-Teams |
-| Treffs | Treffkoordination | Treffs, Team, Öffnungszeiten, Wochenprogramm, Dienste, Wünsche, Kommentare, Abwesenheiten, Feiertage, Nachweise (freigeben), Tagesprotokolle, Notizen, Treff-Absprachen, Treffmappe, Kontaktdaten der Treff-Teams |
+| Treffs | Treffkoordination | Treffs, Team, Öffnungszeiten, Wochenprogramm, Dienste, Wünsche, Kommentare, Abwesenheiten, Feiertage, Nachweise (freigeben), Schließzeiten, Tagesprotokolle, Notizen, Treff-Absprachen, Treffmappe, Kontaktdaten der Treff-Teams |
 | Gemeinsam | jede der beiden | Personen (anlegen, ändern, Zugang, Koordination vergeben), Orte, Tags, Einstellungen, Katalog (Programmpunkte, Vorschläge), Quiz-Fragen, Mappen-Inhalte, manuelle Mitteilungen an alle/Koordination/Kategorien; an eine **Freizeit** nur die Freizeitenkoordination, an einen **Treff** nur die Treffkoordination |
 
 Die letzte aktive Person je Bereich ist geschützt: sie lässt sich weder löschen noch deaktivieren noch herabstufen.
@@ -62,7 +62,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 
 | Ressource | Koordination | Leitung | TeamerIn | Treffleitung | BetreuerIn | Bewerbende/Angemeldet |
 |---|---|---|---|---|---|---|
-| Freizeit-Stammdaten | L E Ä X | L (Team) | L (Team) | — | — | L (Name, Zeitraum, Ort, Alter, max. Teiln. – für Bewerbung) |
+| Freizeit-Stammdaten (seit 0026 mit Farbe) | L E Ä X | L (Team) | L (Team) | — | — | L (Name, Zeitraum, Ort, Alter, max. Teiln. – für Bewerbung) |
 | Orte | L E Ä X | L | L | L | L | L · **Δ** Altcode: öffentlich lesbar |
 | Slots (Reihenfolge/Abend) | alle | Ä | L | — | — | — |
 | Wochenplan-Einträge (Katalog-Verweis) | alle | L E Ä X | L E Ä X (Team) · **Δ** ggf. nur eigene ändern/löschen, siehe Hinweis | — | — | — |
@@ -94,6 +94,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Dienstplan-Kommentare | alle | — | — | L E X | L E (eig.) X (eig.) | — |
 | Abwesenheiten (Urlaub/Krank) | L E Ä X | — | — | L E Ä X (Personen des Treffs) | L (eig.) | — |
 | Feiertage | L E Ä X | — | — | L (Treff) E Ä X (eigener Treff) | L | — |
+| Schließzeiten des Treffs (Migration 0026) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L | — · an Schließtagen kein regulärer Dienst (weder einteilen noch wünschen), kein Protokoll nötig |
 | Nachweis Teilzeitkräfte (Entwurf) | L Ä X | — | — | L (Treff) | eig.: L E Ä X | — · **Δ** lag nur lokal im Browser |
 | Nachweis für andere erstellen lassen (Migration 0022) | — | — | — | Treff (alle TZK oder eine Person) | — | — |
 | Überschneidung zweier Freizeiten akzeptieren / zurücknehmen (Migration 0023) | Freizeitenkoordination | — | — | — | — | — |

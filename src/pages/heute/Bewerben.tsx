@@ -3,6 +3,7 @@ import { useLaden } from '../../lib/laden';
 import { holeVorlaufTage, meineBewerbungen, type FreizeitZeile } from '../../freizeiten/api';
 import { darfBeworbenWerden, ferienText, zeitraumText } from '../../freizeiten/logik';
 import { Alert, Badge, Card } from '../../components/ui';
+import { fzStreifen } from '../../components/FreizeitFarbe';
 
 const MAX = 3;
 
@@ -26,7 +27,7 @@ export function Bewerben({ heute, freizeiten, meineIds }: { heute: string; freiz
       {offeneBewerbungen > 0 && <p className="field__hint">{offeneBewerbungen === 1 ? 'Eine Bewerbung von dir wartet' : `${offeneBewerbungen} Bewerbungen von dir warten`} auf eine Antwort.</p>}
       <ul className="list" aria-label="Freizeiten zum Bewerben">
         {frei.slice(0, MAX).map((f) => (
-          <li key={f.id} className="list__item">
+          <li key={f.id} className="list__item fz-streifen" style={fzStreifen(f)}>
             <div className="list__main">
               <Link className="list__title" to={`/freizeiten/${f.id}`}>{f.name}</Link>
               <div className="list__meta"><span>{zeitraumText(f.start_datum, f.ende_datum)}</span>{f.ferienwoche && f.ferienzeitraum && <span>{ferienText(f)}</span>}{f.ort_name && <span>{f.ort_name}</span>}</div>

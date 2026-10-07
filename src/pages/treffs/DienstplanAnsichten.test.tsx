@@ -36,6 +36,7 @@ beforeEach(() => {
   vi.mocked(api.holeTreffTeam).mockResolvedValue(team);
   vi.mocked(api.listeDienste).mockResolvedValue([]);
   vi.mocked(api.listeFeiertage).mockResolvedValue([]);
+  vi.mocked(api.listeSchliesszeiten).mockResolvedValue([]);
   vi.mocked(api.listeAbwesenheiten).mockResolvedValue([]);
   vi.mocked(api.listeTreffAbsprachen).mockResolvedValue([]);
   vi.mocked(api.listeDienstplanKommentare).mockResolvedValue([]);

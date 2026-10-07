@@ -1,5 +1,4 @@
 import { phase, tageBisStart } from '../freizeiten/logik';
-import { personenText } from './logik';
 import type { Zaehler } from './kacheln';
 
 /**
@@ -26,8 +25,6 @@ export interface BentoEingabe {
   treffkoordination: boolean;
   heute: string;
   zaehler: Zaehler;
-  /** Treffs, die heute ohne Protokoll sind. */
-  ohneProtokoll: { id: string; name: string }[];
   /** Aktuelle Freizeiten (laufend oder in den nächsten zwei Wochen), nach Beginn sortiert. */
   aktuelle: AktuelleFreizeit[];
   laufendHeute: number;
@@ -45,16 +42,9 @@ export function baueBento(e: BentoEingabe): BentoKachel[] {
   const fk = e.freizeitkoordination;
   const tk = e.treffkoordination;
 
-  // Die große Kachel: was heute offen ist
-  if (tk) {
-    const n = e.ohneProtokoll.length;
-    const freizeiten = fk && e.laufendHeute > 0 ? ` · ${personenText(e.laufendHeute, 'Freizeit läuft', 'Freizeiten laufen')}` : '';
-    k.push({
-      id: 'heute', label: 'Heute offen', zahl: String(n), breit: true, ton: 'haupt',
-      unter: (n > 0 ? `${personenText(n, 'Treff ohne Protokoll', 'Treffs ohne Protokoll')}: ${e.ohneProtokoll.map((t) => t.name).join(', ')}` : 'Alle Tagesprotokolle sind da') + freizeiten,
-      link: n === 1 ? `/treffs/${e.ohneProtokoll[0]!.id}/protokoll` : '/treffs',
-    });
-  } else if (fk) {
+  // Die große Kachel: die laufenden Freizeiten. Tagesprotokolle zeigt das Raster bewusst nicht (seit 0026): Die Treffkoordination
+  // liest sie bei Bedarf im jeweiligen Treff nach; „Protokoll fehlt“ sieht das Team des Treffs.
+  if (fk) {
     k.push({ id: 'heute', label: 'Heute', zahl: String(e.laufendHeute), breit: true, ton: 'haupt', unter: e.laufendHeute === 1 ? 'Freizeit läuft gerade' : 'Freizeiten laufen gerade', link: '/freizeiten' });
   }
 

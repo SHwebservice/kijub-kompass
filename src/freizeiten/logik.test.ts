@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   tageVonBis, tageZwischen, wochentagKurz, wochentagLang, formatDatum, formatKurz, zeitraumText, ferienText, phase,
   gruppiereNachFerien, darfBeworbenWerden, fruehesterBewerbungsstart, bestand, hochrechnung, sortiereTeam, heuteIso,
-  tageBisStart, freizeitFarbe, formatTagLang, formatMonatKurz, type FreizeitKurz,
+  tageBisStart, freizeitFarbe, automatischeFarbe, FREIZEIT_FARBEN, formatTagLang, formatMonatKurz, type FreizeitKurz,
 } from './logik';
 
 const fz = (o: Partial<FreizeitKurz> & { id: string }): FreizeitKurz => ({
@@ -68,10 +68,15 @@ describe('Ferien und Phasen', () => {
     expect(darfBeworbenWerden(fz({ id: 'a', start_datum: '2027-07-04' }), '2027-06-28', 7)).toBe(false);
     expect(darfBeworbenWerden(fz({ id: 'a', start_datum: '2027-08-01', status: 'abgesagt' }), '2027-06-28', 7)).toBe(false);
   });
-  it('freizeitFarbe ist stabil', () => {
+  it('freizeitFarbe: stabil aus der ID, aus der festen Palette; eine gewählte Farbe geht vor', () => {
     expect(freizeitFarbe('abc')).toBe(freizeitFarbe('abc'));
     expect(freizeitFarbe('abc')).not.toBe(freizeitFarbe('abd'));
-    expect(freizeitFarbe('abc')).toMatch(/^hsl\(\d+ 55% 45%\)$/);
+    expect(FREIZEIT_FARBEN.map((f) => f.wert)).toContain(freizeitFarbe('abc'));
+    expect(freizeitFarbe('abc', 'petrol')).toBe('#2C7DA0');
+    expect(freizeitFarbe('abc', 'gibtsnicht')).toBe(freizeitFarbe('abc'));
+    expect(freizeitFarbe('abc', null)).toBe(freizeitFarbe('abc'));
+    // zehn verschiedene IDs verteilen sich auf mehrere Farben
+    expect(new Set(Array.from({ length: 10 }, (_, i) => automatischeFarbe(`freizeit-${i}`))).size).toBeGreaterThan(3);
   });
 });
 

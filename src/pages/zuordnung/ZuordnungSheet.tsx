@@ -7,6 +7,7 @@ import {
 } from '../../zuordnung/logik';
 import type { Bereich, PersonZeile } from '../../zuordnung/api';
 import { Sheet } from '../../components/Sheet';
+import { fzStreifen } from '../../components/FreizeitFarbe';
 import { RollenAuswahl } from './RollenAuswahl';
 import { UeberschneidungDetail, type UeberschneidungsDaten } from './UeberschneidungDetail';
 import type { ZuordnungsAnsicht } from './ZuordnungsTabelle';
@@ -59,7 +60,7 @@ export function ZuordnungSheet({ person, freizeiten, treffs, z, akzeptiert, uebe
           const paare = rolle ? ueberschneidungsPaare(person.id, freizeiten, z).filter((p) => p.a.id === f.id || p.b.id === f.id) : [];
           const offen = detailFuer === f.id;
           return (
-            <li key={f.id} className="list__item">
+            <li key={f.id} className="list__item fz-streifen" style={fzStreifen(f)}>
               <div className="list__main">
                 <Link className="list__title" to={`/freizeiten/${f.id}/team`} onClick={schliessen}>{f.name}</Link>
                 <div className="list__meta">

@@ -21,6 +21,8 @@ export interface Dienst {
 }
 
 export interface Feiertag { id: string; treff_id: string | null; datum: string; bezeichnung: string }
+/** Zeitraum, in dem ein Treff geschlossen ist (von und bis einschließlich). */
+export interface Schliesszeit { id: string; treff_id: string; von: string; bis: string; grund: string }
 export interface Abwesenheit { id: string; person_id: string; datum: string; typ: 'urlaub' | 'krank'; notiz: string | null }
 
 /* ───── Kalender ───── */
@@ -78,17 +80,25 @@ export interface Tageskarte {
   oeffnung: Oeffnungszeit | null;
   regulaer: Dienst | null;
   sonder: Dienst[];
+  /** Schließzeit an diesem Tag (dann kein regulärer Dienst, kein Protokoll). */
+  geschlossen?: Schliesszeit | null;
 }
 
+/** Die Schließzeit, in die der Tag fällt, sonst null. */
+export const geschlossenAm = (datum: string, schliesszeiten: Schliesszeit[]) => schliesszeiten.find((s) => s.von <= datum && datum <= s.bis) ?? null;
+
+/** „Schließzeit: Sommerpause“ bzw. „Geschlossen“ ohne Grund. */
+export const schliesszeitText = (s: Pick<Schliesszeit, 'grund'>) => (s.grund.trim() ? `Geschlossen: ${s.grund.trim()}` : 'Geschlossen');
+
 /** Karten für alle Tage, an denen der Treff öffnet oder ein Dienst existiert (auch Sonderdienste an Schließtagen). */
-export function tageskarten(tage: string[], oeffnungszeiten: Oeffnungszeit[], dienste: Dienst[]): Tageskarte[] {
+export function tageskarten(tage: string[], oeffnungszeiten: Oeffnungszeit[], dienste: Dienst[], schliesszeiten: Schliesszeit[] = []): Tageskarte[] {
   const karten: Tageskarte[] = [];
   for (const datum of tage) {
     const oeffnung = oeffnungszeiten.find((o) => o.wochentag === isoWochentag(datum)) ?? null;
     const heute = dienste.filter((d) => d.datum === datum);
     const regulaer = heute.find((d) => !d.ist_sonder) ?? null;
     const sonder = heute.filter((d) => d.ist_sonder).sort((a, b) => (a.von ?? '').localeCompare(b.von ?? '') || a.id.localeCompare(b.id));
-    if (oeffnung || regulaer || sonder.length) karten.push({ datum, oeffnung, regulaer, sonder });
+    if (oeffnung || regulaer || sonder.length) karten.push({ datum, oeffnung, regulaer, sonder, geschlossen: geschlossenAm(datum, schliesszeiten) });
   }
   return karten;
 }
@@ -114,7 +124,7 @@ export function offeneWuensche(karten: Tageskarte[]): { datum: string; dienst: D
 
 /** BetreuerInnen wünschen Öffnungstage, an denen sie (noch) nicht eingeteilt sind; ein offener oder bestätigter Wunsch zählt schon. */
 export function darfWuenschen(rolle: RolleInTreff, k: Tageskarte, ichId: string, heute: string): boolean {
-  if (rolle !== 'betreuerin' || !k.oeffnung || k.datum < heute) return false;
+  if (rolle !== 'betreuerin' || !k.oeffnung || k.geschlossen || k.datum < heute) return false;
   if (k.regulaer?.personen.includes(ichId)) return false;
   const w = eigenerWunsch(k, ichId);
   return w === null || w === 'abgelehnt';
@@ -187,6 +197,14 @@ export function validiereAbwesenheit(e: AbwesenheitEingabe): { person?: string; 
   else if (e.bis < e.von) f.zeitraum = 'Das Ende darf nicht vor dem Beginn liegen.';
   else if (tageImZeitraum(e.von, e.bis).length > MAX_ABWESENHEIT_TAGE) f.zeitraum = `Höchstens ${MAX_ABWESENHEIT_TAGE} Tage auf einmal.`;
   return f;
+}
+
+/** Prüft eine Schließzeit; null = in Ordnung. Höchstens ein Jahr am Stück (Regel der Datenbank). */
+export function validiereSchliesszeit(e: { von: string; bis: string }): string | null {
+  if (!e.von || !e.bis) return 'Bitte Beginn und Ende angeben.';
+  if (e.bis < e.von) return 'Das Ende darf nicht vor dem Beginn liegen.';
+  if (tageImZeitraum(e.von, e.bis).length > 367) return 'Höchstens ein Jahr am Stück.';
+  return null;
 }
 
 /** Zusammenhängende Abwesenheiten einer Person und Art werden zu einem Zeitraum gefasst: "05.07.–09.07.". */

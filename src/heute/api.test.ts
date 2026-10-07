@@ -6,7 +6,7 @@ vi.mock('../lib/supabase', () => ({ supabase: { rpc: (...a: unknown[]) => rpc(..
 import { heuteDatenAus, ladeHeute, quittiereBesuch, type HeuteAnfrage } from './api';
 
 const anfrage = (o: Partial<HeuteAnfrage> = {}): HeuteAnfrage => ({
-  heute: '2027-07-07', notizFreizeiten: ['f1'], notizTreffs: ['t1'], teamFreizeiten: ['f1'], planFreizeiten: ['f1'], kachelTreffs: ['t1'], ...o,
+  heute: '2027-07-07', notizFreizeiten: ['f1'], notizTreffs: ['t1'], teamFreizeiten: ['f1'], planFreizeiten: ['f1'], kachelTreffs: ['t1'], protokollTreffs: ['t2'], ...o,
 });
 
 beforeEach(() => { rpc.mockReset(); });
@@ -15,7 +15,7 @@ describe('heuteDatenAus', () => {
   it('eine leere Antwort ergibt einen leeren Stand (nichts fehlt, nichts ist undefined)', () => {
     expect(heuteDatenAus({})).toEqual({
       notizen: [], team: [], plan: [], bestand: [], orte: {}, wuensche: [], treffNamen: {}, bewerbungen: 0, vorschlaege: 0, nachweise: 0, fehler: 0,
-      protokolliert: [], offeneNotizen: {}, seit: null, neu: [], neuGesamt: 0,
+      protokolliert: [], geschlossen: [], offeneNotizen: {}, seit: null, neu: [], neuGesamt: 0,
     });
   });
 
@@ -23,11 +23,11 @@ describe('heuteDatenAus', () => {
     const d = heuteDatenAus({
       notizen: [{ id: 'n' }], team: [{ freizeit_id: 'f', person_id: 'p', rolle: 'leitung' }], plan: [{ id: 'p1' }],
       bestand: [{ ort_id: 'o', name: 'Milch', einheit: 'l', rest: '3.5', status: 'knapp' }], orte: { o: 'Au' }, wuensche: [{ person_id: 'p', datum: '2027-07-09', treff_id: 't' }],
-      treff_namen: { t: 'Treff' }, bewerbungen: 2, vorschlaege: '1', nachweise: 3, fehler: 4, protokolliert: ['t'], offene_notizen: { t: 5 },
+      treff_namen: { t: 'Treff' }, bewerbungen: 2, vorschlaege: '1', nachweise: 3, fehler: 4, protokolliert: ['t'], geschlossen: ['t3'], offene_notizen: { t: 5 },
       seit: '2027-07-07T10:00:00Z', neu: [{ zeit: 'z', art: 'hinweis', text: 'T', quelle: 'Q', url: '/u' }], neu_gesamt: 7,
     });
     expect(d.bestand[0]!.rest).toBe(3.5);
-    expect(d).toMatchObject({ orte: { o: 'Au' }, treffNamen: { t: 'Treff' }, bewerbungen: 2, vorschlaege: 1, nachweise: 3, fehler: 4, protokolliert: ['t'], offeneNotizen: { t: 5 }, seit: '2027-07-07T10:00:00Z', neuGesamt: 7 });
+    expect(d).toMatchObject({ orte: { o: 'Au' }, treffNamen: { t: 'Treff' }, bewerbungen: 2, vorschlaege: 1, nachweise: 3, fehler: 4, protokolliert: ['t'], geschlossen: ['t3'], offeneNotizen: { t: 5 }, seit: '2027-07-07T10:00:00Z', neuGesamt: 7 });
     expect(d.notizen).toHaveLength(1);
     expect(d.neu[0]!.url).toBe('/u');
   });
@@ -49,7 +49,7 @@ describe('ladeHeute', () => {
     expect(rpc).toHaveBeenCalledWith('fn_heute', {
       p_heute: '2027-07-07',
       p_anfrage: {
-        notiz_freizeiten: ['f1'], notiz_treffs: ['t1'], team_freizeiten: ['f1'], plan_freizeiten: ['f1'], kachel_treffs: ['t1'],
+        notiz_freizeiten: ['f1'], notiz_treffs: ['t1'], team_freizeiten: ['f1'], plan_freizeiten: ['f1'], kachel_treffs: ['t1'], protokoll_treffs: ['t2'],
         bestand: true, nachweise: false, bewerbungen: false, vorschlaege: false, fehler: true, besuch: true, wuensche: 'alle',
       },
     });

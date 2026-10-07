@@ -25,6 +25,12 @@ describe('planeMonat: Grundfall', () => {
     expect(p.tage).toHaveLength(5);
   });
 
+  it('Schließzeiten: an diesen Tagen wird nicht eingeteilt (kein Konflikt, einfach zu)', () => {
+    const p = plan({ muster: { anna: [1] }, schliesszeiten: [{ id: 's', treff_id: 't1', von: '2027-03-06', bis: '2027-03-16', grund: '' }] });
+    expect(tage(p.zuteilen)).toEqual(['2027-03-01', '2027-03-22', '2027-03-29']);
+    expect(p.konflikte).toEqual([]);
+  });
+
   it('mehrere Personen mit verschiedenen Wochentagen; zwei Personen am selben Tag', () => {
     const p = plan({ muster: { anna: [1, 3], ben: [3] } });
     expect(p.zuteilen.filter((x) => x.datum === '2027-03-03').map((x) => x.person)).toEqual(['anna', 'ben']);

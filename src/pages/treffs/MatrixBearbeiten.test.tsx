@@ -31,6 +31,7 @@ beforeEach(() => {
   vi.mocked(api.holeTreffTeam).mockResolvedValue(team);
   vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: montage[0]!, personen: ['lea'] })]);
   vi.mocked(api.listeFeiertage).mockResolvedValue([]);
+  vi.mocked(api.listeSchliesszeiten).mockResolvedValue([]);
   vi.mocked(api.listeAbwesenheiten).mockResolvedValue([]);
   vi.mocked(api.dienstStatistik).mockResolvedValue([]);
   vi.mocked(api.wendeDienstplanAn).mockResolvedValue({ zugeteilt: 1, entfernt: 1 });
@@ -179,8 +180,20 @@ describe('Einsatz-Matrix bearbeiten (Monat)', () => {
     expect(api.bestaetigeWuensche).toHaveBeenCalledWith('t1', [{ dienst: 'd1', person: 'ben', datum: montage[0] }]);
     expect(await screen.findByText('Ein Wunsch bestätigt.')).toBeInTheDocument();
     expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben'] });
-    expect(screen.getByText(/Ein offener Wunsch an einem Tag mit Urlaub, Krankheit oder Feiertag – bitte einzeln entscheiden/)).toBeInTheDocument();
+    expect(screen.getByText(/Ein offener Wunsch an einem Tag mit Urlaub, Krankheit, Feiertag oder Schließzeit – bitte einzeln entscheiden/)).toBeInTheDocument();
     confirm.mockRestore();
+  });
+
+  it('Schließzeit: Tage sind markiert, nicht bearbeitbar, ohne Zuteilen-Knopf und nicht „unbesetzt“', async () => {
+    vi.mocked(api.listeSchliesszeiten).mockResolvedValue([{ id: 's', treff_id: 't1', von: mittwoche[0]!, bis: mittwoche[0]!, grund: 'Fortbildung' }]);
+    await oeffne();
+    expect(screen.getByRole('columnheader', { name: new RegExp(`${tagLabel(mittwoche[0]!).replace('.', '\\.')}.*Geschlossen: Fortbildung`) })).toHaveClass('einsatz__tag--zu');
+    expect(screen.queryByRole('button', { name: new RegExp(`^Ben Baum, ${tagLabel(mittwoche[0]!).replace('.', '\\.')}`) })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Ben Baum: an allen Öffnungstagen/ }));
+    expect(screen.getByText(`${montage.length + mittwoche.length - 1} neue Einteilungen`)).toBeInTheDocument();
+    const liste = screen.getByRole('list', { name: 'Dienste im Monat' });
+    expect(within(liste).getByText('Geschlossen: Fortbildung')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Zuteilen am / })).toHaveLength(montage.length + mittwoche.length - 1);
   });
 
   it('Barrierefreiheit (axe): keine Verstöße im Bearbeiten-Modus', async () => {

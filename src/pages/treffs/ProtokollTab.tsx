@@ -5,8 +5,8 @@ import { fehlerText } from '../../lib/fehler';
 import { ladeHerunter, dateiName } from '../../lib/datei';
 import { formatDatum, formatKurz, heuteIso, wochentagLang } from '../../freizeiten/logik';
 import { holeNamen } from '../../freizeiten/api';
-import { listeFeiertage, type TreffDetailDaten } from '../../treffs/api';
-import { addTage } from '../../treffs/dienstplan';
+import { listeFeiertage, listeSchliesszeiten, type TreffDetailDaten } from '../../treffs/api';
+import { addTage, tageImZeitraum } from '../../treffs/dienstplan';
 import { listeProtokolle, listeProtokolleImZeitraum, listeProtokollZahlen } from '../../tagesprotokoll/api';
 import {
   anteil, auswertungNachMonat, csvProtokolle, fehlendeTage, gesamt, hatOeffnung, summeAuswertung, type Protokoll,
@@ -76,6 +76,7 @@ export function ProtokollTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
   const heute = heuteIso();
   const protokolle = useLaden(() => listeProtokolle(t.id), `protokolle-${t.id}`);
   const feiertage = useLaden(() => listeFeiertage(t.id, addTage(heute, -30), heute), `protokoll-feiertage-${t.id}-${heute}`);
+  const schliesszeiten = useLaden(() => listeSchliesszeiten(t.id, addTage(heute, -30), heute), `protokoll-schliesszeiten-${t.id}-${heute}`);
   useLive(['treff_protokolle'], () => protokolle.neuLaden());
   const ids = [...new Set((protokolle.daten ?? []).map((p) => p.bearbeitet_von).filter((x): x is string => !!x))].sort();
   const namen = useLaden(() => holeNamen(ids), `protokoll-namen-${t.id}-${ids.join(',')}`);
@@ -83,7 +84,9 @@ export function ProtokollTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
 
   const liste = protokolle.daten ?? [];
   const heutiges = liste.find((p) => p.datum === heute) ?? null;
-  const offeneTage = fehlendeTage(t.oeffnungszeiten, liste, heute, 14, (feiertage.daten ?? []).map((f) => f.datum));
+  // Kein Protokoll nötig an Feiertagen und in Schließzeiten
+  const zuTage = [...(feiertage.daten ?? []).map((f) => f.datum), ...(schliesszeiten.daten ?? []).flatMap((s) => tageImZeitraum(s.von, s.bis))];
+  const offeneTage = fehlendeTage(t.oeffnungszeiten, liste, heute, 14, zuTage);
   const leitung = rolle === 'treffleitung' || rolle === 'koordination';
 
   return (

@@ -91,11 +91,11 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
             <tr>
               <th scope="col" className="einsatz__person">Person</th>
               {spalten.map((s) => (
-                <th key={s.datum} scope="col" title={s.feiertag ?? undefined}
-                  className={`einsatz__tag${s.heute ? ' einsatz__tag--heute' : ''}${s.unbesetzt ? ' einsatz__tag--leer' : ''}${s.feiertag ? ' einsatz__tag--feiertag' : ''}`}>
+                <th key={s.datum} scope="col" title={s.geschlossen ?? s.feiertag ?? undefined}
+                  className={`einsatz__tag${s.heute ? ' einsatz__tag--heute' : ''}${s.unbesetzt ? ' einsatz__tag--leer' : ''}${s.feiertag ? ' einsatz__tag--feiertag' : ''}${s.geschlossen ? ' einsatz__tag--zu' : ''}`}>
                   <span aria-hidden="true">{s.wochentag}</span>
                   <span aria-hidden="true" className="einsatz__zahl">{s.tag}</span>
-                  <span className="sr-only">{`${s.wochentag} ${s.tag}.${s.heute ? ' (heute)' : ''}${s.feiertag ? `, Feiertag: ${s.feiertag}` : ''}`}</span>
+                  <span className="sr-only">{`${s.wochentag} ${s.tag}.${s.heute ? ' (heute)' : ''}${s.feiertag ? `, Feiertag: ${s.feiertag}` : ''}${s.geschlossen ? `, ${s.geschlossen}` : ''}`}</span>
                 </th>
               ))}
               <th scope="col" className="einsatz__summe">Tage</th>
@@ -130,7 +130,7 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
                         {c.wunsch && <><span className="einsatz__wunsch" aria-hidden="true">?</span><span className="sr-only">wünscht den Dienst</span></>}
                       </>
                     );
-                    if (!b || !bearbeitbar(karte)) return <td key={s.datum} className={s.heute ? 'einsatz__zelle--heute' : undefined}>{inhalt}</td>;
+                    if (!b || !bearbeitbar(karte)) return <td key={s.datum} className={`${s.heute ? 'einsatz__zelle--heute' : ''}${s.geschlossen ? ' einsatz__zelle--zu' : ''}`.trim() || undefined}>{inhalt}</td>;
 
                     const vorherDrin = eingeteilt(b.gespeichert, new Map(), s.datum, z.person_id);
                     const neu = c.dienst && !vorherDrin;

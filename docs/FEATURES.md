@@ -182,7 +182,7 @@ B9 (Bewerbung und Zurückziehen, Entscheidung durch die Koordination), Startseit
 
 **Noch offen (bewusst später):**
 - C8/C12 vollständige Startseite „Heute" mit offenen Hinweisen, knappen Lebensmitteln, Koordinations-Überblick (heute nur „Meine Freizeiten").
-- C10 Farbe je Freizeit (Logik vorhanden, noch nicht eingebunden).
+- ~~C10 Farbe je Freizeit~~ – umgesetzt in Phase 12 (Migration `0026`).
 - „Neu seit letztem Besuch" (D4 bei Treffs) und Hinweis „gelesen" für die Koordination.
 - Der **Katalog ist noch leer** (Phase 3, Bereich Katalog): Bis dahin tragen Leitungen im Wochenplan Freitext ein, TeamerInnen sehen einen Hinweis.
 - Push-Benachrichtigungen bei neuen Hinweisen/Absprachen (Bereich Mitteilungen).
@@ -294,7 +294,7 @@ H3 (Einschalten, Testen und Ausschalten je Gerät unter „Mehr“; Hinweis für
 - Hinweise gelten als „offen“, bis man sie selbst bestätigt hat (statt „neu seit dem letzten Besuch“). Notizen für einen vergangenen Tag erledigen sich von selbst.
 - Lebensmittel werden nur für Orte gezeigt, an denen gerade eine Freizeit läuft oder in zwei Wochen beginnt – alte Restbestände früherer Freizeiten stören nicht.
 
-**Noch offen:** „Neu seit letztem Besuch“ (D4) und Kommentare zu Absprachen als Hinweis für die Koordination, Farbe je Freizeit (C10).
+**Noch offen:** „Neu seit letztem Besuch“ (D4) und Kommentare zu Absprachen als Hinweis für die Koordination. (Farbe je Freizeit, C10: umgesetzt in Phase 12.)
 
 ## Stand der Umsetzung: Tagesprotokoll und Notizen der Treffs (Phase 7, 2026-09-30)
 
@@ -315,7 +315,7 @@ H3 (Einschalten, Testen und Ausschalten je Gerät unter „Mehr“; Hinweis für
 - Wer zuletzt speichert, gewinnt: Bearbeiten zwei Personen gleichzeitig dasselbe Protokoll, überschreibt die spätere Speicherung die frühere (die Liste aktualisiert sich live, ein geöffnetes Formular nicht).
 - Die Regeln (Zukunft verboten, Verfasser nicht fälschbar, „erledigt“ nicht vortäuschbar, Zuständige nur aus dem Team) stehen in der Datenbank, nicht nur in der Oberfläche.
 
-**Noch offen:** Erinnerung auch an Personen, die einen Dienst getauscht haben (derzeit: laut Dienstplan Eingeteilte), Protokoll-Vorlagen je Wochentag, Auswertung über mehrere Treffs zugleich.
+**Noch offen:** Protokoll-Vorlagen je Wochentag. (Die Erinnerung geht seit Phase 12 an das ganze Team; eine Auswertung über mehrere Treffs zugleich ist laut Fachseite nicht nötig.)
 
 
 ## Stand der Umsetzung: Zuordnung von Personen zu Freizeiten und Treffs (Phase 8, 2026-09-30)
@@ -388,3 +388,16 @@ Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und
   **Einteilen erfüllt den Wunsch:** Wird jemand für einen Tag eingeteilt, den er sich gewünscht hat (egal auf welchem Weg), gilt der offene Wunsch als bestätigt; ein abgelehnter Wunsch bleibt abgelehnt.
 
 **Nicht erprobt:** Echte Hilfsmittel (Screenreader, Zoom), Lesbarkeit auf echten Geräten und Farbwirkung bei Sonnenlicht; die Zeilenenden-Umstellung greift auf anderen Rechnern nach einem frischen `git pull` (bei Bedarf `git rm --cached -r . && git reset --hard`, wenn dort nichts Ungespeichertes liegt).
+
+## Stand der Umsetzung: Schließzeiten, Tagesprotokoll-Erinnerung, Farbe je Freizeit (Phase 12, 2026-10-07)
+
+**Umgesetzt und getestet** (Migration `0026`):
+- **Schließzeiten der Treffs:** Treffleitung und Treffkoordination tragen im Reiter *Verwaltung* Zeiträume ein, in denen ein Treff geschlossen ist (von – bis, Grund optional, höchstens ein Jahr am Stück), und löschen sie wieder; alle sehen sie.
+  An diesen Tagen ist **kein Tagesprotokoll nötig** (keine Karte „fehlt“, nicht in den fehlenden Tagen des Reiters, keine Erinnerung), und der reguläre Dienst lässt sich **weder einteilen noch wünschen** – die Datenbank verhindert es auf allen Wegen (Zuteilen, Monat einteilen, Tabelle, Wünsche bestätigen); einen alten Wunsch ablehnen geht weiter.
+  Im Dienstplan stehen die Tage mit dem Schild „Geschlossen: Grund“ ohne Zuteilen-Knopf, in der Einsatz-Matrix ist die Spalte schraffiert und nicht bearbeitbar und gilt nicht als „unbesetzt“; „Monat einteilen“, „Vormonat übernehmen“, „Woche kopieren“ und „Zeile füllen“ lassen sie aus. **Sonderdienste** bleiben möglich.
+- **Erinnerung „Tagesprotokoll fehlt“ an das ganze Team** des Treffs (bisher Treffleitung und die heute Eingeteilten), weiterhin nicht an die Koordination, nicht an Feiertagen und jetzt auch nicht in Schließzeiten.
+- **Treffkoordination ohne Protokoll-Anzeige auf der Startseite:** keine Karte „Tagesprotokoll fehlt“, keine Zahl an der Kachel, nichts im Kachelraster und unter „Neu seit deinem letzten Besuch“ – außer für Treffs, in deren Team sie selbst ist. Sie liest Protokolle bei Bedarf im Treff nach. (`fn_heute` fragt dafür nur `protokoll_treffs` ab; die Startseite schickt nur die eigenen Treffs.)
+  Nebenbei behoben: Die Karte „Tagesprotokoll fehlt“ erschien bisher auch an Feiertagen.
+- **Farbe je Freizeit (C10):** feste Palette mit zehn Farben (wie im alten Auftritt); die Freizeitenkoordination wählt sie im Formular der Freizeit, ohne Wahl wird sie stabil aus der ID abgeleitet. Sie erscheint als **Streifen** an der Freizeit in der Freizeiten-Liste, unter „Meine Freizeiten“, „Freizeiten zum Bewerben“, im Saison-Überblick und im Zuordnungsfenster einer Person sowie als **Punkt** im Kopf der Freizeit und in den Spaltenköpfen der Zuordnungstabelle – nie als Schriftfarbe, die Lesbarkeit hängt nicht an ihr.
+
+**Bewusst so:** Schließzeiten gelten je Treff (für alle Treffs zugleich gibt es weiterhin die Feiertage der Koordination). Dienste, die vor dem Eintragen einer Schließzeit schon in diesem Zeitraum standen, bleiben stehen; an solchen Tagen bleibt der Knopf „Zuteilen“, um Personen herauszunehmen – neu einteilen lehnt die Datenbank ab.

@@ -6,7 +6,7 @@ import {
   holeFreizeit, listeOrte, listeTags, loescheFreizeit, speichereFreizeit, type FreizeitFormular,
 } from '../../freizeiten/api';
 import { leeresFormular, formularAusDetail, validiereFreizeit, type Fehlerliste } from '../../freizeiten/formular';
-import { FERIEN_LABEL, MAX_FERIENWOCHEN, type Ferienzeitraum } from '../../freizeiten/logik';
+import { FERIEN_LABEL, FREIZEIT_FARBEN, MAX_FERIENWOCHEN, freizeitFarbe, type Ferienzeitraum } from '../../freizeiten/logik';
 import { nameBestaetigt } from '../PersonEntfernen';
 import { Alert, Button, Card, PageHeader, SelectField, Spinner, TextField } from '../../components/ui';
 
@@ -97,6 +97,27 @@ function FormInhalt({ id, start }: { id: string | null; start: FreizeitFormular 
               </SelectField>
             </div>
           </div>
+        </Card>
+
+        <Card>
+          <fieldset className="optionen">
+            <legend className="field__label">Farbe</legend>
+            <p className="field__hint">Zum Wiedererkennen in Listen, auf der Startseite und in der Zuordnung.</p>
+            <div className="farbwahl">
+              <label className="farbwahl__option">
+                <input type="radio" name="farbe" checked={f.farbe === ''} onChange={() => set('farbe', '')} />
+                <span className="fz-punkt" aria-hidden="true" style={{ background: id ? freizeitFarbe(id) : 'var(--border-strong)' }} />
+                <span>Automatisch</span>
+              </label>
+              {FREIZEIT_FARBEN.map((c) => (
+                <label key={c.id} className="farbwahl__option">
+                  <input type="radio" name="farbe" checked={f.farbe === c.id} onChange={() => set('farbe', c.id)} />
+                  <span className="fz-punkt" aria-hidden="true" style={{ background: c.wert }} />
+                  <span>{c.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
         </Card>
 
         <Card>

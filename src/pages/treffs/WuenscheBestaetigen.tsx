@@ -53,7 +53,7 @@ export function WuenscheBestaetigen({ treffId, karten, abwesenheiten, feiertage,
       )}
       {mitKonflikt.length > 0 && (
         <p className="field__hint">
-          {wuensche(mitKonflikt.length).replace(/^ein/, 'Ein')} an {mitKonflikt.length === 1 ? 'einem Tag' : 'Tagen'} mit Urlaub, Krankheit oder Feiertag – bitte einzeln entscheiden.
+          {wuensche(mitKonflikt.length).replace(/^ein/, 'Ein')} an {mitKonflikt.length === 1 ? 'einem Tag' : 'Tagen'} mit Urlaub, Krankheit, Feiertag oder Schließzeit – bitte einzeln entscheiden.
         </p>
       )}
     </div>

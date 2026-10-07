@@ -4,5 +4,5 @@ import type { HeuteDaten } from './heute/api';
 export const leererStand = (): HeuteDaten => ({
   notizen: [], team: [], plan: [], bestand: [], orte: {}, wuensche: [], treffNamen: {},
   bewerbungen: 0, vorschlaege: 0, nachweise: 0, fehler: 0,
-  protokolliert: [], offeneNotizen: {}, seit: null, neu: [], neuGesamt: 0,
+  protokolliert: [], geschlossen: [], offeneNotizen: {}, seit: null, neu: [], neuGesamt: 0,
 });

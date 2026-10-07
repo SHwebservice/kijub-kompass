@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { ApiFehler } from '../lib/fehler';
-import type { Ferienzeitraum } from './logik';
+import type { Ferienzeitraum, FreizeitFarbeId } from './logik';
 import type { AngebotKurz, PlanEintrag, Slot } from './plan';
 import type { Geltung, Notiz, NotizArt } from './notizen';
 import type { Eingang, Verbrauch } from './lebensmittel';
@@ -28,6 +28,8 @@ export interface FreizeitZeile {
   alter_von: number | null;
   alter_bis: number | null;
   tags: string[];
+  /** Gewählte Farbe (Migration 0026); null = automatisch aus der ID. */
+  farbe: FreizeitFarbeId | null;
 }
 
 export interface FreizeitDetailDaten extends FreizeitZeile {
@@ -52,6 +54,8 @@ export interface FreizeitFormular {
   max_teilnehmende: number | '';
   ort_id: string;
   tags: string[];
+  /** '' = automatisch */
+  farbe: FreizeitFarbeId | '';
 }
 
 export interface Ort { id: string; name: string; adresse: string | null; lieferstelle_nr: string | null; freizeiten: number; treffs: number }
@@ -93,9 +97,10 @@ const zeile = (r: Roh): FreizeitZeile => ({
   max_teilnehmende: (r.max_teilnehmende as number | null) ?? null,
   alter_von: (r.alter_von as number | null) ?? null, alter_bis: (r.alter_bis as number | null) ?? null,
   tags: ((r.freizeit_tags as { tag: string }[] | null) ?? []).map((t) => t.tag).sort(),
+  farbe: (r.farbe as FreizeitFarbeId | null | undefined) ?? null,
 });
 
-const LISTE = 'id, name, status, ferienzeitraum, ferienwoche, start_datum, ende_datum, ort_id, max_teilnehmende, alter_von, alter_bis, orte(name), freizeit_tags(tag)';
+const LISTE = 'id, name, status, ferienzeitraum, ferienwoche, start_datum, ende_datum, ort_id, max_teilnehmende, alter_von, alter_bis, farbe, orte(name), freizeit_tags(tag)';
 
 /* ───── Freizeiten ───── */
 
@@ -130,6 +135,7 @@ export async function speichereFreizeit(id: string | null, f: FreizeitFormular):
     name: f.name.trim(), status: f.status, ferienzeitraum: f.ferienzeitraum || null, ferienwoche: num(f.ferienwoche),
     start_datum: f.start_datum, ende_datum: f.ende_datum, arbeitsbeginn: leer(f.arbeitsbeginn), arbeitsende: leer(f.arbeitsende),
     alter_von: num(f.alter_von), alter_bis: num(f.alter_bis), max_teilnehmende: num(f.max_teilnehmende), ort_id: f.ort_id || null,
+    farbe: f.farbe || null,
   };
   let fid = id;
   if (id) {

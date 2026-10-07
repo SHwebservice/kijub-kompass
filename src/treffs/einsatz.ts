@@ -1,5 +1,5 @@
 import { wochentagKurz } from '../freizeiten/logik';
-import { feiertagAm, type Abwesenheit, type Feiertag, type Tageskarte } from './dienstplan';
+import { feiertagAm, schliesszeitText, type Abwesenheit, type Feiertag, type Tageskarte } from './dienstplan';
 import { sortiereTreffTeam, type TreffMitglied } from './logik';
 
 /**
@@ -15,9 +15,11 @@ export interface EinsatzSpalte {
   tag: number;
   heute: boolean;
   feiertag: string | null;
+  /** Grund der Schließzeit („Geschlossen: …“), sonst null. */
+  geschlossen: string | null;
   /** Wie viele verschiedene Personen an diesem Tag eingeteilt sind (regulär und Sonderdienste). */
   besetzung: number;
-  /** Heute oder künftig ein Öffnungstag, an dem niemand eingeteilt ist (nicht an Feiertagen). */
+  /** Heute oder künftig ein Öffnungstag, an dem niemand eingeteilt ist (nicht an Feiertagen und in Schließzeiten). */
   unbesetzt: boolean;
 }
 
@@ -52,8 +54,8 @@ export function baueEinsatz(
     const feiertag = feiertagAm(k.datum, feiertage, treffId);
     return {
       datum: k.datum, wochentag: wochentagKurz(k.datum), tag: Number(k.datum.slice(8, 10)), heute: k.datum === heute,
-      feiertag: feiertag?.bezeichnung ?? null, besetzung: personen.size,
-      unbesetzt: !!k.oeffnung && personen.size === 0 && k.datum >= heute && !feiertag,
+      feiertag: feiertag?.bezeichnung ?? null, geschlossen: k.geschlossen ? schliesszeitText(k.geschlossen) : null, besetzung: personen.size,
+      unbesetzt: !!k.oeffnung && personen.size === 0 && k.datum >= heute && !feiertag && !k.geschlossen,
     };
   });
 

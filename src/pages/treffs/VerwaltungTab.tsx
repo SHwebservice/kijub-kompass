@@ -3,10 +3,10 @@ import { useLaden } from '../../lib/laden';
 import { fehlerText } from '../../lib/fehler';
 import { formatDatum, heuteIso } from '../../freizeiten/logik';
 import {
-  holeTreffTeam, listeAbwesenheiten, listeFeiertage, loescheAbwesenheiten, loescheFeiertag, speichereAbwesenheit, speichereFeiertag,
-  type TreffDetailDaten,
+  holeTreffTeam, listeAbwesenheiten, listeFeiertage, listeSchliesszeiten, loescheAbwesenheiten, loescheFeiertag, loescheSchliesszeit,
+  speichereAbwesenheit, speichereFeiertag, speichereSchliesszeit, type TreffDetailDaten,
 } from '../../treffs/api';
-import { abwesenheitsBloecke, addTage, tageImZeitraum, validiereAbwesenheit } from '../../treffs/dienstplan';
+import { abwesenheitsBloecke, addTage, tageImZeitraum, validiereAbwesenheit, validiereSchliesszeit } from '../../treffs/dienstplan';
 import { sortiereTreffTeam } from '../../treffs/logik';
 import type { RolleInTreff } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, SelectField, Spinner, TextField } from '../../components/ui';
@@ -14,18 +14,21 @@ import { Alert, Badge, Button, Card, SelectField, Spinner, TextField } from '../
 const ZEITRAUM_TAGE = 365;
 const zeitraum = (von: string, bis: string) => (von === bis ? formatDatum(von) : `${formatDatum(von)} – ${formatDatum(bis)}`);
 
-/** Treffleitung/Koordination: Urlaub und Krankheit der Personen sowie Feiertage des Treffs eintragen. */
+/** Treffleitung/Koordination: Urlaub und Krankheit der Personen, Schließzeiten und Feiertage des Treffs eintragen. */
 export function VerwaltungTab({ treff: t, rolle }: { treff: TreffDetailDaten; rolle: RolleInTreff }) {
   const heute = heuteIso();
   const bis = addTage(heute, ZEITRAUM_TAGE);
   const team = useLaden(() => holeTreffTeam(t.id), `treffteam-${t.id}`);
   const abwesenheiten = useLaden(() => listeAbwesenheiten(heute, bis), `abwesenheiten-verw-${t.id}`);
   const feiertage = useLaden(() => listeFeiertage(t.id, heute, bis), `feiertage-verw-${t.id}`);
+  const schliesszeiten = useLaden(() => listeSchliesszeiten(t.id, heute, bis), `schliesszeiten-verw-${t.id}`);
 
   const [a, setA] = useState({ person_id: '', von: '', bis: '', typ: 'urlaub' as 'urlaub' | 'krank', notiz: '' });
   const [aFehler, setAFehler] = useState<{ person?: string; zeitraum?: string }>({});
   const [f, setF] = useState({ datum: '', bezeichnung: '', alle: false });
   const [fFehler, setFFehler] = useState<string | null>(null);
+  const [s, setS] = useState({ von: '', bis: '', grund: '' });
+  const [sFehler, setSFehler] = useState<string | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
 
@@ -56,9 +59,19 @@ export function VerwaltungTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
     void aktion(() => speichereFeiertag(f.alle ? null : t.id, f.datum, f.bezeichnung), () => { setF({ datum: '', bezeichnung: '', alle: false }); feiertage.neuLaden(); });
   }
 
+  function schliesszeitSpeichern(e: FormEvent) {
+    e.preventDefault();
+    const problem = validiereSchliesszeit(s);
+    setSFehler(problem);
+    if (problem) return;
+    void aktion(() => speichereSchliesszeit(t.id, s.von, s.bis, s.grund), () => { setS({ von: '', bis: '', grund: '' }); schliesszeiten.neuLaden(); });
+  }
+
   return (
     <div className="stack">
-      {(team.fehler || abwesenheiten.fehler || feiertage.fehler || fehler) && <Alert ton="error">{team.fehler ?? abwesenheiten.fehler ?? feiertage.fehler ?? fehler}</Alert>}
+      {(team.fehler || abwesenheiten.fehler || feiertage.fehler || schliesszeiten.fehler || fehler) && (
+        <Alert ton="error">{team.fehler ?? abwesenheiten.fehler ?? feiertage.fehler ?? schliesszeiten.fehler ?? fehler}</Alert>
+      )}
 
       <Card>
         <h2>Urlaub und Krankheit</h2>
@@ -94,6 +107,41 @@ export function VerwaltungTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
               </div>
               <Button klein variante="danger" disabled={arbeitet} aria-label={`Abwesenheit von ${name(b.person_id)} (${zeitraum(b.von, b.bis)}) löschen`}
                 onClick={() => void aktion(() => loescheAbwesenheiten(b.ids), () => abwesenheiten.neuLaden())}>Löschen</Button>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card>
+        <h2>Schließzeiten</h2>
+        <p className="field__hint">
+          Ist der Treff geschlossen (z. B. Sommerpause, Fortbildung), ist an diesen Tagen kein Tagesprotokoll nötig, es kommt keine Erinnerung,
+          und im Dienstplan wird weder eingeteilt noch gewünscht. Sonderdienste bleiben möglich.
+        </p>
+        <form onSubmit={schliesszeitSpeichern} noValidate>
+          <div className="row" style={{ alignItems: 'flex-start' }}>
+            <div style={{ flex: '1 1 150px' }}><TextField label="Geschlossen von" type="date" value={s.von} onChange={(e) => setS({ ...s, von: e.target.value, bis: s.bis || e.target.value })} /></div>
+            <div style={{ flex: '1 1 150px' }}><TextField label="Geschlossen bis" type="date" value={s.bis} onChange={(e) => setS({ ...s, bis: e.target.value })} fehler={sFehler ?? undefined} /></div>
+          </div>
+          <TextField label="Grund (optional)" value={s.grund} onChange={(e) => setS({ ...s, grund: e.target.value })} maxLength={200} />
+          <Button variante="primary" type="submit" laedt={arbeitet}>Schließzeit eintragen</Button>
+        </form>
+
+        <h3>Aktuelle und kommende Schließzeiten</h3>
+        {schliesszeiten.laedt && <Spinner />}
+        {!schliesszeiten.laedt && (schliesszeiten.daten?.length ?? 0) === 0 && <p>Keine Schließzeiten eingetragen.</p>}
+        <ul className="list" aria-label="Schließzeiten">
+          {(schliesszeiten.daten ?? []).map((x) => (
+            <li key={x.id} className="list__item">
+              <div className="list__main">
+                <div className="list__title">{zeitraum(x.von, x.bis)}</div>
+                <div className="list__meta">
+                  {x.grund ? <span>{x.grund}</span> : <span className="field__hint">ohne Grund</span>}
+                  {x.von <= heute && <Badge ton="warning">läuft</Badge>}
+                </div>
+              </div>
+              <Button klein variante="danger" disabled={arbeitet} aria-label={`Schließzeit ${zeitraum(x.von, x.bis)} löschen`}
+                onClick={() => void aktion(() => loescheSchliesszeit(x.id), () => schliesszeiten.neuLaden())}>Löschen</Button>
             </li>
           ))}
         </ul>

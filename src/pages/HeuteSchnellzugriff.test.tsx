@@ -178,6 +178,15 @@ describe('Startseite: Tagesprotokoll und Notizen der Treffs', () => {
     expect(screen.queryByRole('link', { name: 'Tagesprotokoll fehlt' })).not.toBeInTheDocument();
   });
 
+  it('heute geschlossen (Feiertag oder Schließzeit): nichts fehlt', async () => {
+    geoeffnet();
+    stand.geschlossen = ['t1'];
+    zeige(tzk);
+    await screen.findByRole('navigation', { name: 'Schnellzugriff' });
+    expect(await screen.findByRole('link', { name: 'Tagesprotokoll' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Tagesprotokoll fehlt' })).not.toBeInTheDocument();
+  });
+
   it('Treff ohne Öffnung heute: nichts fehlt', async () => {
     zeige(tzk);          // Standard-Treff ohne Öffnungszeiten
     await screen.findByRole('navigation', { name: 'Schnellzugriff' });
@@ -217,14 +226,16 @@ describe('Startseite: Koordination getrennt nach Bereichen', () => {
     stand.nachweise = 2;
     zeige(tkOnly);
     const treffs = await screen.findByRole('list', { name: 'Treffs' });
-    expect(await within(treffs).findByRole('link', { name: /Tagesprotokoll\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/protokoll');
+    // Tagesprotokoll: erreichbar, aber ohne „fehlt“ – die Treffkoordination liest es bei Bedarf im Treff nach (0026)
+    expect(await within(treffs).findByRole('link', { name: /^Tagesprotokoll/ })).toHaveAttribute('href', '/treffs/t1/protokoll');
+    expect(within(treffs).queryByRole('link', { name: /Tagesprotokoll\s*Offen/ })).not.toBeInTheDocument();
     expect(await within(treffs).findByRole('link', { name: /Stundennachweis\s*Offen:\s*2/ })).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Freizeiten' })).not.toBeInTheDocument();
     const verwaltung = screen.getByRole('list', { name: 'Verwaltung' });
     expect(verwaltung.querySelector('a[href="/treffs/neu"]')).not.toBeNull();
     for (const weg of ['/bewerbungen', '/import', '/freizeiten/neu']) expect(verwaltung.querySelector(`a[href="${weg}"]`)).toBeNull();
-    expect(await screen.findByRole('link', { name: 'Tagesprotokoll fehlt' })).toBeInTheDocument();
-    expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ bewerbungen: false, bestand: false }));         // gar nicht erst angefragt
+    expect(screen.queryByRole('link', { name: 'Tagesprotokoll fehlt' })).not.toBeInTheDocument();
+    expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ bewerbungen: false, bestand: false, kachelTreffs: ['t1'], protokollTreffs: [] }));
   });
 
   it('Kachelraster: Bewerbungen nur für die Freizeitenkoordination, Katalog-Vorschläge für beide', async () => {

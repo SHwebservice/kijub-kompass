@@ -30,6 +30,7 @@ beforeEach(() => {
   vi.mocked(api.listeProtokolle).mockResolvedValue([protokoll()]);
   vi.mocked(api.speichereProtokoll).mockResolvedValue(undefined);
   vi.mocked(treffApi.listeFeiertage).mockResolvedValue([]);
+  vi.mocked(treffApi.listeSchliesszeiten).mockResolvedValue([]);
   vi.mocked(fzApi.holeNamen).mockResolvedValue({ ben: 'Ben Baum' });
 });
 

@@ -41,6 +41,14 @@ describe('Freizeiten-Liste: Teamer mit Zuordnung', () => {
     expect(screen.getByRole('heading', { name: 'Sommer' })).toBeInTheDocument();
   });
 
+  it('jede Freizeit hat ihren Farbstreifen; eine gewählte Farbe geht vor', async () => {
+    vi.mocked(api.listeFreizeiten).mockResolvedValue([{ ...liste[0]!, farbe: 'petrol' }, ...liste.slice(1)]);
+    renderMitAuth(<FreizeitenListe />, teamerMitZuordnung);
+    const eintrag = (await screen.findByText('Meine Sommerfreizeit')).closest('li')!;
+    expect(eintrag).toHaveClass('fz-streifen');
+    expect(eintrag.style.getPropertyValue('--fz-farbe')).toBe('#2C7DA0');
+  });
+
   it('die Reiter: Meine, Alle kommenden, Vergangene', async () => {
     renderMitAuth(<FreizeitenListe />, teamerMitZuordnung);
     await screen.findByText('Meine Sommerfreizeit');

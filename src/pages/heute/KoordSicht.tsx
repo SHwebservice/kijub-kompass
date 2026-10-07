@@ -3,6 +3,7 @@ import type { FreizeitZeile } from '../../freizeiten/api';
 import { formatMonatKurz, gruppiereNachFerien, phase, tageBisStart, zeitraumText } from '../../freizeiten/logik';
 import { ohneLeitung, personenText, type TeamZeile } from '../../heute/logik';
 import { Badge, Card } from '../../components/ui';
+import { fzStreifen } from '../../components/FreizeitFarbe';
 
 interface Props { freizeiten: boolean; aktuelle: FreizeitZeile[]; team: TeamZeile[]; heute: string }
 
@@ -33,7 +34,7 @@ export function KoordSicht({ freizeiten, aktuelle, team, heute }: Props) {
               const leitung = imTeam(f.id, 'leitung');
               const teamer = imTeam(f.id, 'teamer');
               return (
-                <li key={f.id} className={`saison__karte${keine ? ' saison__karte--warnung' : ''}`}>
+                <li key={f.id} className={`saison__karte fz-streifen${keine ? ' saison__karte--warnung' : ''}`} style={fzStreifen(f)}>
                   <span className="saison__datum" aria-hidden="true"><span className="saison__tag">{Number(f.start_datum.slice(8, 10))}</span><span className="saison__monat">{formatMonatKurz(f.start_datum)}</span></span>
                   <div className="saison__inhalt">
                     <Link className="saison__titel" to={`/freizeiten/${f.id}`}>{f.name}</Link>

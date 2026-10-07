@@ -3,9 +3,9 @@ import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
 import { formatKurz, heuteIso } from '../../freizeiten/logik';
-import { dienstStatistik, holeTreffTeam, listeAbwesenheiten, listeDienste, listeFeiertage, type TreffDetailDaten } from '../../treffs/api';
+import { dienstStatistik, holeTreffTeam, listeAbwesenheiten, listeDienste, listeFeiertage, listeSchliesszeiten, type TreffDetailDaten } from '../../treffs/api';
 import {
-  dienstZeit, feiertagAm, monatErster, monatTage, monatText, monatVersatz, stundenText, tageskarten, type Dienst,
+  dienstZeit, feiertagAm, monatErster, monatTage, monatText, monatVersatz, schliesszeitText, stundenText, tageskarten, type Dienst,
 } from '../../treffs/dienstplan';
 import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
 import { LEERER_ENTWURF, mitEntwurf, type Entwurf } from '../../treffs/entwurf';
@@ -41,7 +41,10 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
   const feiertage = useLaden(() => listeFeiertage(t.id, monat, letzter), `monat-feiertage-${t.id}-${monat}`);
   const statistik = useLaden(() => dienstStatistik(t.id, monat), `monat-statistik-${t.id}-${monat}`);
   const abwesenheiten = useLaden(() => listeAbwesenheiten(monat, letzter), `monat-abwesenheiten-${t.id}-${monat}`);
-  useLive(['dienste', 'dienst_zuteilungen', 'dienst_wuensche', 'feiertage', 'treff_team'], () => { dienste.neuLaden(); feiertage.neuLaden(); statistik.neuLaden(); team.neuLaden(); });
+  const schliesszeiten = useLaden(() => listeSchliesszeiten(t.id, monat, letzter), `monat-schliesszeiten-${t.id}-${monat}`);
+  useLive(['dienste', 'dienst_zuteilungen', 'dienst_wuensche', 'feiertage', 'treff_schliesszeiten', 'treff_team'], () => {
+    dienste.neuLaden(); feiertage.neuLaden(); schliesszeiten.neuLaden(); statistik.neuLaden(); team.neuLaden();
+  });
 
   const [ziel, setZiel] = useState<Ziel | null>(null);
   const schliessen = useCallback(() => setZiel(null), []);
@@ -53,8 +56,8 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
   const mitglieder = team.daten ?? [];
   const namen = Object.fromEntries(mitglieder.map((m) => [m.person_id, `${m.vorname} ${m.nachname}`]));
   const name = (id: string) => namen[id] ?? 'Jemand';
-  const karten = tageskarten(tage, t.oeffnungszeiten, dienste.daten ?? []);
-  const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? statistik.fehler ?? abwesenheiten.fehler;
+  const karten = tageskarten(tage, t.oeffnungszeiten, dienste.daten ?? [], schliesszeiten.daten ?? []);
+  const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? statistik.fehler ?? abwesenheiten.fehler ?? schliesszeiten.fehler;
   const geaendert = () => { dienste.neuLaden(); statistik.neuLaden(); };
 
   // Ein Entwurf gilt nur für seinen Monat: Beim Blättern geht er (nach Rückfrage) verloren.
@@ -86,7 +89,7 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
 
       {verwaltung && !dienste.laedt && (
         <MonatEinteilen key={monat} treff={t} monat={monat} mitglieder={mitglieder} dienste={dienste.daten ?? []} abwesenheiten={abwesenheiten.daten ?? []}
-          feiertage={feiertage.daten ?? []} geaendert={geaendert} />
+          feiertage={feiertage.daten ?? []} schliesszeiten={schliesszeiten.daten ?? []} geaendert={geaendert} />
       )}
 
       <Card>
@@ -106,6 +109,7 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
                   <div className="list__meta">
                     {k.oeffnung && <span>{oeffnungszeitText(k.oeffnung)}</span>}
                     {f && <Badge ton="warning">{f.bezeichnung}</Badge>}
+                    {k.geschlossen && <Badge>{schliesszeitText(k.geschlossen)}</Badge>}
                     {verwaltung && offeneWuensche > 0 && <Badge ton="accent">{offeneWuensche === 1 ? '1 Wunsch' : `${offeneWuensche} Wünsche`}</Badge>}
                   </div>
                   {eintraege.map((d) => (
@@ -120,7 +124,8 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
                 </div>
                 {verwaltung && (
                   <div className="row" style={{ gap: 'var(--space-2)' }}>
-                    {k.oeffnung && <Button klein aria-label={`Zuteilen am ${formatKurz(k.datum)}`} onClick={() => setZiel({ art: 'zuteilen', datum: k.datum, dienst: k.regulaer })}>Zuteilen</Button>}
+                    {/* geschlossen: nur noch zum Herausnehmen von Einteilungen, die vor der Schließzeit bestanden */}
+                    {k.oeffnung && (!k.geschlossen || (k.regulaer?.personen.length ?? 0) > 0) && <Button klein aria-label={`Zuteilen am ${formatKurz(k.datum)}`} onClick={() => setZiel({ art: 'zuteilen', datum: k.datum, dienst: k.regulaer })}>Zuteilen</Button>}
                     {k.sonder.map((sd) => (
                       <Button key={sd.id} klein aria-label={`Sonderdienst ${sd.bezeichnung} am ${formatKurz(k.datum)} bearbeiten`} onClick={() => setZiel({ art: 'sonder', dienst: sd })}>Sonderdienst bearbeiten</Button>
                     ))}

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Alert, Badge, Card, EmptyState, PageHeader, Spinner } from '../components/ui';
+import { fzStreifen } from '../components/FreizeitFarbe';
 import { useAuth } from '../lib/auth-kontext';
 import { useLaden } from '../lib/laden';
 import { rollenBezeichnungen } from '../lib/rollen';
@@ -59,7 +60,7 @@ export function Heute() {
   // Alles Übrige in EINEM Aufruf (fn_heute) – erst, wenn klar ist, welche Freizeiten und Treffs gemeint sind
   const bereit = !freizeiten.laedt && !treffs.laedt;
   const anfrage = {
-    heute, notizFreizeiten: fIds, notizTreffs: notizTreffIds, teamFreizeiten: teamIds, planFreizeiten: laufendIds, kachelTreffs: kachelTreffIds,
+    heute, notizFreizeiten: fIds, notizTreffs: notizTreffIds, teamFreizeiten: teamIds, planFreizeiten: laufendIds, kachelTreffs: kachelTreffIds, protokollTreffs: meineTreffIds,
     bestand: istLeitung, nachweise: istTreffleitung, bewerbungen: fk, vorschlaege: koord, fehler: koord, besuch: true,
     ...(istTreffleitung ? { wuensche: tk ? ('alle' as const) : (rollen?.treffleitungen ?? []) } : {}),
   };
@@ -81,8 +82,10 @@ export function Heute() {
 
   const jetzt = new Date();
   const uhrzeit = `${String(jetzt.getHours()).padStart(2, '0')}:${String(jetzt.getMinutes()).padStart(2, '0')}`;
+  // „Protokoll fehlt“ nur für die eigenen Treffs (auch bei der Treffkoordination) und nicht an Feiertagen oder in Schließzeiten
   const protokolliert = new Set(d?.protokolliert ?? []);
-  const ohneProtokoll = d ? kachelTreffs.filter((t) => protokollFaellig(t.oeffnungszeiten, heute, uhrzeit) && !protokolliert.has(t.id)) : [];
+  const geschlossen = new Set(d?.geschlossen ?? []);
+  const ohneProtokoll = d ? (treffs.daten ?? []).filter((t) => meineTreffIds.includes(t.id) && protokollFaellig(t.oeffnungszeiten, heute, uhrzeit) && !protokolliert.has(t.id) && !geschlossen.has(t.id)) : [];
 
   const freizeitAmOrt = (ortId: string) => leitungFreizeiten.find((f) => f.ort_id === ortId);
   const offeneGruppen = gruppiereOffene(offen);
@@ -119,7 +122,7 @@ export function Heute() {
       hinweise: 0, treffAbsprachen: 0, knapp, wuensche: d?.wuensche.length ?? 0, bewerbungen: d?.bewerbungen ?? 0, vorschlaege: d?.vorschlaege ?? 0,
       nachweise: d?.nachweise ?? 0, diensteHeute, protokollFehlt: ohneProtokoll.length, offeneNotizen: 0, fehler: d?.fehler ?? 0,
     },
-    ohneProtokoll: ohneProtokoll.map((t) => ({ id: t.id, name: t.name })), aktuelle: fk ? aktuelle : [], laufendHeute: laufendHeute.length,
+    aktuelle: fk ? aktuelle : [], laufendHeute: laufendHeute.length,
     ohneLeitung: fk ? ohneLeitung(aktuelle, d?.team ?? []).length : 0, wunschTreffId: wuenscheJe[0]?.treff_id ?? null, erstesTreffId: kachelTreffs[0]?.id ?? null,
   }) : [];
 
@@ -150,7 +153,7 @@ export function Heute() {
                 const laeuft = phase(f, heute) === 'laufend';
                 const bis = tageBisStart(f, heute);
                 return (
-                  <li key={f.id} className="list__item">
+                  <li key={f.id} className="list__item fz-streifen" style={fzStreifen(f)}>
                     <div className="list__main">
                       <Link className="list__title" to={`/freizeiten/${f.id}`}>{f.name}</Link>
                       <div className="list__meta"><span>{zeitraumText(f.start_datum, f.ende_datum)}</span></div>

@@ -148,9 +148,35 @@ export function sortiereTeam<T extends { rolle: 'leitung' | 'teamer'; nachname: 
     a.nachname.localeCompare(b.nachname, 'de') || a.vorname.localeCompare(b.vorname, 'de'));
 }
 
-/** Farbe einer Freizeit (stabil aus der ID abgeleitet). */
-export function freizeitFarbe(id: string): string {
+/**
+ * Farbe je Freizeit: zur Wiedererkennung derselben Freizeit in Listen, auf der Startseite und in der Zuordnung (Streifen oder Punkt,
+ * nie als Schriftfarbe). Feste Palette wie im alten Auftritt; die Freizeitenkoordination kann eine wählen (Migration 0026), sonst
+ * wird sie stabil aus der ID abgeleitet.
+ */
+export const FREIZEIT_FARBEN = [
+  { id: 'blau', label: 'Blau', wert: '#1B4B8A' },
+  { id: 'orange', label: 'Orange', wert: '#E84520' },
+  { id: 'gruen', label: 'Grün', wert: '#1D9E75' },
+  { id: 'lila', label: 'Lila', wert: '#8E44AD' },
+  { id: 'gold', label: 'Gold', wert: '#D4A017' },
+  { id: 'petrol', label: 'Petrol', wert: '#2C7DA0' },
+  { id: 'pink', label: 'Pink', wert: '#C2185B' },
+  { id: 'oliv', label: 'Oliv', wert: '#5D8A3C' },
+  { id: 'tuerkis', label: 'Türkis', wert: '#0E7C7B' },
+  { id: 'rost', label: 'Rost', wert: '#B33F00' },
+] as const;
+
+export type FreizeitFarbeId = (typeof FREIZEIT_FARBEN)[number]['id'];
+
+/** Die automatische Farbe aus der ID (ohne Wahl). */
+export function automatischeFarbe(id: string): FreizeitFarbeId {
   let h = 0;
-  for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return `hsl(${h} 55% 45%)`;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return FREIZEIT_FARBEN[h % FREIZEIT_FARBEN.length]!.id;
+}
+
+/** Farbwert einer Freizeit: die gewählte Farbe, sonst die automatische. */
+export function freizeitFarbe(id: string, farbe?: string | null): string {
+  const gewaehlt = FREIZEIT_FARBEN.find((f) => f.id === farbe);
+  return (gewaehlt ?? FREIZEIT_FARBEN.find((f) => f.id === automatischeFarbe(id))!).wert;
 }

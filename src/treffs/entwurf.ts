@@ -19,8 +19,8 @@ const schluessel = (datum: string, person: string) => `${datum}|${person}`;
 const gespeichert = (karten: Tageskarte[], datum: string, person: string) =>
   karten.find((k) => k.datum === datum)?.regulaer?.personen.includes(person) ?? false;
 
-/** Nur Öffnungstage lassen sich in der Matrix einteilen. */
-export const bearbeitbar = (k: Tageskarte) => k.oeffnung !== null;
+/** Nur Öffnungstage außerhalb einer Schließzeit lassen sich in der Matrix einteilen. */
+export const bearbeitbar = (k: Tageskarte) => k.oeffnung !== null && !k.geschlossen;
 
 export function eingeteilt(karten: Tageskarte[], e: Entwurf, datum: string, person: string): boolean {
   return e.get(schluessel(datum, person)) ?? gespeichert(karten, datum, person);
@@ -124,7 +124,8 @@ export interface OffenerWunsch { dienst: string; person: string; datum: string }
 export function offeneWunschListe(karten: Tageskarte[], abw: Abwesenheit[], feiertage: Feiertag[], treffId: string): { ohneKonflikt: OffenerWunsch[]; mitKonflikt: OffenerWunsch[] } {
   const alle = karten.flatMap((k) => (k.regulaer?.wuensche ?? []).filter((w) => w.status === 'offen')
     .map((w) => ({ dienst: k.regulaer!.id, person: w.person_id, datum: k.datum })));
-  const konflikt = (w: OffenerWunsch) => konfliktAm(w.datum, w.person, abw, feiertage, treffId) !== null;
+  const zu = new Set(karten.filter((k) => k.geschlossen).map((k) => k.datum));
+  const konflikt = (w: OffenerWunsch) => zu.has(w.datum) || konfliktAm(w.datum, w.person, abw, feiertage, treffId) !== null;
   return { ohneKonflikt: alle.filter((w) => !konflikt(w)), mitKonflikt: alle.filter(konflikt) };
 }
 

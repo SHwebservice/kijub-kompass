@@ -102,6 +102,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   padding: var(--space-3) var(--space-4); background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius);
 }
+/* Farbe je Freizeit: Streifen links an Listeneinträgen und Karten, Punkt vor Namen (nie als Schriftfarbe) */
+.fz-streifen { border-left: 4px solid var(--fz-farbe, var(--border)); }
+.fz-punkt { display: inline-block; flex: none; width: 0.75rem; height: 0.75rem; border-radius: 50%; margin-right: 0.4rem; vertical-align: baseline; box-shadow: 0 0 0 1px var(--surface); }
+.farbwahl { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.farbwahl__option { display: inline-flex; align-items: center; gap: var(--space-1); cursor: pointer; }
 .list__main { min-width: 0; flex: 1 1 12rem; }
 .list__title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list__meta { color: var(--text-muted); font-size: var(--fs-sm); display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }

@@ -15,6 +15,9 @@
 .einsatz__tag--feiertag { color: var(--warning); }
 .einsatz__tag--leer, .einsatz__leer { color: var(--danger); }
 .einsatz__zelle--heute { background: var(--accent-bg); }
+/* Schließzeit: Spalte schraffiert, Kopf gedämpft */
+.einsatz__tag--zu { color: var(--text-muted); }
+.einsatz__zelle--zu { background: repeating-linear-gradient(135deg, transparent 0 6px, var(--surface-2) 6px 12px); }
 
 .einsatz__person { position: sticky; left: 0; z-index: 1; min-width: 7.5rem; text-align: left !important; background: var(--surface); font-weight: 600; }
 .einsatz thead .einsatz__person { background: var(--surface-2); z-index: 2; }

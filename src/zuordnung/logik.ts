@@ -15,6 +15,8 @@ export interface FreizeitSpalte {
   start_datum: string;
   ende_datum: string;
   status: 'geplant' | 'abgesagt';
+  /** Gewählte Farbe der Freizeit (ohne Angabe: automatisch aus der ID). */
+  farbe?: string | null;
 }
 export interface TreffSpalte { id: string; name: string }
 export interface FreizeitTeamZeile { freizeit_id: string; person_id: string; rolle: FreizeitRolle }
