@@ -8,9 +8,11 @@ import {
   dienstZeit, feiertagAm, monatErster, monatTage, monatText, monatVersatz, stundenText, tageskarten, type Dienst,
 } from '../../treffs/dienstplan';
 import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
+import { LEERER_ENTWURF, mitEntwurf, type Entwurf } from '../../treffs/entwurf';
 import type { RolleInTreff } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, Spinner } from '../../components/ui';
 import { Einsatzmatrix } from './Einsatzmatrix';
+import { MatrixLeiste } from './MatrixLeiste';
 import { MonatEinteilen } from './MonatEinteilen';
 import { SonderdienstSheet, ZuteilenSheet } from './DienstSheets';
 
@@ -43,6 +45,8 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
 
   const [ziel, setZiel] = useState<Ziel | null>(null);
   const schliessen = useCallback(() => setZiel(null), []);
+  const [bearbeiten, setBearbeiten] = useState(false);
+  const [entwurf, setEntwurf] = useState<Entwurf>(LEERER_ENTWURF);
   if (!ich) return null;
 
   const verwaltung = darfTreffVerwalten(rolle);
@@ -53,7 +57,12 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
   const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? statistik.fehler ?? abwesenheiten.fehler;
   const geaendert = () => { dienste.neuLaden(); statistik.neuLaden(); };
 
-  const blaettern = (n: number) => setFokus(monatVersatz(monat, n));
+  // Ein Entwurf gilt nur für seinen Monat: Beim Blättern geht er (nach Rückfrage) verloren.
+  const blaettern = (n: number) => {
+    if (entwurf.size > 0 && !window.confirm('Die Änderungen in der Tabelle sind noch nicht gespeichert und gehen verloren. Trotzdem wechseln?')) return;
+    setEntwurf(LEERER_ENTWURF);
+    setFokus(monatVersatz(monat, n));
+  };
 
   return (
     <div className="stack">
@@ -66,8 +75,12 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
       </div>
 
       {!dienste.laedt && (
-        <Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={abwesenheiten.daten ?? []} feiertage={feiertage.daten ?? []}
-          treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum="Monat" />
+        <Einsatzmatrix karten={verwaltung && bearbeiten ? mitEntwurf(karten, entwurf) : karten} mitglieder={mitglieder} abwesenheiten={abwesenheiten.daten ?? []}
+          feiertage={feiertage.daten ?? []} treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum="Monat"
+          bearbeiten={verwaltung && bearbeiten ? { gespeichert: karten, entwurf, aendern: (f) => setEntwurf(f) } : undefined}
+          kopf={verwaltung ? (
+            <MatrixLeiste treffId={t.id} monat={monat} bearbeiten={bearbeiten} setBearbeiten={setBearbeiten} entwurf={entwurf} setEntwurf={setEntwurf} geaendert={geaendert} />
+          ) : undefined} />
       )}
 
       {verwaltung && !dienste.laedt && (
