@@ -88,6 +88,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Notizen und Listen (To-do, Einkauf, Fragen) | L E Ä X | — | — | L E Ä X | L E Ä X (alle im Treff) | — · **neu** |
 | Dienste/Zuteilung (regulär + Sonder) | L E Ä X | — | — | L E Ä X | L | — · **Δ** Altcode: Dienstplan öffentlich lesbar |
 | Monatsmuster anwenden | alle | — | — | ja | — | — |
+| Monat einteilen: Personen je Tag hinzufügen/entfernen (Migration 0024) | alle | — | — | ja (nur Personen aus dem Team des Treffs) | — | — |
 | Wunschdienst | L | — | — | L, **beantworten** (bestätigen/ablehnen) | E/X (eig. Wunsch), L | — |
 | Dienstplan-Kommentare | alle | — | — | L E X | L E (eig.) X (eig.) | — |
 | Abwesenheiten (Urlaub/Krank) | L E Ä X | — | — | L E Ä X (Personen des Treffs) | L (eig.) | — |
