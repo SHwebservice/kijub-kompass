@@ -1,4 +1,4 @@
-import { abwesendeAm, dienstStunden, feiertagAm, type Abwesenheit, type Feiertag, type Tageskarte } from './dienstplan';
+import { abwesendeAm, addTage, dienstStunden, feiertagAm, isoWochentag, monatTage, montagVon, type Abwesenheit, type Dienst, type Feiertag, type Tageskarte } from './dienstplan';
 import type { Paar } from './monatsplan';
 
 /**
@@ -63,6 +63,69 @@ export function zeileFuellen(
   if (alleDrin) return { entwurf: tage.reduce((n, d) => setze(karten, n, d, person, false), e), ausgelassen: 0 };
   const ausgelassen = tage.filter((d) => !frei.includes(d) && !eingeteilt(karten, e, d, person)).length;
   return { entwurf: frei.reduce((n, d) => setze(karten, n, d, person, true), e), ausgelassen };
+}
+
+/** Personen in den Entwurf übernehmen (nur hinzufügen); Tage mit Konflikt werden ausgelassen und gezählt. */
+function uebernimm(karten: Tageskarte[], e: Entwurf, paare: { datum: string; person: string }[], abw: Abwesenheit[], feiertage: Feiertag[], treffId: string): ZeileErgebnis {
+  let entwurf = e; let ausgelassen = 0;
+  for (const { datum, person } of paare) {
+    if (eingeteilt(karten, entwurf, datum, person)) continue;
+    if (konfliktAm(datum, person, abw, feiertage, treffId)) { ausgelassen += 1; continue; }
+    entwurf = setze(karten, entwurf, datum, person, true);
+  }
+  return { entwurf, ausgelassen };
+}
+
+/** Der wievielte dieses Wochentags im Monat (0 = erster). */
+const vorkommen = (d: string) => Math.floor((Number(d.slice(8, 10)) - 1) / 7);
+
+/**
+ * Vormonat übernehmen: Wer im Vormonat am n-ten Montag (Dienstag …) im regulären Dienst stand, kommt am n-ten Montag dieses Monats dazu.
+ * So bleiben auch wechselnde Wochen erhalten. Hat dieser Monat einen fünften Montag, der Vormonat aber nicht, gilt der letzte Montag des Vormonats.
+ * Nur Personen, die noch im Team sind; Vorhandenes bleibt; Tage mit Konflikt werden ausgelassen.
+ */
+export function vormonatUebernehmen(
+  karten: Tageskarte[], e: Entwurf, vormonat: string, diensteVormonat: Dienst[], team: string[], abw: Abwesenheit[], feiertage: Feiertag[], treffId: string,
+): ZeileErgebnis {
+  const regulaer = diensteVormonat.filter((d) => !d.ist_sonder);
+  const vorTage = monatTage(vormonat);
+  const paare = karten.filter(bearbeitbar).flatMap((k) => {
+    const wt = isoWochentag(k.datum);
+    const gleiche = vorTage.filter((d) => isoWochentag(d) === wt);
+    const quelle = gleiche[Math.min(vorkommen(k.datum), gleiche.length - 1)];
+    const personen = regulaer.find((d) => d.datum === quelle)?.personen ?? [];
+    return personen.filter((p) => team.includes(p)).map((person) => ({ datum: k.datum, person }));
+  });
+  return uebernimm(karten, e, paare, abw, feiertage, treffId);
+}
+
+/** Montage der Wochen, die Öffnungstage in den Karten haben (für die Auswahl „Woche kopieren“). */
+export const wochenDerKarten = (karten: Tageskarte[]) => [...new Set(karten.filter(bearbeitbar).map((k) => montagVon(k.datum)))].sort();
+
+/**
+ * Woche kopieren: Die Einteilung der Woche ab `quellMontag` (wie im Entwurf gerade zu sehen) kommt an denselben Wochentagen
+ * in allen folgenden Wochen der Karten dazu. Vorhandenes bleibt; Tage mit Konflikt werden ausgelassen.
+ */
+export function wocheKopieren(karten: Tageskarte[], e: Entwurf, quellMontag: string, abw: Abwesenheit[], feiertage: Feiertag[], treffId: string): ZeileErgebnis {
+  const quelle = new Map<number, string[]>();
+  for (const k of karten.filter(bearbeitbar)) {
+    if (k.datum < quellMontag || k.datum > addTage(quellMontag, 6)) continue;
+    const personen = mitEntwurf(karten, e).find((x) => x.datum === k.datum)?.regulaer?.personen ?? [];
+    quelle.set(isoWochentag(k.datum), personen);
+  }
+  const paare = karten.filter((k) => bearbeitbar(k) && k.datum > addTage(quellMontag, 6))
+    .flatMap((k) => (quelle.get(isoWochentag(k.datum)) ?? []).map((person) => ({ datum: k.datum, person })));
+  return uebernimm(karten, e, paare, abw, feiertage, treffId);
+}
+
+export interface OffenerWunsch { dienst: string; person: string; datum: string }
+
+/** Offene Wünsche der Karten, getrennt nach „ohne Konflikt“ (lassen sich gesammelt bestätigen) und „mit Konflikt“ (einzeln entscheiden). */
+export function offeneWunschListe(karten: Tageskarte[], abw: Abwesenheit[], feiertage: Feiertag[], treffId: string): { ohneKonflikt: OffenerWunsch[]; mitKonflikt: OffenerWunsch[] } {
+  const alle = karten.flatMap((k) => (k.regulaer?.wuensche ?? []).filter((w) => w.status === 'offen')
+    .map((w) => ({ dienst: k.regulaer!.id, person: w.person_id, datum: k.datum })));
+  const konflikt = (w: OffenerWunsch) => konfliktAm(w.datum, w.person, abw, feiertage, treffId) !== null;
+  return { ohneKonflikt: alle.filter((w) => !konflikt(w)), mitKonflikt: alle.filter(konflikt) };
 }
 
 /** Die Tageskarten, wie sie nach dem Speichern aussähen (für Anzeige, Besetzung und Stunden). Ein neuer Dienst hat die Öffnungszeit. */

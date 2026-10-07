@@ -90,6 +90,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Monatsmuster anwenden | alle | — | — | ja | — | — |
 | Monat einteilen und in der Tabelle einteilen: Personen je Tag hinzufügen/entfernen (Migration 0024) | alle | — | — | ja (nur Personen aus dem Team des Treffs) | — | — |
 | Wunschdienst | L | — | — | L, **beantworten** (bestätigen/ablehnen) | E/X (eig. Wunsch), L | — |
+| Mehrere Wünsche auf einmal bestätigen (Migration 0025) | alle | — | — | ja (nur Dienste des eigenen Treffs) | — | — |
 | Dienstplan-Kommentare | alle | — | — | L E X | L E (eig.) X (eig.) | — |
 | Abwesenheiten (Urlaub/Krank) | L E Ä X | — | — | L E Ä X (Personen des Treffs) | L (eig.) | — |
 | Feiertage | L E Ä X | — | — | L (Treff) E Ä X (eigener Treff) | L | — |

@@ -221,6 +221,11 @@ export async function wendeDienstplanAn(treffId: string, monat: string, zuteilen
   return pruefe(await supabase.rpc('fn_dienstplan_anwenden', { p_treff: treffId, p_monat: monat, p_zuteilen: liste(zuteilen), p_entfernen: liste(entfernen) })) as { zugeteilt: number; entfernt: number };
 }
 
+/** Bestätigt mehrere offene Wünsche in einem Schritt (Migration 0025); Ergebnis: Zahl der bestätigten. */
+export async function bestaetigeWuensche(treffId: string, wuensche: { dienst: string; person: string }[]): Promise<number> {
+  return pruefe(await supabase.rpc('fn_wuensche_bestaetigen', { p_treff: treffId, p_wuensche: wuensche.map((w) => ({ dienst: w.dienst, person: w.person })) })) as number;
+}
+
 export async function dienstStatistik(treffId: string, monat: string): Promise<StatistikZeile[]> {
   const r = pruefe(await supabase.rpc('fn_dienst_statistik', { p_treff: treffId, p_monat: monat })) as { person_id: string; dienste: number; stunden: number | string }[];
   return r.map((x) => ({ person_id: x.person_id, dienste: x.dienste, stunden: Number(x.stunden) }));

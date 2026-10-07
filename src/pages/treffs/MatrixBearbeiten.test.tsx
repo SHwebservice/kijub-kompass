@@ -6,7 +6,7 @@ import { sendePush } from '../../mitteilungen/senden';
 import { MonatTab } from './MonatTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
-import { isoWochentag, monatErster, monatTage, monatText, type Dienst } from '../../treffs/dienstplan';
+import { isoWochentag, monatErster, monatTage, monatText, monatVersatz, type Dienst } from '../../treffs/dienstplan';
 import { heuteIso } from '../../freizeiten/logik';
 import { axeVerstoesse } from '../../test-a11y';
 
@@ -137,6 +137,50 @@ describe('Einsatz-Matrix bearbeiten (Monat)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(zelle('Ben Baum', mittwoche[0]!)).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Vormonat übernehmen: lädt den Vormonat und übernimmt ihn in den Entwurf', async () => {
+    const vor = monatVersatz(monat, -1);
+    const vorMontag = monatTage(vor).find((d) => isoWochentag(d) === 1)!;
+    vi.mocked(api.listeDienste).mockImplementation(async (_t, von) => (von === vor
+      ? [dienst({ id: 'v1', datum: vorMontag, personen: ['ben', 'weg'] })]
+      : [dienst({ id: 'd1', datum: montage[0]!, personen: ['lea'] })]));
+    await oeffne();
+    await userEvent.click(screen.getByRole('button', { name: `${monatText(vor)} übernehmen` }));
+    expect(await screen.findByText(`${monatText(vor)} übernommen: 1 Einteilung dazu.`)).toBeInTheDocument();
+    expect(zelle('Ben Baum', montage[0]!)).toHaveAttribute('aria-pressed', 'true');
+    expect(api.wendeDienstplanAn).not.toHaveBeenCalled();                                         // nur Entwurf
+  });
+
+  it('Woche kopieren: die gewählte Woche kommt in den folgenden Wochen dazu', async () => {
+    await oeffne();
+    await userEvent.click(zelle('Ben Baum', mittwoche[0]!));
+    const erste = screen.getByRole('combobox', { name: 'Woche, deren Einteilung kopiert wird' });
+    expect(erste).toHaveValue(within(erste).getAllByRole('option')[0]!.getAttribute('value'));
+    // Woche des ersten Mittwochs wählen (kann im Monat die erste oder zweite Woche sein)
+    const montagDerWoche = within(erste).getAllByRole('option').map((o) => o.getAttribute('value')!).filter((m) => m <= mittwoche[0]!).at(-1)!;
+    await userEvent.selectOptions(erste, montagDerWoche);
+    await userEvent.click(screen.getByRole('button', { name: 'auf die folgenden Wochen kopieren' }));
+    for (const m of mittwoche.slice(1)) expect(zelle('Ben Baum', m)).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent(/kopiert: \d+ Einteilungen? dazu/);
+  });
+
+  it('offene Wünsche des Monats gesammelt bestätigen; Konflikte bleiben offen', async () => {
+    vi.mocked(api.bestaetigeWuensche).mockResolvedValue(1);
+    vi.mocked(api.listeDienste).mockResolvedValue([
+      dienst({ id: 'd1', datum: montage[0]!, personen: ['lea'], wuensche: [{ person_id: 'ben', status: 'offen' }] }),
+      dienst({ id: 'd2', datum: montage[1]!, wuensche: [{ person_id: 'ben', status: 'offen' }] }),
+    ]);
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: 'k', person_id: 'ben', datum: montage[1]!, typ: 'krank', notiz: null }]);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderMitAuth(<MonatTab treff={nord} rolle="treffleitung" />, leitung);
+    await userEvent.click(await screen.findByRole('button', { name: 'Offenen Wunsch bestätigen' }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/Den offenen Wunsch im Monat bestätigen/));
+    expect(api.bestaetigeWuensche).toHaveBeenCalledWith('t1', [{ dienst: 'd1', person: 'ben', datum: montage[0] }]);
+    expect(await screen.findByText('Ein Wunsch bestätigt.')).toBeInTheDocument();
+    expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben'] });
+    expect(screen.getByText(/Ein offener Wunsch an einem Tag mit Urlaub, Krankheit oder Feiertag – bitte einzeln entscheiden/)).toBeInTheDocument();
+    confirm.mockRestore();
   });
 
   it('Barrierefreiheit (axe): keine Verstöße im Bearbeiten-Modus', async () => {

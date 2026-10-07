@@ -41,7 +41,7 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
   const feiertage = useLaden(() => listeFeiertage(t.id, monat, letzter), `monat-feiertage-${t.id}-${monat}`);
   const statistik = useLaden(() => dienstStatistik(t.id, monat), `monat-statistik-${t.id}-${monat}`);
   const abwesenheiten = useLaden(() => listeAbwesenheiten(monat, letzter), `monat-abwesenheiten-${t.id}-${monat}`);
-  useLive(['dienste', 'dienst_zuteilungen', 'feiertage', 'treff_team'], () => { dienste.neuLaden(); feiertage.neuLaden(); statistik.neuLaden(); team.neuLaden(); });
+  useLive(['dienste', 'dienst_zuteilungen', 'dienst_wuensche', 'feiertage', 'treff_team'], () => { dienste.neuLaden(); feiertage.neuLaden(); statistik.neuLaden(); team.neuLaden(); });
 
   const [ziel, setZiel] = useState<Ziel | null>(null);
   const schliessen = useCallback(() => setZiel(null), []);
@@ -79,7 +79,8 @@ export function MonatTab({ treff: t, rolle, fokus: fokusVonAussen, setFokus: set
           feiertage={feiertage.daten ?? []} treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum="Monat"
           bearbeiten={verwaltung && bearbeiten ? { gespeichert: karten, entwurf, aendern: (f) => setEntwurf(f) } : undefined}
           kopf={verwaltung ? (
-            <MatrixLeiste treffId={t.id} monat={monat} bearbeiten={bearbeiten} setBearbeiten={setBearbeiten} entwurf={entwurf} setEntwurf={setEntwurf} geaendert={geaendert} />
+            <MatrixLeiste treffId={t.id} monat={monat} karten={karten} team={mitglieder.map((m) => m.person_id)} abwesenheiten={abwesenheiten.daten ?? []}
+              feiertage={feiertage.daten ?? []} bearbeiten={bearbeiten} setBearbeiten={setBearbeiten} entwurf={entwurf} setEntwurf={setEntwurf} geaendert={geaendert} />
           ) : undefined} />
       )}
 

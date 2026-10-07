@@ -20,6 +20,7 @@ import { Alert, Badge, Button, Card, Spinner } from '../../components/ui';
 import { SonderdienstSheet, ZuteilenSheet } from './DienstSheets';
 import { Einsatzmatrix } from './Einsatzmatrix';
 import { MonatTab } from './MonatTab';
+import { WuenscheBestaetigen } from './WuenscheBestaetigen';
 
 type Ziel = { art: 'zuteilen'; datum: string; dienst: Dienst | null } | { art: 'sonder'; dienst: Dienst | null };
 
@@ -171,7 +172,9 @@ function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
       )}
       {!laedt && (
         <Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={abwesenheiten.daten ?? []} feiertage={feiertage.daten ?? []}
-          treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum="Woche" />
+          treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum="Woche"
+          kopf={verwaltung ? <WuenscheBestaetigen treffId={t.id} karten={karten} abwesenheiten={abwesenheiten.daten ?? []} feiertage={feiertage.daten ?? []}
+            zeitraum="in dieser Woche" geaendert={() => dienste.neuLaden()} /> : undefined} />
       )}
       {!laedt && karten.map(karte)}
 
