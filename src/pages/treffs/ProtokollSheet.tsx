@@ -3,8 +3,8 @@ import { fehlerText } from '../../lib/fehler';
 import { formatDatum, wochentagLang } from '../../freizeiten/logik';
 import { legeAufgabeAn, loescheProtokoll, ProtokollKonflikt, speichereProtokoll } from '../../tagesprotokoll/api';
 import {
-  aendereAnzahl, ARTEN, eingabeAus, gesamt, leeresProtokoll, liesAnzahl, MAX_TEXT, ortszeit, validiereAufgabe, validiereProtokoll, waehlbareTage, leereAufgabe,
-  type AufgabeArt, type Protokoll, type ProtokollEingabe,
+  aendereAnzahl, ARTEN, eingabeAus, gesamt, leeresProtokoll, liesAnzahl, MAX_TEXT, ortszeit, validiereAufgabe, validiereProtokoll, verlaufBeiTagwechsel, vorlageFuer,
+  waehlbareTage, leereAufgabe, type AufgabeArt, type Protokoll, type ProtokollEingabe, type Vorlage,
 } from '../../tagesprotokoll/logik';
 import { Sheet } from '../../components/Sheet';
 import { Alert, Button, SelectField, TextField } from '../../components/ui';
@@ -45,6 +45,8 @@ interface Props {
   /** Namen der Personen (Kennung → Name), soweit bekannt. */
   namen: Record<string, string>;
   darfLoeschen: boolean;
+  /** Vorlagen je Wochentag für „Was war los?“ (neue Protokolle werden damit vorbelegt). */
+  vorlagen?: Vorlage[];
   schliessen: () => void;
   gespeichert: () => void;
 }
@@ -52,10 +54,11 @@ interface Props {
 const tagText = (d: string, heute: string) => `${wochentagLang(d)}, ${formatDatum(d)}${d === heute ? ' (heute)' : ''}`;
 
 /** Protokoll eines Tages anlegen oder bearbeiten – alle im Team dürfen jederzeit. */
-export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, namen, darfLoeschen, schliessen, gespeichert }: Props) {
+export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, namen, darfLoeschen, vorlagen = [], schliessen, gespeichert }: Props) {
   const wahl = waehlbareTage(belegt, heute);
   const [tag, setTag] = useState(vorhanden?.datum ?? datum ?? wahl[0] ?? heute);
-  const [e, setE] = useState<ProtokollEingabe>(vorhanden ? eingabeAus(vorhanden) : leeresProtokoll());
+  // Neues Protokoll: „Was war los?“ mit der Vorlage des Wochentags vorbelegen
+  const [e, setE] = useState<ProtokollEingabe>(() => (vorhanden ? eingabeAus(vorhanden) : { ...leeresProtokoll(), verlauf: vorlageFuer(tag, vorlagen) }));
   // Der Stand, auf dem die eigene Bearbeitung beruht (Änderungszeitpunkt); null = es gab noch kein Protokoll
   const [basis, setBasis] = useState<Protokoll | null>(vorhanden);
   const [konflikt, setKonflikt] = useState<{ aktuell: Protokoll | null } | null>(null);
@@ -79,6 +82,7 @@ export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, namen
   }
 
   const auswahlTage = basis ? [] : [...new Set([tag, ...wahl])].sort((a, b) => b.localeCompare(a));
+  const vorlage = vorlageFuer(basis?.datum ?? tag, vorlagen);
 
   /** Speichert; `erzwingen` überschreibt auch, wenn jemand anderes inzwischen etwas geändert hat. */
   async function sichern(erzwingen: boolean) {
@@ -134,7 +138,11 @@ export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, namen
           </Alert>
         )}
         {!basis && (
-          <SelectField label="Tag" value={tag} onChange={(ev) => setTag(ev.target.value)}>
+          <SelectField label="Tag" value={tag} onChange={(ev) => {
+            const neu = ev.target.value;
+            setE((x) => ({ ...x, verlauf: verlaufBeiTagwechsel(x.verlauf, tag, neu, vorlagen) }));
+            setTag(neu);
+          }}>
             {auswahlTage.map((d) => <option key={d} value={d}>{tagText(d, heute)}</option>)}
           </SelectField>
         )}
@@ -154,6 +162,10 @@ export function ProtokollSheet({ treffId, datum, vorhanden, belegt, heute, namen
           <textarea id="protokoll-verlauf" className="input" rows={4} value={e.verlauf} maxLength={MAX_TEXT + 1}
             onChange={(ev) => setE((x) => ({ ...x, verlauf: ev.target.value }))} aria-invalid={fehlerFelder.verlauf ? true : undefined} style={{ padding: 'var(--space-3)' }} />
           {fehlerFelder.verlauf && <span className="field__error">{fehlerFelder.verlauf}</span>}
+          {vorlage && e.verlauf === vorlage && <span className="field__hint">Vorgabe aus der Vorlage für {wochentagLang(basis?.datum ?? tag)} – einfach ergänzen oder überschreiben.</span>}
+          {vorlage && !e.verlauf.trim() && (
+            <div><Button klein onClick={() => setE((x) => ({ ...x, verlauf: vorlage }))}>Vorlage für {wochentagLang(basis?.datum ?? tag)} einfügen</Button></div>
+          )}
         </div>
         <div className="field">
           <label className="field__label" htmlFor="protokoll-vorkommnisse">Besondere Vorkommnisse</label>

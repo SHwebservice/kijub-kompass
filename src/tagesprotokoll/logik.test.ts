@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  aendereAnzahl, anteil, auswertungNachMonat, csvFeld, csvProtokolle, eingabeAus, fehlendeTage, protokollFaellig, fuerMich, gesamt, hatFaelligkeit, hatZustaendig, imArchiv, istLeer,
+  verlaufBeiTagwechsel, vorlageFuer, aendereAnzahl, anteil, auswertungNachMonat, csvFeld, csvProtokolle, eingabeAus, fehlendeTage, protokollFaellig, fuerMich, gesamt, hatFaelligkeit, hatZustaendig, imArchiv, istLeer,
   istUeberfaellig, leeresProtokoll, liesAnzahl, oeffnungstage, sortiereAufgaben, summeAuswertung, validiereAufgabe, validiereProtokoll, waehlbareTage, zaehleJeArt,
   ortszeit, type Aufgabe, type Protokoll,
 } from './logik';
@@ -73,6 +73,23 @@ describe('Öffnungstage und fehlende Protokolle', () => {
   });
   it('wählbare Tage: heute zuerst, ohne schon protokollierte', () => {
     expect(waehlbareTage([{ datum: '2027-03-09' }], '2027-03-10', 4)).toEqual(['2027-03-10', '2027-03-08', '2027-03-07']);
+  });
+});
+
+describe('Vorlagen je Wochentag', () => {
+  // 2027-03-01 ist ein Montag, 2027-03-03 ein Mittwoch, 2027-03-02 ein Dienstag (ohne Vorlage)
+  const vorlagen = [{ wochentag: 1, text: 'Montag: Hausaufgaben' }, { wochentag: 3, text: 'Mittwoch: Kochen' }];
+
+  it('vorlageFuer: die Vorlage des Wochentags, sonst leer', () => {
+    expect(vorlageFuer('2027-03-01', vorlagen)).toBe('Montag: Hausaufgaben');
+    expect(vorlageFuer('2027-03-02', vorlagen)).toBe('');
+  });
+
+  it('Tageswechsel: leeres Feld oder unveränderte Vorlage wird ersetzt, Geschriebenes bleibt', () => {
+    expect(verlaufBeiTagwechsel('', '2027-03-02', '2027-03-03', vorlagen)).toBe('Mittwoch: Kochen');
+    expect(verlaufBeiTagwechsel('Montag: Hausaufgaben', '2027-03-01', '2027-03-03', vorlagen)).toBe('Mittwoch: Kochen');
+    expect(verlaufBeiTagwechsel('Montag: Hausaufgaben', '2027-03-01', '2027-03-02', vorlagen)).toBe('');
+    expect(verlaufBeiTagwechsel('Montag: Hausaufgaben, dann Fußball', '2027-03-01', '2027-03-03', vorlagen)).toBe('Montag: Hausaufgaben, dann Fußball');
   });
 });
 

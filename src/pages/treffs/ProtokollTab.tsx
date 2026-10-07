@@ -7,7 +7,7 @@ import { formatDatum, formatKurz, heuteIso, wochentagLang } from '../../freizeit
 import { holeNamen } from '../../freizeiten/api';
 import { listeFeiertage, listeSchliesszeiten, type TreffDetailDaten } from '../../treffs/api';
 import { addTage, tageImZeitraum } from '../../treffs/dienstplan';
-import { listeProtokolle, listeProtokolleImZeitraum, listeProtokollZahlen } from '../../tagesprotokoll/api';
+import { listeProtokolle, listeProtokolleImZeitraum, listeProtokollZahlen, listeVorlagen } from '../../tagesprotokoll/api';
 import {
   anteil, auswertungNachMonat, csvProtokolle, fehlendeTage, gesamt, hatOeffnung, summeAuswertung, type Protokoll,
 } from '../../tagesprotokoll/logik';
@@ -15,6 +15,7 @@ import { monatText } from '../../treffs/dienstplan';
 import type { RolleInTreff } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, EmptyState, Spinner } from '../../components/ui';
 import { ProtokollSheet } from './ProtokollSheet';
+import { ProtokollVorlagen } from './ProtokollVorlagen';
 
 const auszug = (t: string, n = 110) => (t.length > n ? `${t.slice(0, n).trimEnd()} …` : t);
 
@@ -77,6 +78,7 @@ export function ProtokollTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
   const protokolle = useLaden(() => listeProtokolle(t.id), `protokolle-${t.id}`);
   const feiertage = useLaden(() => listeFeiertage(t.id, addTage(heute, -30), heute), `protokoll-feiertage-${t.id}-${heute}`);
   const schliesszeiten = useLaden(() => listeSchliesszeiten(t.id, addTage(heute, -30), heute), `protokoll-schliesszeiten-${t.id}-${heute}`);
+  const vorlagen = useLaden(() => listeVorlagen(t.id), `protokoll-vorlagen-${t.id}`);
   useLive(['treff_protokolle'], () => protokolle.neuLaden());
   const ids = [...new Set((protokolle.daten ?? []).map((p) => p.bearbeitet_von).filter((x): x is string => !!x))].sort();
   const namen = useLaden(() => holeNamen(ids), `protokoll-namen-${t.id}-${ids.join(',')}`);
@@ -143,13 +145,17 @@ export function ProtokollTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
       </Card>
 
       {leitung && <Auswertung treff={t} />}
+      {leitung && !vorlagen.laedt && (
+        <ProtokollVorlagen treffId={t.id} oeffnungszeiten={t.oeffnungszeiten} vorlagen={vorlagen.daten ?? []} geaendert={() => vorlagen.neuLaden()} />
+      )}
+      {vorlagen.fehler && <Alert ton="error">{vorlagen.fehler}</Alert>}
 
       {offen && (
         <ProtokollSheet
           key={offen.vorhanden?.id ?? offen.datum ?? 'neu'}
           treffId={t.id} datum={offen.datum} vorhanden={offen.vorhanden} belegt={liste} heute={heute}
           namen={namen.daten ?? {}}
-          darfLoeschen={leitung}
+          darfLoeschen={leitung} vorlagen={vorlagen.daten ?? []}
           schliessen={() => setOffen(null)} gespeichert={() => protokolle.neuLaden()} />
       )}
     </div>

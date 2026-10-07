@@ -77,6 +77,26 @@ export function fehlendeTage(zeiten: Oeffnungszeit[], protokolle: Pick<Protokoll
   return oeffnungstage(zeiten, addTage(heute, -(tage - 1)), heute).filter((d) => !da.has(d) && !feiertage.includes(d));
 }
 
+/* ───── Vorlagen je Wochentag (Migration 0028) ───── */
+
+/** Text, mit dem „Was war los?“ eines neuen Protokolls an diesem Wochentag vorbelegt wird. */
+export interface Vorlage { treff_id: string; wochentag: number; text: string }
+
+export const MAX_VORLAGE = 2000;
+
+/** Die Vorlage für den Wochentag des Datums, sonst ''. */
+export const vorlageFuer = (datum: string, vorlagen: Pick<Vorlage, 'wochentag' | 'text'>[]) =>
+  vorlagen.find((v) => v.wochentag === isoWochentag(datum))?.text ?? '';
+
+/**
+ * Wechselt man bei einem neuen Protokoll den Tag, kommt die Vorlage des neuen Wochentags – aber nur, wenn das Feld noch leer ist
+ * oder unverändert die Vorlage des bisherigen Tages enthält. Was jemand schon geschrieben hat, bleibt.
+ */
+export function verlaufBeiTagwechsel(verlauf: string, alterTag: string, neuerTag: string, vorlagen: Pick<Vorlage, 'wochentag' | 'text'>[]): string {
+  const unveraendert = verlauf.trim() === '' || verlauf === vorlageFuer(alterTag, vorlagen);
+  return unveraendert ? vorlageFuer(neuerTag, vorlagen) : verlauf;
+}
+
 /** Wählbare Tage für ein neues Protokoll: die jüngsten Tage, für die es noch keines gibt, heute zuerst. */
 export function waehlbareTage(protokolle: Pick<Protokoll, 'datum'>[], heute: string, tage = 30): string[] {
   const da = new Set(protokolle.map((p) => p.datum));

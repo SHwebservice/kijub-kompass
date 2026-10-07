@@ -36,6 +36,7 @@ const zeige = (szene: Szene, rolle: 'betreuerin' | 'treffleitung' | 'koordinatio
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.listeProtokolle).mockResolvedValue([]);
+  vi.mocked(api.listeVorlagen).mockResolvedValue([]);
   vi.mocked(api.listeProtokollZahlen).mockResolvedValue([]);
   vi.mocked(api.listeProtokolleImZeitraum).mockResolvedValue([]);
   vi.mocked(api.speichereProtokoll).mockResolvedValue(undefined);
@@ -44,6 +45,69 @@ beforeEach(() => {
   vi.mocked(treffApi.listeFeiertage).mockResolvedValue([]);
   vi.mocked(treffApi.listeSchliesszeiten).mockResolvedValue([]);
   vi.mocked(fzApi.holeNamen).mockResolvedValue({ ben: 'Ben Baum' });
+});
+
+describe('Vorlagen je Wochentag (0028)', () => {
+  const wt = (d: string) => new Date(`${d}T00:00:00Z`).getUTCDay() || 7;
+  const gestern = addTage(heute, -1);
+
+  it('ein neues Protokoll startet mit der Vorlage des Wochentags; beim Tageswechsel kommt die des anderen Tages', async () => {
+    vi.mocked(api.listeVorlagen).mockResolvedValue([
+      { treff_id: 't1', wochentag: wt(heute), text: 'Programm: Kochen\nStimmung:' },
+      { treff_id: 't1', wochentag: wt(gestern), text: 'Programm: Fußball' },
+    ]);
+    const u = userEvent.setup();
+    zeige(tzk);
+    await screen.findByRole('button', { name: 'Protokoll für heute schreiben' });
+    await u.click(screen.getByRole('button', { name: 'Anderen Tag nachtragen' }));
+    const dialog = await screen.findByRole('dialog');
+    const verlauf = within(dialog).getByLabelText(/Was war los/);
+    expect(verlauf).toHaveValue('Programm: Kochen\nStimmung:');
+    expect(within(dialog).getByText(/Vorgabe aus der Vorlage/)).toBeInTheDocument();
+    await u.selectOptions(within(dialog).getByLabelText('Tag'), gestern);
+    expect(verlauf).toHaveValue('Programm: Fußball');
+    await u.type(verlauf, ' und Basteln');
+    await u.selectOptions(within(dialog).getByLabelText('Tag'), heute);
+    expect(verlauf).toHaveValue('Programm: Fußball und Basteln');                   // Geschriebenes bleibt
+    await u.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    expect(api.speichereProtokoll).toHaveBeenCalledWith('t1', heute, expect.objectContaining({ verlauf: 'Programm: Fußball und Basteln', anz_m: 0 }), { erwartet: null });
+  });
+
+  it('ein bestehendes Protokoll ohne Text: „Vorlage einfügen“', async () => {
+    vi.mocked(api.listeVorlagen).mockResolvedValue([{ treff_id: 't1', wochentag: wt(heute), text: 'Programm:' }]);
+    vi.mocked(api.listeProtokolle).mockResolvedValue([protokoll({ datum: heute, verlauf: '' })]);
+    const u = userEvent.setup();
+    zeige(tzk);
+    await u.click(await screen.findByRole('button', { name: 'Heutiges Protokoll bearbeiten' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText(/Was war los/)).toHaveValue('');
+    await u.click(within(dialog).getByRole('button', { name: /^Vorlage für .* einfügen$/ }));
+    expect(within(dialog).getByLabelText(/Was war los/)).toHaveValue('Programm:');
+  });
+
+  it('Treffleitung pflegt die Vorlagen je Öffnungstag; BetreuerInnen sehen den Bereich nicht', async () => {
+    vi.mocked(api.speichereVorlage).mockResolvedValue(undefined);
+    vi.mocked(api.listeVorlagen).mockResolvedValue([{ treff_id: 't1', wochentag: 3, text: 'Kochen' }]);
+    const u = userEvent.setup();
+    const { unmount } = zeige(tzk);
+    await screen.findByRole('button', { name: 'Protokoll für heute schreiben' });
+    expect(screen.queryByText('Vorlagen je Wochentag')).not.toBeInTheDocument();
+    unmount();
+
+    zeige(leitung, 'treffleitung');
+    await u.click(await screen.findByText('Vorlagen je Wochentag'));
+    expect(screen.getByText('(1 von 7)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Mittwoch')).toHaveValue('Kochen');
+    expect(screen.getByRole('button', { name: 'Vorlage für Montag speichern' })).toBeDisabled();
+    await u.type(screen.getByLabelText('Montag'), 'Hausaufgaben');
+    await u.click(screen.getByRole('button', { name: 'Vorlage für Montag speichern' }));
+    expect(api.speichereVorlage).toHaveBeenCalledWith('t1', 1, 'Hausaufgaben');
+    expect(await screen.findByText('Gespeichert.')).toBeInTheDocument();
+    await u.clear(screen.getByLabelText('Mittwoch'));
+    await u.click(screen.getByRole('button', { name: 'Vorlage für Mittwoch speichern' }));
+    expect(api.speichereVorlage).toHaveBeenLastCalledWith('t1', 3, '');
+    expect(await screen.findByText('Vorlage entfernt.')).toBeInTheDocument();
+  });
 });
 
 describe('Tagesprotokoll: schreiben', () => {

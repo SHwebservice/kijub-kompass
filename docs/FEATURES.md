@@ -315,7 +315,7 @@ H3 (Einschalten, Testen und Ausschalten je Gerät unter „Mehr“; Hinweis für
 - Wer zuletzt speichert, gewinnt: Bearbeiten zwei Personen gleichzeitig dasselbe Protokoll, überschreibt die spätere Speicherung die frühere (die Liste aktualisiert sich live, ein geöffnetes Formular nicht).
 - Die Regeln (Zukunft verboten, Verfasser nicht fälschbar, „erledigt“ nicht vortäuschbar, Zuständige nur aus dem Team) stehen in der Datenbank, nicht nur in der Oberfläche.
 
-**Noch offen:** Protokoll-Vorlagen je Wochentag. (Die Erinnerung geht seit Phase 12 an das ganze Team; eine Auswertung über mehrere Treffs zugleich ist laut Fachseite nicht nötig.)
+**Noch offen:** – (Protokoll-Vorlagen je Wochentag: umgesetzt in Phase 13. Die Erinnerung geht seit Phase 12 an das ganze Team; eine Auswertung über mehrere Treffs zugleich ist laut Fachseite nicht nötig.)
 
 
 ## Stand der Umsetzung: Zuordnung von Personen zu Freizeiten und Treffs (Phase 8, 2026-09-30)
@@ -403,3 +403,12 @@ Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und
 - **Feiertage schließen den Treff (Migration `0027`):** Ein Feiertag (für diesen Treff oder für alle Treffs) wirkt jetzt wie ein Tag einer Schließzeit: kein Einteilen, kein Wünschen (in der Datenbank gesperrt), kein Protokoll, keine Erinnerung, nicht „unbesetzt“. Er ist kein Konflikt mehr, den die Treffleitung bei „Monat einteilen“ erlauben könnte; der Tag wird übersprungen. Im Dienstplan steht weiterhin das Schild „Feiertag: …“, in der Tabelle ist die Spalte schraffiert. Sonderdienste bleiben möglich.
 
 **Bewusst so:** Schließzeiten gelten je Treff (für alle Treffs zugleich gibt es weiterhin die Feiertage der Koordination). Dienste, die vor dem Eintragen einer Schließzeit schon in diesem Zeitraum standen, bleiben stehen; an solchen Tagen bleibt der Knopf „Zuteilen“, um Personen herauszunehmen – neu einteilen lehnt die Datenbank ab.
+
+## Stand der Umsetzung: Protokoll-Vorlagen je Wochentag (Phase 13, 2026-10-07)
+
+**Umgesetzt und getestet** (Migration `0028`):
+- Treffleitung und Treffkoordination pflegen im Reiter *Tagesprotokoll* unter **„Vorlagen je Wochentag“** (zugeklappt) je Öffnungstag einen Text, z. B. eine feste Gliederung („Programm: … Stimmung: …“) oder den üblichen Programmpunkt. Leer speichern entfernt die Vorlage.
+- Ein **neues Protokoll** startet an diesem Wochentag mit dem Text unter „Was war los?“ (Hinweis „Vorgabe aus der Vorlage …“); wechselt man beim Nachtragen den Tag, kommt die Vorlage des neuen Wochentags – solange man noch nichts geändert hat, Geschriebenes bleibt.
+- Bei einem **bestehenden Protokoll ohne Text** gibt es „Vorlage für … einfügen“.
+- **Nie vorbelegt:** Zahlen der Kinder und Besondere Vorkommnisse.
+- Rechte in der Datenbank: lesen das Team des Treffs und die Treffkoordination, pflegen Treffleitung und Treffkoordination.

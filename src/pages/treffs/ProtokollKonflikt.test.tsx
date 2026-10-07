@@ -28,6 +28,7 @@ const konflikt = (aktuell: Protokoll | null) => Object.assign(new api.ProtokollK
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.listeProtokolle).mockResolvedValue([protokoll()]);
+  vi.mocked(api.listeVorlagen).mockResolvedValue([]);
   vi.mocked(api.speichereProtokoll).mockResolvedValue(undefined);
   vi.mocked(treffApi.listeFeiertage).mockResolvedValue([]);
   vi.mocked(treffApi.listeSchliesszeiten).mockResolvedValue([]);

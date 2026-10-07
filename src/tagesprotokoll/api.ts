@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { ApiFehler } from '../lib/fehler';
-import type { Aufgabe, AufgabeArt, AufgabeEingabe, Protokoll, ProtokollEingabe, Zahlen } from './logik';
+import type { Aufgabe, AufgabeArt, AufgabeEingabe, Protokoll, ProtokollEingabe, Vorlage, Zahlen } from './logik';
 
 /** Dünne Schicht über Supabase für Tagesprotokoll und Notizen der Treffs. Rechte entscheidet die Datenbank (RLS). */
 
@@ -77,6 +77,21 @@ export async function listeProtokollStand(treffIds: string[], datum: string): Pr
   const offeneNotizen: Record<string, number> = {};
   for (const x of a) offeneNotizen[x.treff_id] = (offeneNotizen[x.treff_id] ?? 0) + 1;
   return { protokolliert: p.map((x) => x.treff_id), offeneNotizen };
+}
+
+/* ───── Vorlagen je Wochentag (Migration 0028) ───── */
+
+export async function listeVorlagen(treffId: string): Promise<Vorlage[]> {
+  return pruefe(await supabase.from('treff_protokoll_vorlagen').select('treff_id, wochentag, text').eq('treff_id', treffId).order('wochentag')) as Vorlage[];
+}
+
+/** Speichert die Vorlage eines Wochentags; ein leerer Text löscht sie. */
+export async function speichereVorlage(treffId: string, wochentag: number, text: string): Promise<void> {
+  if (!text.trim()) {
+    pruefe(await supabase.from('treff_protokoll_vorlagen').delete().eq('treff_id', treffId).eq('wochentag', wochentag));
+    return;
+  }
+  pruefe(await supabase.from('treff_protokoll_vorlagen').upsert({ treff_id: treffId, wochentag, text: text.replace(/\s+$/, '') }, { onConflict: 'treff_id,wochentag' }));
 }
 
 /* ───── Notizen und Listen ───── */

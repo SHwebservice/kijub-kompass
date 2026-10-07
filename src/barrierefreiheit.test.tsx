@@ -61,6 +61,7 @@ beforeEach(() => {
     seit: new Date(Date.now() - 7200000).toISOString(), neu: [{ zeit: new Date().toISOString(), art: 'hinweis', text: 'Sonnencreme', quelle: 'Sommer 1', url: '/freizeiten/f1/hinweise' }], neuGesamt: 1,
   });
   vi.mocked(tpApi.listeProtokolle).mockResolvedValue([{ id: 'p', treff_id: 't1', datum: heute, anz_m: 3, anz_w: 2, anz_d: 0, verlauf: 'Basteln', vorkommnisse: 'Streit', erstellt_von: 'b', bearbeitet_von: 'b', updated_at: `${heute}T17:00:00Z` }]);
+  vi.mocked(tpApi.listeVorlagen).mockResolvedValue([]);
   vi.mocked(tpApi.listeProtokollZahlen).mockResolvedValue([{ datum: heute, anz_m: 3, anz_w: 2, anz_d: 0 }]);
   vi.mocked(tpApi.listeAufgaben).mockResolvedValue([
     { id: 'x', treff_id: 't1', art: 'todo', text: 'Flyer drucken', antwort: null, faellig_am: inTagen(-1), zustaendig: 'b', protokoll_datum: null, erledigt: false, erledigt_von: null, erledigt_am: null, erstellt_von: 'b', created_at: `${heute}T10:00:00Z` },
