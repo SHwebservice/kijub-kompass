@@ -27,7 +27,6 @@ const KatalogListe = lazy(() => import('./pages/katalog/KatalogListe').then((m) 
 const AngebotDetail = lazy(() => import('./pages/katalog/AngebotDetail').then((m) => ({ default: m.AngebotDetail })));
 const AngebotForm = lazy(() => import('./pages/katalog/AngebotForm').then((m) => ({ default: m.AngebotForm })));
 const Vorschlaege = lazy(() => import('./pages/katalog/Vorschlaege').then((m) => ({ default: m.Vorschlaege })));
-const KatalogImport = lazy(() => import('./pages/katalog/KatalogImport').then((m) => ({ default: m.KatalogImport })));
 const QuizSeite = lazy(() => import('./pages/quiz/QuizSeite').then((m) => ({ default: m.QuizSeite })));
 const QuizVerwaltung = lazy(() => import('./pages/quiz/QuizVerwaltung').then((m) => ({ default: m.QuizVerwaltung })));
 const TreffeListe = lazy(() => import('./pages/treffs/TreffeListe').then((m) => ({ default: m.TreffeListe })));
@@ -91,7 +90,6 @@ function Geschuetzt() {
         <Route path="katalog/neu" element={rollen?.koordination ? <AngebotForm modus="neu" /> : <Navigate to="/katalog" replace />} />
         <Route path="katalog/vorschlagen" element={<AngebotForm modus="vorschlag" />} />
         <Route path="katalog/vorschlaege" element={<Vorschlaege />} />
-        <Route path="katalog/import" element={rollen?.koordination ? <KatalogImport /> : <Navigate to="/katalog" replace />} />
         <Route path="katalog/:id/bearbeiten" element={rollen?.koordination ? <AngebotForm modus="bearbeiten" /> : <Navigate to="/katalog" replace />} />
         <Route path="katalog/:id" element={<AngebotDetail />} />
         <Route path="teamermappe" element={<MappeSeite schluessel="teamermappe" titel="Teamermappe" mitSchlagworten

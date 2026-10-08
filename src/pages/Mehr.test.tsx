@@ -27,19 +27,19 @@ describe('Menü unter „Mehr“: Inhalt je Rolle', () => {
   it('Koordination (beide Bereiche): Verwaltung in vier Gruppen, ohne „Programmpunkt vorschlagen“', () => {
     const g = baueMenue(rollenVon({ ...BEIDE, kategorie: 'Hauptamtliche*r' }));
     expect(ids(g)).toEqual(['wissen', 'personen', 'planung', 'inhalte', 'kommunikation']);
-    expect(pfade(g)).toEqual(expect.arrayContaining(['/bewerbungen', '/personen', '/freizeiten/neu', '/treffs/neu', '/orte', '/katalog/vorschlaege', '/katalog/import', '/quiz/verwalten', '/mitteilungen', '/import', '/fehler']));
+    expect(pfade(g)).toEqual(expect.arrayContaining(['/bewerbungen', '/personen', '/freizeiten/neu', '/treffs/neu', '/orte', '/katalog/vorschlaege', '/quiz/verwalten', '/mitteilungen', '/import', '/fehler']));
     expect(pfade(g)).not.toContain('/katalog/vorschlagen');
     expect(pfade(g)).toContain('/treffmappe');
   });
   it('Freizeitenkoordination: Bewerbungen, Neue Freizeit und KiJuKo – aber nicht „Neuer Treff“', () => {
     const p = pfade(baueMenue(rollenVon({ ist_koordination: true, ist_freizeitkoordination: true, kategorie: 'Hauptamtliche*r' })));
-    expect(p).toEqual(expect.arrayContaining(['/bewerbungen', '/freizeiten/neu', '/import', '/personen', '/orte', '/mitteilungen', '/katalog/import', '/quiz/verwalten']));
+    expect(p).toEqual(expect.arrayContaining(['/bewerbungen', '/freizeiten/neu', '/import', '/personen', '/orte', '/mitteilungen', '/quiz/verwalten']));
     expect(p).not.toContain('/treffs/neu');
     expect(p).not.toContain('/treffmappe');
   });
   it('Treffkoordination: Neuer Treff und Treffmappe – aber keine Bewerbungen, Neue Freizeit, KiJuKo', () => {
     const p = pfade(baueMenue(rollenVon({ ist_koordination: true, ist_treffkoordination: true, kategorie: 'Hauptamtliche*r' })));
-    expect(p).toEqual(expect.arrayContaining(['/treffs/neu', '/treffmappe', '/personen', '/orte', '/mitteilungen', '/katalog/import', '/quiz/verwalten']));
+    expect(p).toEqual(expect.arrayContaining(['/treffs/neu', '/treffmappe', '/personen', '/orte', '/mitteilungen', '/quiz/verwalten']));
     for (const weg of ['/bewerbungen', '/freizeiten/neu', '/import']) expect(p).not.toContain(weg);
   });
   it('kein Eintrag doppelt, jeder mit Text', () => {

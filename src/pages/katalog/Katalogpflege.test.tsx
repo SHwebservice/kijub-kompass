@@ -6,7 +6,6 @@ import * as wort from '../../katalog/word';
 import { sendePush } from '../../mitteilungen/senden';
 import { AngebotForm } from './AngebotForm';
 import { Vorschlaege } from './Vorschlaege';
-import { KatalogImport } from './KatalogImport';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { leeresAngebot, type Angebot } from '../../katalog/logik';
 
@@ -23,7 +22,6 @@ beforeEach(() => {
   vi.mocked(api.speichereAngebot).mockResolvedValue('neu-id');
   vi.mocked(api.reicheVorschlagEin).mockResolvedValue('v-neu');
   vi.mocked(api.listeVorschlaege).mockResolvedValue([]);
-  vi.mocked(api.importiereAngebote).mockImplementation(async (l) => l.length);
   for (const fn of [api.aendereVorschlag, api.lehneVorschlagAb] as const) vi.mocked(fn as (...x: never[]) => Promise<void>).mockResolvedValue(undefined);
   vi.mocked(api.uebernimmVorschlag).mockResolvedValue('x');
 });
@@ -174,48 +172,3 @@ describe('Vorschläge', () => {
   });
 });
 
-describe('Katalog-Import', () => {
-  const datei = (inhalt: unknown) => new File([typeof inhalt === 'string' ? inhalt : JSON.stringify(inhalt)], 'katalog.json', { type: 'application/json' });
-  const waehle = async (inhalt: unknown) => {
-    renderMitAuth(<KatalogImport />, koord);
-    await userEvent.upload(await screen.findByLabelText('JSON-Datei'), datei(inhalt));
-  };
-
-  it('zeigt eine Vorschau und übernimmt die neuen Programmpunkte', async () => {
-    await waehle([{ name: 'Fangen', kategorie: 'bewegung' }, { name: 'Neu A', category: 'wasser' }, { name: 'Neu B', category: 'planb' }, { name: 'Kaputt', kategorie: 'x' }]);
-    expect(await screen.findByText('Vorschau: katalog.json')).toBeInTheDocument();
-    const punkte = screen.getAllByRole('listitem').map((l) => l.textContent ?? '');
-    expect(punkte.some((t) => t.startsWith('2 neue'))).toBe(true);
-    expect(punkte.some((t) => t.startsWith('1 gibt es'))).toBe(true);
-    expect(within(screen.getByRole('list', { name: 'Meldungen' })).getByText(/„Kaputt“.*unbekannt/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: '2 Programmpunkte übernehmen' }));
-    expect(api.importiereAngebote).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(api.importiereAngebote).mock.calls[0]![0].map((e) => e.name)).toEqual(['Neu A', 'Neu B']);
-    expect(await screen.findByText(/2 Programmpunkte wurden übernommen/)).toBeInTheDocument();
-  });
-
-  it('Vorhandene lassen sich auf Wunsch doch mit übernehmen', async () => {
-    await waehle([{ name: 'Fangen', kategorie: 'bewegung' }, { name: 'Neu', kategorie: 'wasser' }]);
-    await userEvent.click(await screen.findByLabelText('Schon vorhandene überspringen (empfohlen)'));
-    await userEvent.click(screen.getByRole('button', { name: '2 Programmpunkte übernehmen' }));
-    expect(vi.mocked(api.importiereAngebote).mock.calls[0]![0]).toHaveLength(2);
-  });
-
-  it('nichts Neues: Knopf gesperrt', async () => {
-    await waehle([{ name: 'Fangen', kategorie: 'bewegung' }]);
-    expect(await screen.findByRole('button', { name: 'Nichts zu übernehmen' })).toBeDisabled();
-  });
-
-  it('keine gültige Datei: Meldung, nichts zu übernehmen', async () => {
-    await waehle('{kaputt');
-    expect(await screen.findByText('Die Datei ist kein gültiges JSON.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Nichts zu übernehmen' })).toBeDisabled();
-  });
-
-  it('Fehler beim Import: Hinweis, dass nichts übernommen wurde', async () => {
-    vi.mocked(api.importiereAngebote).mockRejectedValue(new Error('x'));
-    await waehle([{ name: 'Neu', kategorie: 'wasser' }]);
-    await userEvent.click(await screen.findByRole('button', { name: '1 Programmpunkt übernehmen' }));
-    expect(await screen.findByText(/Es wurde nichts übernommen/)).toBeInTheDocument();
-  });
-});

@@ -232,7 +232,7 @@ Koordination: Fragen anlegen, ändern, löschen, Standardfragen übernehmen, Bes
 **Umgesetzt und getestet:** G1 (alle Felder eines Programmpunkts), G2 (Suche über Name, Umsetzung, Material, Vorbereitung, Nachbereitung, Raum, Personal, Dauer, Gruppe, Autor und Alter – Umlaute und Groß-/Kleinschreibung egal;
 Filter nach Kategorie, Wetter, Alter und Favoriten; einklappbare Kategorien mit Anzahl), G3 (Favoriten je Person in der Datenbank, Teilen per Link, Druck/PDF einzelner Programmpunkte und der gefilterten Liste),
 G4 (ähnliche Programmpunkte per Textvergleich im Browser), G5 (Bewertung 1–5 Sterne je Person, Durchschnitt und Anzahl; Kommentare mit Namen, Löschen durch Verfasser und Koordination),
-G6 (Vorschläge: alle reichen ein, die Koordination korrigiert, übernimmt oder lehnt ab; Einreichende sehen den Stand ihrer Vorschläge), G7 (Import: Word-Pläne füllen das Formular vor; neu: JSON-Import mit Vorschau und Erkennung von Doppelten),
+G6 (Vorschläge: alle reichen ein, die Koordination korrigiert, übernimmt oder lehnt ab; Einreichende sehen den Stand ihrer Vorschläge), G7 (Import: Word-Pläne füllen das Formular vor; der JSON-Import mit Vorschau wurde nach der einmaligen Übernahme des alten Katalogs am 2026-10-08 wieder entfernt),
 G9 (nur für Angemeldete). Die Koordination legt Programmpunkte an, ändert und löscht sie.
 
 **Bewusste Entscheidungen:**
@@ -455,3 +455,7 @@ Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und
 - **Standard-Checkliste jetzt (10 Punkte):** Vorgespräch mit der Freizeitenkoordination (4 Wochen vor Ferienbeginn, Termin → Absprache) · Materialliste geschrieben und abgegeben (4 Wochen vor Beginn) · Vortreffen mit dem Team (10 Tage vorher, Termin → Hinweis, Themen) · Wochenplan steht (2 Wochen vorher) · **Übergabe der Räumlichkeiten** (2 Wochen vorher, mit eigener Checkliste aus 11 Punkten – Vorschlag, bitte prüfen) · Lebensmittel kontrollieren (1 Woche vorher, nur Erinnerung; Bestellung und Nachkauf macht die Freizeitenkoordination) · Leitungsmappe überprüft (4 Tage vorher; die Mappe mit allen Formularen stellt die Freizeitenkoordination auf Papier bereit) · Material überprüft (3 Tage vorher) · Nachbesprechung mit dem Team (am letzten Tag) · **Nachgespräch mit der Freizeitenkoordination** (4 Wochen nach Ende, Termin → Absprache).
   Entfernt: „Notfallnummern und Erste-Hilfe-Material geprüft“.
 
+
+## Katalog aus dem alten Kompass übernommen (2026-10-08)
+
+Die 77 Programmpunkte des alten KiJuB Kompass wurden einmalig übernommen: direkt aus der alten Firebase-Datenbank gelesen (die PDF-Exporte des alten Kompass sind Bilder ohne Text) und über den JSON-Import eingespielt. Danach wurde die Seite *Katalog importieren* (Route, Menüeintrag, Kachel, Knopf in der Katalog-Liste, Massenimport) entfernt. Erhalten bleibt das Vorbefüllen eines einzelnen Programmpunkts aus einem Word-Plan.

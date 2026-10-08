@@ -28,13 +28,6 @@ export async function loescheAngebot(id: string): Promise<void> {
   pruefe(await supabase.from('angebote').delete().eq('id', id));
 }
 
-/** Legt viele Programmpunkte auf einmal an (Import); gibt die Anzahl zurück. */
-export async function importiereAngebote(liste: AngebotFormular[]): Promise<number> {
-  if (liste.length === 0) return 0;
-  pruefe(await supabase.from('angebote').insert(liste.map(inDatenbankform)));
-  return liste.length;
-}
-
 /* ───── Bewertungen, Favoriten, Kommentare ───── */
 
 export interface BewertungStand { durchschnitt: number; anzahl: number }

@@ -144,7 +144,6 @@ export function baueKacheln(k: KachelKontext): KachelGruppe[] {
         kachel('orte', 'Orte', '📍', '/orte'),
         kachel('mitteilung', 'Mitteilung senden', '📢', '/mitteilungen'),
         ...(fk ? [kachel('kijuko', 'KiJuKo-Import', '🔄', '/import')] : []),
-        kachel('katalog-import', 'Katalog importieren', '📦', '/katalog/import'),
         kachel('quiz-fragen', 'Quiz-Fragen', '🧠', '/quiz/verwalten'),
         kachel('fehler', 'Fehlermeldungen', '🐞', '/fehler', z.fehler),
       ],

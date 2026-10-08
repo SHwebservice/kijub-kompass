@@ -49,7 +49,6 @@ export function KatalogListe() {
       {rollen.koordination ? (
         <p className="row" style={{ gap: 'var(--space-2)' }}>
           <Link className="btn btn--sm" to="/katalog/vorschlaege">Vorschläge{offeneVorschlaege > 0 ? ` (${offeneVorschlaege})` : ''}</Link>
-          <Link className="btn btn--sm" to="/katalog/import">Importieren</Link>
         </p>
       ) : (
         <p><Link className="btn btn--sm" to="/katalog/vorschlaege">Meine Vorschläge</Link></p>

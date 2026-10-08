@@ -125,7 +125,7 @@ describe('Katalog: Liste', () => {
     zeigeListe(koord);
     expect(await screen.findByRole('link', { name: 'Neuer Programmpunkt' })).toHaveAttribute('href', '/katalog/neu');
     expect(await screen.findByRole('link', { name: 'Vorschläge (1)' })).toHaveAttribute('href', '/katalog/vorschlaege');
-    expect(screen.getByRole('link', { name: 'Importieren' })).toHaveAttribute('href', '/katalog/import');
+    expect(screen.queryByRole('link', { name: 'Importieren' })).not.toBeInTheDocument();          // der einmalige Import des alten Katalogs ist erledigt
   });
 
   it('meldet Ladefehler', async () => {
