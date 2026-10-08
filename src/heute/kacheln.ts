@@ -89,6 +89,7 @@ export function baueKacheln(k: KachelKontext): KachelGruppe[] {
       freizeiten.push(mitZielen('hinweise', 'Hinweise', '📣', '/freizeiten', k.freizeiten, 'hinweise', z.hinweise));
       if (k.leitung || k.freizeitkoordination) freizeiten.push(mitZielen('lebensmittel', 'Lebensmittel', '🥕', '/freizeiten', k.freizeiten, 'lebensmittel', z.knapp));
       freizeiten.push(mitZielen('team', 'Team', '👥', '/freizeiten', k.freizeiten, 'team'));
+      if (k.leitung || k.freizeitkoordination) freizeiten.push(mitZielen('vorbereitung', 'Vorbereitung', '✅', '/freizeiten', k.freizeiten, 'vorbereitung'));
     }
   }
   if (k.freizeitTeam || k.freizeitkoordination || k.bewerbend) {
@@ -138,6 +139,7 @@ export function baueKacheln(k: KachelKontext): KachelGruppe[] {
         kachel('vorschlaege', 'Katalog-Vorschläge', '💡', '/katalog/vorschlaege', z.vorschlaege),
         kachel('personen', 'Personen & Zugänge', '🪪', '/personen'),
         ...(fk ? [kachel('neue-freizeit', 'Neue Freizeit', '➕', '/freizeiten/neu')] : []),
+        ...(fk ? [kachel('checkliste', 'Checkliste für Freizeiten', '✅', '/checkliste')] : []),
         ...(tk ? [kachel('neuer-treff', 'Neuer Treff', '🏗️', '/treffs/neu')] : []),
         kachel('orte', 'Orte', '📍', '/orte'),
         kachel('mitteilung', 'Mitteilung senden', '📢', '/mitteilungen'),

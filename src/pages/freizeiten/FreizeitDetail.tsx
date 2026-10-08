@@ -11,6 +11,7 @@ import { TeamTab } from './TeamTab';
 import { PlanTab } from './PlanTab';
 import { HinweiseTab } from './HinweiseTab';
 import { LebensmittelTab } from './LebensmittelTab';
+import { VorbereitungTab } from './VorbereitungTab';
 
 interface TabDef { pfad: string; label: string; sichtbar: (r: RolleInFreizeit) => boolean }
 
@@ -21,6 +22,7 @@ export const TABS: TabDef[] = [
   { pfad: 'hinweise', label: 'Hinweise', sichtbar: (r) => r !== 'gast' },
   { pfad: 'lebensmittel', label: 'Lebensmittel', sichtbar: istLeitungOderKoordination },
   { pfad: 'team', label: 'Team', sichtbar: (r) => r !== 'gast' },
+  { pfad: 'vorbereitung', label: 'Vorbereitung', sichtbar: istLeitungOderKoordination },
 ];
 
 export function FreizeitDetail() {
@@ -77,6 +79,7 @@ export function FreizeitDetail() {
         {tabs.some((t) => t.pfad === 'hinweise') && <Route path="hinweise" element={<HinweiseTab freizeit={d} rolle={rolle} />} />}
         {tabs.some((t) => t.pfad === 'lebensmittel') && <Route path="lebensmittel" element={<LebensmittelTab freizeit={d} />} />}
         {tabs.some((t) => t.pfad === 'team') && <Route path="team" element={<TeamTab freizeit={d} rolle={rolle} />} />}
+        {tabs.some((t) => t.pfad === 'vorbereitung') && <Route path="vorbereitung" element={<VorbereitungTab freizeit={d} />} />}
         <Route path="*" element={<Navigate to={`/freizeiten/${id}`} replace />} />
       </Routes>
     </>

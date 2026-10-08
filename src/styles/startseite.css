@@ -62,6 +62,8 @@
 .saison__titel { font-weight: 600; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
 .saison__titel::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
 .saison__titel:focus-visible { box-shadow: none; }
+.saison__checkliste { position: relative; z-index: 1; text-decoration: none; }
+.saison__checkliste:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
 .saison__meta { color: var(--text-muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
 .saison__chips { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
 

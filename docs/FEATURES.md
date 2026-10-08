@@ -412,3 +412,17 @@ Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und
 - Bei einem **bestehenden Protokoll ohne Text** gibt es „Vorlage für … einfügen“.
 - **Nie vorbelegt:** Zahlen der Kinder und Besondere Vorkommnisse.
 - Rechte in der Datenbank: lesen das Team des Treffs und die Treffkoordination, pflegen Treffleitung und Treffkoordination.
+
+## Stand der Umsetzung: Checkliste zur Vorbereitung einer Freizeit (Phase 14, 2026-10-08)
+
+**Umgesetzt und getestet** (Migration `0029`):
+- **Reiter „Vorbereitung“** in jeder Freizeit (Leitung und Freizeitenkoordination): Stand „x von y erledigt“ mit Fortschrittsbalken, Punkte gruppiert nach *Überfällig*, *In den nächsten 7 Tagen*, *Später* und *Erledigt und nicht relevant* (zugeklappt).
+  Jeder Punkt zeigt Fälligkeit („in 5 Tagen“, „seit 2 Tagen überfällig“), Beschreibung und – wo möglich – einen Knopf **„Zum Team / Zum Wochenplan / Zu den Hinweisen / Zu den Lebensmitteln / Zur Teamermappe / Zum Quiz / Zu den Formularen“**, der direkt an die Stelle führt, an der man ihn erledigt.
+  Abhaken, „Nicht relevant“, „Wieder aufnehmen“, Notiz je Punkt; **eigene Punkte** der Leitung mit optionalem Datum (löschbar).
+- **Automatisch erkannt** (hakt sich selbst ab, solange niemand „nicht relevant“ gesetzt hat): Leitung zugeordnet, mindestens eine TeamerIn, keine offene Bewerbung, jeder Tag im Wochenplan belegt, mindestens ein Hinweis, alle TeamerInnen haben alle Hinweise gesehen, Lebensmittel-Eingang am Ort erfasst.
+- **Standard-Checkliste** (*Mehr → Checkliste für Freizeiten*, Freizeitenkoordination): Punkte mit Titel, Beschreibung, Fälligkeit „n Tage vor/nach Beginn/Ende“, Ziel in der App und Automatik; Reihenfolge, Deaktivieren (Stand bleibt erhalten) und Löschen. Änderungen gelten sofort für alle Freizeiten. Ein **Vorschlag mit 14 Punkten** ist eingespielt (von „Leitung steht fest“ 12 Wochen vorher bis „Nachbesprechung mit dem Team“ 2 Wochen nach Ende) – bitte fachlich prüfen und anpassen.
+- **Startseite:** Leitungen sehen je eigener kommender Freizeit eine Karte „Vorbereitung: n Punkte sind überfällig“ bzw. „bald fällig“ (Punkte der nächsten 7 Tage) mit Link zur Checkliste; die Freizeitenkoordination sieht im Saison-Überblick je Freizeit „Vorbereitung x/y · n überfällig“. Schnellzugriff: Kachel „Vorbereitung“.
+- **Mitteilung** am Tag der Fälligkeit an die Leitungen (einmal je Freizeit und Tag, nur offene und nicht automatisch erfüllte Punkte, nicht bei abgesagten Freizeiten). Läuft über denselben Zeitplan wie die Erinnerung „Tagesprotokoll fehlt“ (`erinnerung.yml`, nachmittags); die Edge Function muss dafür **nicht** neu bereitgestellt werden.
+- Rechte in der Datenbank: Stand und eigene Punkte lesen und ändern nur die Leitungen der Freizeit und die Freizeitenkoordination; die Standard-Checkliste lesen alle, pflegen nur die Freizeitenkoordination.
+
+**Bewusst so:** TeamerInnen sehen die Checkliste nicht (Aufgaben an TeamerInnen zu verteilen wäre ein späterer Ausbau). Bewerbungen und Zuordnungen entscheidet weiterhin die Freizeitenkoordination; die Punkte dazu sind für die Leitung nur ein Stand, den die App erkennt.

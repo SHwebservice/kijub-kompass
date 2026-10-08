@@ -113,13 +113,13 @@ describe('Schnellzugriff: Koordination (beide Bereiche)', () => {
   const k = ctx({ freizeitkoordination: true, treffkoordination: true, bewerbend: false, freizeiten: fz(2), treffs: [{ id: 't1', name: 'A' }, { id: 't2', name: 'B' }], zaehler: { ...KEINE_ZAEHLER, bewerbungen: 2, vorschlaege: 1 } });
   it('Verwaltung mit allen Aufgaben und den Zahlen offener Bewerbungen und Vorschläge', () => {
     const v = gruppe(k, 'verwaltung')!;
-    expect(v.kacheln.map((x) => x.id)).toEqual(['bewerbungen', 'vorschlaege', 'personen', 'neue-freizeit', 'neuer-treff', 'orte', 'mitteilung', 'kijuko', 'katalog-import', 'quiz-fragen', 'fehler']);
+    expect(v.kacheln.map((x) => x.id)).toEqual(['bewerbungen', 'vorschlaege', 'personen', 'neue-freizeit', 'checkliste', 'neuer-treff', 'orte', 'mitteilung', 'kijuko', 'katalog-import', 'quiz-fragen', 'fehler']);
     expect(v.kacheln[0]).toMatchObject({ pfad: '/bewerbungen', badge: 2 });
     expect(v.kacheln[1]).toMatchObject({ pfad: '/katalog/vorschlaege', badge: 1 });
     expect(summeBadges(v)).toBe(3);
   });
   it('sieht auch die Freizeit- und Treff-Kacheln (mit Auswahl der aktuellen Freizeiten) und Lebensmittel', () => {
-    expect(gruppe(k, 'freizeiten')!.kacheln.map((x) => x.id)).toEqual(['plan', 'hinweise', 'lebensmittel', 'team', 'freizeiten']);
+    expect(gruppe(k, 'freizeiten')!.kacheln.map((x) => x.id)).toEqual(['plan', 'hinweise', 'lebensmittel', 'team', 'vorbereitung', 'freizeiten']);
     expect(kachel(k, 'plan')!.ziele).toHaveLength(2);
     expect(kachel(k, 'dienstplan')!.ziele).toHaveLength(2);
   });
@@ -150,7 +150,7 @@ describe('Schnellzugriff: Koordination getrennt nach Bereichen', () => {
     const k = ctx({ freizeitkoordination: true, bewerbend: false, freizeiten: fz(1), treffs, zaehler });
     expect(baueKacheln(k).map((g) => g.id)).toEqual(['freizeiten', 'wissen', 'verwaltung']);
     expect(kachel(k, 'lebensmittel')).toMatchObject({ badge: 3 });
-    expect(gruppe(k, 'verwaltung')!.kacheln.map((x) => x.id)).toEqual(['bewerbungen', 'vorschlaege', 'personen', 'neue-freizeit', 'orte', 'mitteilung', 'kijuko', 'katalog-import', 'quiz-fragen', 'fehler']);
+    expect(gruppe(k, 'verwaltung')!.kacheln.map((x) => x.id)).toEqual(['bewerbungen', 'vorschlaege', 'personen', 'neue-freizeit', 'checkliste', 'orte', 'mitteilung', 'kijuko', 'katalog-import', 'quiz-fragen', 'fehler']);
     expect(ids(k)).not.toContain('neuer-treff');
     expect(ids(k)).not.toContain('protokoll');
   });

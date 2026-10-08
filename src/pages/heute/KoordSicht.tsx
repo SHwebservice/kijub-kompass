@@ -2,13 +2,18 @@ import { Link } from 'react-router-dom';
 import type { FreizeitZeile } from '../../freizeiten/api';
 import { formatMonatKurz, gruppiereNachFerien, phase, tageBisStart, zeitraumText } from '../../freizeiten/logik';
 import { ohneLeitung, personenText, type TeamZeile } from '../../heute/logik';
+import type { Stand } from '../../checkliste/logik';
 import { Badge, Card } from '../../components/ui';
 import { fzStreifen } from '../../components/FreizeitFarbe';
 
-interface Props { freizeiten: boolean; aktuelle: FreizeitZeile[]; team: TeamZeile[]; heute: string }
+interface Props {
+  freizeiten: boolean; aktuelle: FreizeitZeile[]; team: TeamZeile[]; heute: string;
+  /** Stand der Checkliste je Freizeit (Migration 0029). */
+  vorbereitung?: Record<string, Stand>;
+}
 
 /** Koordination: die aktuelle Saison auf einen Blick – oben die Zahlen, darunter je Ferienzeit kompakte Karten mit Datum, Status und Teamstand. */
-export function KoordSicht({ freizeiten, aktuelle, team, heute }: Props) {
+export function KoordSicht({ freizeiten, aktuelle, team, heute, vorbereitung = {} }: Props) {
   if (!freizeiten || aktuelle.length === 0) return null;
   const ohne = new Set(ohneLeitung(aktuelle, team).map((f) => f.id));
   const laufen = aktuelle.filter((f) => phase(f, heute) === 'laufend').length;
@@ -42,6 +47,13 @@ export function KoordSicht({ freizeiten, aktuelle, team, heute }: Props) {
                     <div className="saison__chips">
                       {laeuft ? <Badge ton="success">Läuft</Badge> : <Badge ton={bis <= 7 ? 'warning' : 'neutral'}>in {bis} {bis === 1 ? 'Tag' : 'Tagen'}</Badge>}
                       {keine ? <Badge ton="danger">Keine Leitung</Badge> : <Badge>Leitung {leitung} · Team {teamer}</Badge>}
+                      {vorbereitung[f.id] && (
+                        <Link to={`/freizeiten/${f.id}/vorbereitung`} className="saison__checkliste">
+                          <Badge ton={vorbereitung[f.id]!.ueberfaellig > 0 ? 'danger' : 'neutral'}>
+                            Vorbereitung {vorbereitung[f.id]!.erledigt}/{vorbereitung[f.id]!.gesamt}{vorbereitung[f.id]!.ueberfaellig > 0 ? ` · ${vorbereitung[f.id]!.ueberfaellig} überfällig` : ''}
+                          </Badge>
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </li>

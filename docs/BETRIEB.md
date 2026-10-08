@@ -7,7 +7,7 @@ alles andere ist im Repository vorbereitet und getestet.
 |---|---|---|
 | Cloudflare Pages | liefert die App aus (HTTPS, weltweit schnell) | Cloudflare-Konto **[du]**, `public/_headers`, `wrangler.jsonc`, `.node-version` |
 | Supabase | Datenbank, Anmeldung, Zugriffsregeln | Supabase-Projekt **[du]**, `supabase/migrations/` |
-| Erinnerung Tagesprotokoll | „Protokoll fehlt“ abends per Mitteilung an Treffleitung und Dienst des Tages | Migration `0016`, Workflow `erinnerung.yml`, Secret `CRON_SECRET` **[du]** |
+| Erinnerungen (Tagesprotokoll, Checkliste) | „Protokoll fehlt“ abends an das Team des Treffs; ab 0029 auch „Checkliste: heute fällig“ an die Leitungen einer Freizeit | Migration `0016`, Workflow `erinnerung.yml`, Secret `CRON_SECRET` **[du]** |
 | Mitteilungen | Web-Push an die Geräte (Hinweise, Dienstplan, Bewerbungen …) | Edge Function `push-senden`, Migration `0015`, `public/sw.js`, VAPID-Schlüssel **[du]** |
 | Lebenszeichen | verhindert, dass Supabase das Projekt nach 7 Tagen ohne Zugriff pausiert | `.github/workflows/keepalive.yml`, Migration `0014` |
 | Datensicherung | sichert die Datenbank wöchentlich, verschlüsselt | `.github/workflows/backup.yml` |
@@ -164,7 +164,7 @@ dann ist der Ernstfall kein Erstkontakt. Diese Wiederherstellung wurde noch nich
 ## 5. Vor dem Start für alle: Checkliste **[du]**
 
 - [ ] Supabase: *Confirm email* wieder einschalten, Mindestlänge Passwort 10, Registrierung (*Allow new users to sign up*) **aus** – `npm run check:live` zeigt den Stand.
-- [ ] Migrationen `0001` bis `0028` eingespielt, Edge Functions (`konto-passwort`, `konto-entfernen`, `push-senden`) bereitgestellt, VAPID-Schlüssel eingetragen.
+- [ ] Migrationen `0001` bis `0029` eingespielt, Edge Functions (`konto-passwort`, `konto-entfernen`, `push-senden`) bereitgestellt, VAPID-Schlüssel eingetragen.
 - [ ] Cloudflare Pages läuft, `npm run check:site -- <Adresse>` zeigt „Alles in Ordnung“.
 - [ ] Fünf GitHub-Geheimnisse gesetzt (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DB_URL`, `BACKUP_PASSPHRASE`, `CRON_SECRET`), *Lebenszeichen* und *Datensicherung* je einmal von Hand gestartet (grün), `BACKUP_PASSPHRASE` im Passwort-Manager.
 - [ ] Probewiederherstellung in einem zweiten Projekt.

@@ -18,6 +18,7 @@ Rollen: **Koordination**, **Freizeitleitung**, **TeamerIn**, **Treffleitung**, *
 | „Das wartet auf dich“ (Hinweise/Absprachen bestätigen) | ja | ja | Hinweise | ja | ja | – |
 | Karte „Tagesprotokoll fehlt“ (Treff heute geöffnet, nichts geschrieben; nicht an Feiertagen und in Schließzeiten) | nur in Treffs, in deren Team sie ist (seit 0026) | – | – | ja | ja | – |
 | Leitungs-Karte (knappe Lebensmittel, nicht gesehene Hinweise) | ja | ja | – | – | – | – |
+| Karte „Vorbereitung: … überfällig / bald fällig“ (Checkliste, seit 0029) | Freizeitenkoordination: Stand je Freizeit im Saison-Überblick | ja, eigene Freizeiten | – | – | – | – |
 | Treffleitungs-Karte (offene Dienstwünsche) | ja | – | – | ja | – | – |
 | Koordinations-Karte (Bewerbungen, Vorschläge, Freizeit ohne Leitung) | ja | – | – | – | – | – |
 | Freizeiten zum Bewerben | – | – | wenn bewerbend | – | – | ja |
@@ -46,6 +47,7 @@ Es gibt keine Einstellung je Mitteilungsart und keine Ruhezeiten: Jede Person sc
 | **Bewerbung angenommen** | die Person, die sich beworben hat (eine Absage löst keine Mitteilung aus) | 0017 |
 | **Nachweis eingereicht** | Treffleitung des Treffs (ohne Treffleitung: Treffkoordination) | 0017, 0018 |
 | **Lebensmittel knapp oder leer** (nach einer Verbrauchsbuchung; je Artikel und Stand einmal in 24 Stunden) | Freizeitenkoordination, die nachkauft (nicht die buchende Person selbst) | 0017, 0018 |
+| **Checkliste: heute fällig** (nachmittags, einmal je Freizeit und Tag; nur offene, nicht automatisch erfüllte Punkte) | Leitungen der Freizeit | 0029 |
 
 **Bewusst ohne Mitteilung:** Tagesprotokoll geschrieben oder mit Vorkommnis; Bewerbung abgelehnt; Änderungen am Wochenplan; neue Notizen; Nachweis freigegeben.
 

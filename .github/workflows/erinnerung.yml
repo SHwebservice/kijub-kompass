@@ -1,8 +1,9 @@
 name: Erinnerung Tagesprotokoll
 
 # Alle 30 Minuten am Abend (Ortszeit etwa 16–24 Uhr) fragt dieser Lauf die Edge Function „push-senden“, ob für einen Treff
-# das Tagesprotokoll fehlt. Wer erinnert wird, entscheidet die Datenbank (Migration 0016): Treffleitung und die heute Eingeteilten,
-# einmal pro Treff und Tag, frühestens 15 Minuten nach Ende der Öffnungszeit, nicht an Feiertagen.
+# das Tagesprotokoll fehlt. Wer erinnert wird, entscheidet die Datenbank (Migrationen 0016, 0026): das Team des Treffs,
+# einmal pro Treff und Tag, frühestens 15 Minuten nach Ende der Öffnungszeit, nicht an Feiertagen und in Schließzeiten.
+# Seit Migration 0029 kommt im selben Lauf auch „Checkliste: heute fällig“ an die Leitungen einer Freizeit (einmal am Tag).
 # Nötige GitHub-Secrets: SUPABASE_URL, SUPABASE_ANON_KEY, CRON_SECRET (dasselbe Zufallsgeheimnis wie bei der Edge Function, siehe docs/BETRIEB.md).
 
 on:

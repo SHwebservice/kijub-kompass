@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { baueFeed, jeGruppe, type FeedEingabe } from './feed';
 
-const leer: FeedEingabe = { ohneProtokoll: [], offene: [], knapp: [], nichtGesehen: [], wuensche: [], diensteHeute: [], freizeitenHeute: [], neu: [] };
+const leer: FeedEingabe = { ohneProtokoll: [], offene: [], knapp: [], nichtGesehen: [], wuensche: [], vorbereitung: [], diensteHeute: [], freizeitenHeute: [], neu: [] };
 const mit = (o: Partial<FeedEingabe>): FeedEingabe => ({ ...leer, ...o });
 
 describe('baueFeed', () => {
@@ -16,6 +16,17 @@ describe('baueFeed', () => {
       ohneProtokoll: [{ id: 't', name: 'Treff' }],
     }));
     expect(f.map((x) => x.gruppe)).toEqual(['erledigen', 'heute', 'neu']);
+  });
+
+  it('Vorbereitung: überfällige Punkte warnen, bald fällige ruhig; nichts fällig, keine Karte', () => {
+    const f = baueFeed({ ...leer, vorbereitung: [
+      { id: 'f1', name: 'Zeltlager', ueberfaellig: 2, bald: 1 },
+      { id: 'f2', name: 'Stadtranderholung', ueberfaellig: 0, bald: 3 },
+      { id: 'f3', name: 'Ruhig', ueberfaellig: 0, bald: 0 },
+    ] });
+    expect(f).toHaveLength(2);
+    expect(f[0]).toMatchObject({ titel: 'Vorbereitung: 2 Punkte sind überfällig', text: 'Zeltlager · 1 Punkt in den nächsten 7 Tagen', ton: 'warnung', link: '/freizeiten/f1/vorbereitung', zahl: 3, gruppe: 'erledigen' });
+    expect(f[1]).toMatchObject({ titel: 'Vorbereitung: bald fällig', text: 'Stadtranderholung · 3 Punkte in den nächsten 7 Tagen', ton: 'ruhig' });
   });
 
   it('Protokoll fehlt: Link zum Protokoll, Knopf „Jetzt schreiben“, Warnton', () => {

@@ -16,6 +16,7 @@ import { Datenschutz } from './pages/recht/Datenschutz';
 const Mehr = lazy(() => import('./pages/Mehr').then((m) => ({ default: m.Mehr })));
 const Personen = lazy(() => import('./pages/Personen').then((m) => ({ default: m.Personen })));
 const KijukoImportSeite = lazy(() => import('./pages/KijukoImport').then((m) => ({ default: m.KijukoImportSeite })));
+const ChecklisteVorlage = lazy(() => import('./pages/ChecklisteVorlage').then((m) => ({ default: m.ChecklisteVorlage })));
 const FreizeitenListe = lazy(() => import('./pages/freizeiten/FreizeitenListe').then((m) => ({ default: m.FreizeitenListe })));
 const FreizeitDetail = lazy(() => import('./pages/freizeiten/FreizeitDetail').then((m) => ({ default: m.FreizeitDetail })));
 const FreizeitForm = lazy(() => import('./pages/freizeiten/FreizeitForm').then((m) => ({ default: m.FreizeitForm })));
@@ -107,6 +108,7 @@ function Geschuetzt() {
         <Route path="orte" element={rollen?.koordination ? <Orte /> : <Navigate to="/" replace />} />
         <Route path="bewerbungen" element={rollen?.freizeitkoordination ? <Bewerbungen /> : <Navigate to="/" replace />} />
         <Route path="import" element={rollen?.freizeitkoordination ? <KijukoImportSeite /> : <Navigate to="/" replace />} />
+        <Route path="checkliste" element={rollen?.freizeitkoordination ? <ChecklisteVorlage /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

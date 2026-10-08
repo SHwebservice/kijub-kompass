@@ -12,11 +12,13 @@ import { renderMitAuth, type Szene } from '../test-utils';
 import { freizeit, inTagen, treff } from '../test-daten';
 import { formatKurz } from '../freizeiten/logik';
 import type { OffeneNotiz } from '../heute/logik';
+import * as checklisteApi from '../checkliste/api';
 
 vi.mock('../freizeiten/api');
 vi.mock('../treffs/api');
 vi.mock('../heute/api');
 vi.mock('../mitteilungen/geraet');
+vi.mock('../checkliste/api');
 
 let stand: HeuteDaten;
 
@@ -36,6 +38,7 @@ const koord: Szene = { ich: { ist_koordination: true, kategorie: 'Hauptamtliche*
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(checklisteApi.ladeCheckliste).mockResolvedValue([]);
   window.localStorage.clear();
   vi.mocked(fzApi.listeFreizeiten).mockResolvedValue([laeuft, bald, fern]);
   vi.mocked(fzApi.meineBewerbungen).mockResolvedValue([]);
@@ -50,6 +53,37 @@ beforeEach(() => {
 });
 
 const zeige = (s: Szene) => renderMitAuth(<Heute />, s);
+
+describe('Heute: Checkliste der Vorbereitung (0029)', () => {
+  const punkt = (freizeit_id: string, faellig: string, o: Record<string, unknown> = {}) => ({
+    freizeit_id, art: 'vorlage' as const, id: `${freizeit_id}-${faellig}`, titel: 'x', beschreibung: '', faellig, ziel: null, automatik: null,
+    auto_erfuellt: false, status: 'offen' as const, notiz: '', geaendert_von: null, geaendert_am: null, ...o,
+  });
+
+  it('Leitung: Karte mit überfälligen Punkten der eigenen Freizeit, Link zur Checkliste', async () => {
+    vi.mocked(checklisteApi.ladeCheckliste).mockResolvedValue([punkt('f1', inTagen(-1)), punkt('f1', inTagen(2)), punkt('f1', inTagen(30))]);
+    zeige(leitung);
+    const karte = await screen.findByRole('link', { name: /Vorbereitung: 1 Punkt ist überfällig/ });
+    expect(karte).toHaveAttribute('href', '/freizeiten/f1/vorbereitung');
+    expect(karte.closest('li')).toHaveTextContent('Sommer-Sause · 1 Punkt in den nächsten 7 Tagen');
+    expect(checklisteApi.ladeCheckliste).toHaveBeenLastCalledWith(['f1']);
+  });
+
+  it('TeamerIn: keine Abfrage der Checkliste', async () => {
+    zeige(teamer);
+    await screen.findByRole('list', { name: 'Meine Freizeiten' });
+    expect(checklisteApi.ladeCheckliste).not.toHaveBeenCalledWith(['f1']);
+    expect(screen.queryByText(/Vorbereitung:/)).not.toBeInTheDocument();
+  });
+
+  it('Freizeitenkoordination: Stand je Freizeit im Saison-Überblick', async () => {
+    vi.mocked(checklisteApi.ladeCheckliste).mockResolvedValue([punkt('f2', inTagen(-3)), punkt('f2', inTagen(1), { status: 'erledigt' })]);
+    zeige(koord);
+    const badge = await screen.findByText('Vorbereitung 1/2 · 1 überfällig');
+    expect(badge.closest('a')).toHaveAttribute('href', '/freizeiten/f2/vorbereitung');
+    expect(screen.queryByRole('link', { name: /Vorbereitung: 1 Punkt ist überfällig/ })).not.toBeInTheDocument();     // keine Feed-Karte für fremde Freizeiten
+  });
+});
 
 describe('Heute: TeamerIn', () => {
   it('ohne Zuordnung: Willkommen und Freizeiten zum Bewerben (nur bewerbbare, nicht die laufende)', async () => {

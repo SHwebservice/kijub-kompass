@@ -12,6 +12,8 @@ import { baueBento } from '../heute/bento';
 import { baueFeed } from '../heute/feed';
 import { aktuelleFreizeiten, gruppiereOffene, knappeJeOrt, laeuftHeute, nichtGeseheneImTeam, offeneFuerMich, ohneLeitung, planNachFreizeit, wuenscheJeTreff } from '../heute/logik';
 import { listeMeineDienste, listeTreffs } from '../treffs/api';
+import { ladeCheckliste } from '../checkliste/api';
+import { standJeFreizeit } from '../checkliste/logik';
 import { protokollFaellig } from '../tagesprotokoll/logik';
 import { addTage, dienstZeit } from '../treffs/dienstplan';
 import { Bewerben } from './heute/Bewerben';
@@ -65,7 +67,13 @@ export function Heute() {
     ...(istTreffleitung ? { wuensche: tk ? ('alle' as const) : (rollen?.treffleitungen ?? []) } : {}),
   };
   const stand = useLaden(async () => (bereit ? ladeHeute(anfrage) : null), `heute-stand-${bereit}-${JSON.stringify(anfrage)}`);
+
+  // Checkliste der Vorbereitung: eigene kommende Freizeiten als Leitung (Karten im Feed), für die Freizeitenkoordination die aktuellen (Saison-Überblick)
+  const eigeneLeitung = alle.filter((f) => rollen?.leitungFreizeiten.includes(f.id) && f.status === 'geplant' && phase(f, heute) !== 'vergangen');
+  const checklisteIds = [...new Set([...eigeneLeitung.map((f) => f.id), ...(fk ? aktuelle.map((f) => f.id) : [])])].sort();
+  const checkliste = useLaden(async () => (bereit ? ladeCheckliste(checklisteIds) : []), `heute-checkliste-${bereit}-${checklisteIds.join(',')}`);
   if (!ich || !rollen) return null;
+  const vorbereitung = standJeFreizeit(checkliste.daten ?? [], heute);
 
   const meine = alle.filter((f) => meineIds.has(f.id) && phase(f, heute) !== 'vergangen' && f.status === 'geplant').sort((a, b) => a.start_datum.localeCompare(b.start_datum) || a.name.localeCompare(b.name, 'de'));
   const laufendHeute = (fk ? aktuelle : aktuelleMeine).filter((f) => laeuftHeute(f, heute));
@@ -98,6 +106,7 @@ export function Heute() {
     knapp: istLeitung ? knappJeOrt.map((o) => ({ ort: o, freizeitId: freizeitAmOrt(o.ort_id)?.id ?? null, name: d?.orte[o.ort_id] ?? freizeitAmOrt(o.ort_id)?.name ?? 'Ort' })) : [],
     nichtGesehen: istLeitung ? nichtGeseheneImTeam(d?.notizen ?? [], d?.team ?? [], leitungFreizeiten.map((f) => f.id), heute) : [],
     wuensche: wuenscheJe.map((w) => ({ treff: w, name: d?.treffNamen[w.treff_id] ?? 'Treff' })),
+    vorbereitung: eigeneLeitung.filter((f) => vorbereitung[f.id]).map((f) => ({ id: f.id, name: f.name, ueberfaellig: vorbereitung[f.id]!.ueberfaellig, bald: vorbereitung[f.id]!.bald })),
     diensteHeute: (dienste.daten ?? []).filter((x) => x.datum === heute),
     freizeitenHeute: laufendHeute.map((f) => ({ id: f.id, name: f.name, ort_name: f.ort_name ?? null, punkte: planHeute.get(f.id) ?? [] })),
     neu: d?.neu ?? [],
@@ -141,7 +150,7 @@ export function Heute() {
         <Feed heute={heute} eintraege={eintraege} seit={d?.seit ?? null} neuGesamt={d?.neuGesamt ?? 0} laedt={stand.laedt || freizeiten.laedt || !bereit}
           gesehen={async () => { await quittiereBesuch(); stand.neuLaden(); }} />
         <Schnellzugriff gruppen={kacheln} />
-        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} team={d?.team ?? []} heute={heute} />}
+        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} team={d?.team ?? []} heute={heute} vorbereitung={vorbereitung} />}
 
         {meineIds.size > 0 && (
           <Card>

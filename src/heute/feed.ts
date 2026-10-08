@@ -50,6 +50,8 @@ export interface FeedEingabe {
   nichtGesehen: NichtGesehen[];
   /** Offene Dienstwünsche (nur Treffleitung). */
   wuensche: { treff: TreffWuensche; name: string }[];
+  /** Checkliste der Vorbereitung je eigener Freizeit als Leitung: überfällige und bald fällige Punkte (Migration 0029). */
+  vorbereitung?: { id: string; name: string; ueberfaellig: number; bald: number }[];
   diensteHeute: MeinDienst[];
   freizeitenHeute: { id: string; name: string; ort_name: string | null; punkte: PlanPunkt[] }[];
   neu: Neuigkeit[];
@@ -83,6 +85,17 @@ export function baueFeed(e: FeedEingabe): FeedEintrag[] {
     liste.push({
       id: `wunsch-${w.treff.treff_id}`, gruppe: 'erledigen', icon: '🙋', ton: 'warnung', titel: 'Dienstwünsche warten',
       text: `${w.name}: ${personenText(w.treff.anzahl, 'Wunsch wartet', 'Wünsche warten')} auf Antwort, der nächste für ${formatKurz(w.treff.erster)}`, link: `/treffs/${w.treff.treff_id}/dienstplan`, aktion: 'Zum Dienstplan', zahl: w.treff.anzahl,
+    });
+  }
+
+  for (const v of e.vorbereitung ?? []) {
+    if (v.ueberfaellig + v.bald === 0) continue;
+    const bald = v.bald > 0 ? `${personenText(v.bald, 'Punkt', 'Punkte')} in den nächsten 7 Tagen` : '';
+    liste.push({
+      id: `vorbereitung-${v.id}`, gruppe: 'erledigen', icon: '✅', ton: v.ueberfaellig > 0 ? 'warnung' : 'ruhig',
+      titel: v.ueberfaellig > 0 ? `Vorbereitung: ${personenText(v.ueberfaellig, 'Punkt ist', 'Punkte sind')} überfällig` : 'Vorbereitung: bald fällig',
+      text: [v.name, bald].filter(Boolean).join(' · '),
+      link: `/freizeiten/${v.id}/vorbereitung`, aktion: 'Zur Checkliste', zahl: v.ueberfaellig + v.bald,
     });
   }
 

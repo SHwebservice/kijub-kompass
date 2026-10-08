@@ -30,6 +30,7 @@ export function baueMenue(r: Rollen | null): MenueGruppe[] {
       ] },
       { id: 'planung', titel: 'Planung', eintraege: [
         ...(fk ? [e('/freizeiten/neu', '➕', 'Neue Freizeit', 'Eine Freizeit anlegen')] : []),
+        ...(fk ? [e('/checkliste', '✅', 'Checkliste für Freizeiten', 'Standardpunkte der Vorbereitung pflegen')] : []),
         ...(tk ? [e('/treffs/neu', '🏗️', 'Neuer Treff', 'Einen Treff mit Öffnungszeiten anlegen')] : []),
         e('/orte', '📍', 'Orte', 'Orte und Adressen pflegen'),
       ] },

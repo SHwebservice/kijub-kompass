@@ -46,14 +46,14 @@ describe('Freizeit-Detail: Reiter je Rolle', () => {
   it('Leitung: zusätzlich Lebensmittel', async () => {
     zeige({ ich: { kategorie: 'Hauptamtliche*r' }, freizeiten: [{ freizeit_id: 'f1', rolle: 'leitung' }] });
     await screen.findByRole('heading', { name: 'Sommer-Sause' });
-    expect(tabNamen()).toEqual(['Übersicht', 'Wochenplan', 'Hinweise', 'Lebensmittel', 'Team']);
+    expect(tabNamen()).toEqual(['Übersicht', 'Wochenplan', 'Hinweise', 'Lebensmittel', 'Team', 'Vorbereitung']);
     expect(screen.getByText('Leitung', { selector: '.badge' })).toBeInTheDocument();
   });
 
   it('Koordination: alle Reiter und „Bearbeiten"', async () => {
     zeige({ ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } });
     await screen.findByRole('heading', { name: 'Sommer-Sause' });
-    expect(tabNamen()).toHaveLength(5);
+    expect(tabNamen()).toHaveLength(6);
     expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute('href', '/freizeiten/f1/bearbeiten');
   });
 

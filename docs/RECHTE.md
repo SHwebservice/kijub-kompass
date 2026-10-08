@@ -63,6 +63,8 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Ressource | Koordination | Leitung | TeamerIn | Treffleitung | BetreuerIn | Bewerbende/Angemeldet |
 |---|---|---|---|---|---|---|
 | Freizeit-Stammdaten (seit 0026 mit Farbe) | L E Ä X | L (Team) | L (Team) | — | — | L (Name, Zeitraum, Ort, Alter, max. Teiln. – für Bewerbung) |
+| Checkliste der Vorbereitung: Stand und eigene Punkte (Migration 0029) | L E Ä X | L E Ä X (eigene Freizeit) | — | — | — | — |
+| Standard-Checkliste (Vorlage) | L E Ä X (Freizeitenkoordination) | L | L | L | L | — |
 | Orte | L E Ä X | L | L | L | L | L · **Δ** Altcode: öffentlich lesbar |
 | Slots (Reihenfolge/Abend) | alle | Ä | L | — | — | — |
 | Wochenplan-Einträge (Katalog-Verweis) | alle | L E Ä X | L E Ä X (Team) · **Δ** ggf. nur eigene ändern/löschen, siehe Hinweis | — | — | — |
