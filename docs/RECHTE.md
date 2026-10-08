@@ -64,6 +64,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 |---|---|---|---|---|---|---|
 | Freizeit-Stammdaten (seit 0026 mit Farbe) | L E Ä X | L (Team) | L (Team) | — | — | L (Name, Zeitraum, Ort, Alter, max. Teiln. – für Bewerbung) |
 | Checkliste der Vorbereitung: Stand und eigene Punkte (Migration 0029) | L E Ä X | L E Ä X (eigene Freizeit) | — | — | — | — |
+| Checkliste: Termin eintragen (legt Hinweis bzw. Absprache an), Themen abhaken (Migration 0031) | ja | ja (eigene Freizeit) | — | — | — | — |
 | Standard-Checkliste (Vorlage) | L E Ä X (Freizeitenkoordination) | L | L | L | L | — |
 | Orte | L E Ä X | L | L | L | L | L · **Δ** Altcode: öffentlich lesbar |
 | Slots (Reihenfolge/Abend) | alle | Ä | L | — | — | — |

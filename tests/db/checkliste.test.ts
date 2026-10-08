@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
 import { neueDb, person, als, fehler, type Person } from './harness';
 
-/** Migration 0029: Checkliste zur Vorbereitung einer Freizeit. */
+/** Migration 0029: Checkliste zur Vorbereitung einer Freizeit (Grundfunktionen; die Punkte mit Automatik, die 0031 aus der Standardliste nahm, legt der Test selbst an). */
 let db: PGlite;
 let fk: Person, tk: Person, leitung: Person, teamer: Person, fremdeLeitung: Person;
 let fz: string, andere: string, ort: string;
@@ -29,12 +29,17 @@ beforeAll(async () => {
   fz = (await q<{ id: string }>(`insert into freizeiten (name, start_datum, ende_datum, ort_id) values ('Zeltlager', current_date + 20, current_date + 22, $1) returning id`, [ort])).rows[0]!.id;
   andere = (await q<{ id: string }>(`insert into freizeiten (name, start_datum, ende_datum) values ('Andere', current_date + 30, current_date + 31) returning id`)).rows[0]!.id;
   await q(`insert into freizeit_team (freizeit_id, person_id, rolle) values ($1, $2, 'leitung'), ($1, $3, 'teamer'), ($4, $5, 'leitung')`, [fz, leitung.id, teamer.id, andere, fremdeLeitung.id]);
+  // Automatik-Punkte als Testdaten (nicht mehr in der Standardliste seit 0031)
+  await q(`insert into checkliste_vorlage (position, titel, bezug, tage, automatik) values
+    (1, 'Leitung steht fest', 'start', -84, 'leitung'), (2, 'Team ist zusammengestellt', 'start', -42, 'team'),
+    (3, 'Offene Bewerbungen sind entschieden', 'start', -42, 'bewerbungen'), (4, 'Infos für das Team veröffentlicht', 'start', -14, 'hinweis'),
+    (5, 'Alle haben die Hinweise gesehen', 'start', -3, 'hinweise_gesehen')`);
 });
 
 describe('Standard-Checkliste', () => {
   it('enthält den Vorschlag; alle Aktiven lesen, nur die Freizeitenkoordination pflegt', async () => {
     const n = (await als(db, teamer, () => q(`select 1 from checkliste_vorlage`))).rows.length;
-    expect(n).toBe(14);
+    expect(n).toBe(12);                                                                                   // 7 Standardpunkte (0031) + 5 Testpunkte
     await als(db, fk, () => q(`insert into checkliste_vorlage (titel, tage, position) values ('Bus bestellen', -30, 35)`));
     for (const wer of [tk, leitung, teamer]) {
       expect(await als(db, wer, () => fehler(() => q(`insert into checkliste_vorlage (titel) values ('x')`)))).toMatch(/row-level security/i);
@@ -53,9 +58,9 @@ describe('fn_checkliste', () => {
     const p = await punkt('Wochenplan steht');
     expect(p.faellig).toBe((await q<{ d: string }>(`select (current_date + 6)::text as d`)).rows[0]!.d);             // Start − 14
     expect((await punkt('Nachbesprechung mit dem Team')).faellig).toBe((await q<{ d: string }>(`select (current_date + 36)::text as d`)).rows[0]!.d);   // Ende + 14
-    expect((await liste(fk)).length).toBe(15);
+    expect((await liste(fk)).length).toBe(13);
     for (const wer of [teamer, tk, fremdeLeitung]) expect(await liste(wer)).toEqual([]);
-    expect((await liste(fk, [fz, andere])).length).toBe(30);
+    expect((await liste(fk, [fz, andere])).length).toBe(26);
   });
 
   it('automatisch erkannt: Leitung, Team, Bewerbungen; Hinweis und „alle gesehen“; Wochenplan; Lebensmittel', async () => {
@@ -96,7 +101,7 @@ describe('Stand je Freizeit und eigene Punkte', () => {
   });
 
   it('TeamerIn, Treffkoordination und Leitung einer anderen Freizeit dürfen nichts ändern', async () => {
-    const v = await vorlageId('Vortreffen mit dem Team geplant');
+    const v = await vorlageId('Vortreffen mit dem Team');
     for (const wer of [teamer, tk, fremdeLeitung]) {
       expect(await als(db, wer, () => fehler(() => q(`insert into checkliste_status (freizeit_id, vorlage_id, status) values ($1, $2, 'erledigt')`, [fz, v])))).toMatch(/row-level security/i);
       expect(await als(db, wer, () => fehler(() => q(`insert into checkliste_eigene (freizeit_id, titel) values ($1, 'x')`, [fz])))).toMatch(/row-level security/i);

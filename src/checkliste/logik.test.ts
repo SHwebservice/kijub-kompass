@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { erfuellt, faelligRelativ, gruppeVon, standJeFreizeit, standVon, validiereEigenen, validiereVorlage, vorlageFaelligText, zuTun, type Punkt } from './logik';
+import {
+  erfuellt, faelligRelativ, gruppeVon, standJeFreizeit, standVon, terminAusEingabe, terminText, themenAusText, validiereEigenen, validiereVorlage, vorlageFaelligText,
+  zuTun, type Punkt,
+} from './logik';
 
 const HEUTE = '2027-06-10';
 const p = (o: Partial<Punkt>): Punkt => ({
@@ -60,5 +63,28 @@ describe('Checkliste: Texte und Prüfungen', () => {
     expect(validiereVorlage({ ...v, tage: 1.5 }).tage).toBeTruthy();
     expect(validiereEigenen({ titel: '', beschreibung: '', faellig_am: '' }).titel).toBeTruthy();
     expect(validiereEigenen({ titel: 'Kanus', beschreibung: '', faellig_am: '' })).toEqual({});
+  });
+});
+
+describe('Checkliste: Termine, Ferienbeginn, Themen (0031)', () => {
+  it('Fälligkeit relativ zum Ferienbeginn in Worten', () => {
+    expect(vorlageFaelligText(-28, 'ferien')).toBe('4 Wochen vor Ferienbeginn');
+    expect(vorlageFaelligText(0, 'ferien')).toBe('am ersten Ferientag');
+  });
+
+  it('Termin: Text in Ortszeit, Eingabe nur mit Datum und Uhrzeit', () => {
+    const iso = terminAusEingabe('2027-07-22', '18:05')!;
+    expect(iso).toBe(new Date('2027-07-22T18:05:00').toISOString());
+    expect(terminText(iso)).toBe('Donnerstag, 22.07.2027, 18:05 Uhr');
+    expect(terminAusEingabe('2027-07-22', '')).toBeNull();
+    expect(terminAusEingabe('', '18:00')).toBeNull();
+  });
+
+  it('Themen aus dem Textfeld; Termin-Automatik braucht eine Termin-Art', () => {
+    expect(themenAusText(' Mappe \n\n Allergien ')).toEqual(['Mappe', 'Allergien']);
+    const v = { titel: 'Vortreffen', beschreibung: '', bezug: 'start' as const, tage: -10 as number | '', ziel: '' as const, automatik: 'termin' as const };
+    expect(validiereVorlage(v).automatik).toBeTruthy();
+    expect(validiereVorlage({ ...v, termin_art: 'hinweis' })).toEqual({});
+    expect(validiereVorlage({ ...v, termin_art: 'hinweis', themen: Array.from({ length: 21 }, (_, i) => `T${i}`).join('\n') }).themen).toBeTruthy();
   });
 });

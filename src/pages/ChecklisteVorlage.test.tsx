@@ -9,7 +9,7 @@ import type { VorlagePunkt } from '../checkliste/logik';
 vi.mock('../checkliste/api');
 
 const v = (o: Partial<VorlagePunkt> & { id: string; titel: string }): VorlagePunkt => ({
-  beschreibung: '', bezug: 'start', tage: -14, ziel: null, automatik: null, position: 10, aktiv: true, ...o,
+  beschreibung: '', bezug: 'start', tage: -14, ziel: null, automatik: null, position: 10, aktiv: true, termin_art: null, themen: [], ...o,
 });
 const punkte = [
   v({ id: 'a', titel: 'Wochenplan steht', ziel: 'plan', automatik: 'wochenplan', position: 10 }),
@@ -49,7 +49,7 @@ describe('Standard-Checkliste pflegen (Freizeitenkoordination)', () => {
     expect(within(d).getByText('= 30 Tage vor Beginn')).toBeInTheDocument();
     await u.selectOptions(within(d).getByLabelText('Führt zu (optional)'), 'hinweise');
     await u.click(within(d).getByRole('button', { name: 'Speichern' }));
-    expect(api.speichereVorlagePunkt).toHaveBeenCalledWith(null, { titel: 'Bus bestellen', beschreibung: '', bezug: 'start', tage: -30, ziel: 'hinweise', automatik: '' }, 40);
+    expect(api.speichereVorlagePunkt).toHaveBeenCalledWith(null, { titel: 'Bus bestellen', beschreibung: '', bezug: 'start', tage: -30, ziel: 'hinweise', automatik: '', termin_art: '', themen: '' }, 40);
   });
 
   it('„nach“ dem Ende; ohne Titel wird nicht gespeichert', async () => {

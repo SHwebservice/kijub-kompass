@@ -3,13 +3,16 @@ import { useLaden } from '../lib/laden';
 import { fehlerText } from '../lib/fehler';
 import { listeVorlage, loescheVorlagePunkt, ordneVorlage, setzeVorlageAktiv, speichereVorlagePunkt } from '../checkliste/api';
 import {
-  AUTOMATIK, validiereVorlage, vorlageFaelligText, ZIELE, type Automatik, type Bezug, type VorlageEingabe, type VorlagePunkt, type Ziel,
+  AUTOMATIK, TERMIN_ART, validiereVorlage, vorlageFaelligText, ZIELE, type Automatik, type Bezug, type TerminArt, type VorlageEingabe, type VorlagePunkt, type Ziel,
 } from '../checkliste/logik';
 import { Alert, Badge, Button, Card, PageHeader, SelectField, Spinner, TextField } from '../components/ui';
 import { Sheet } from '../components/Sheet';
 
-const LEER: VorlageEingabe = { titel: '', beschreibung: '', bezug: 'start', tage: -14, ziel: '', automatik: '' };
-const eingabeAus = (p: VorlagePunkt): VorlageEingabe => ({ titel: p.titel, beschreibung: p.beschreibung, bezug: p.bezug, tage: p.tage, ziel: p.ziel ?? '', automatik: p.automatik ?? '' });
+const LEER: VorlageEingabe = { titel: '', beschreibung: '', bezug: 'start', tage: -14, ziel: '', automatik: '', termin_art: '', themen: '' };
+const eingabeAus = (p: VorlagePunkt): VorlageEingabe => ({
+  titel: p.titel, beschreibung: p.beschreibung, bezug: p.bezug, tage: p.tage, ziel: p.ziel ?? '', automatik: p.automatik ?? '',
+  termin_art: p.termin_art ?? '', themen: (p.themen ?? []).join('\n'),
+});
 
 /** Formular für einen Punkt der Standard-Checkliste. Die Fälligkeit wird als „Tage vor/nach Beginn bzw. Ende“ eingegeben. */
 function PunktFormular({ punkt, position, schliessen, gespeichert }: { punkt: VorlagePunkt | null; position: number; schliessen: () => void; gespeichert: () => void }) {
@@ -52,19 +55,31 @@ function PunktFormular({ punkt, position, schliessen, gespeichert }: { punkt: Vo
             </div>
             <div style={{ flex: '1 1 130px' }}>
               <SelectField label="Bezug" value={e.bezug} onChange={(ev) => setE({ ...e, bezug: ev.target.value as Bezug })}>
-                <option value="start">Beginn</option>
-                <option value="ende">Ende</option>
+                <option value="start">Beginn der Freizeit</option>
+                <option value="ende">Ende der Freizeit</option>
+                <option value="ferien">Ferienbeginn</option>
               </SelectField>
             </div>
           </div>
           {e.tage !== '' && <p className="field__hint">= {vorlageFaelligText(e.tage, e.bezug)}</p>}
+          {e.bezug === 'ferien' && <p className="field__hint">Ferienbeginn = Montag der Ferienwoche 1 (aus der Ferienwoche der Freizeit berechnet; ohne Ferienwoche der Beginn der Freizeit).</p>}
         </fieldset>
         <SelectField label="Führt zu (optional)" value={e.ziel} onChange={(ev) => setE({ ...e, ziel: ev.target.value as Ziel | '' })}
           hinweis="Ein Knopf am Punkt öffnet diese Stelle der App, an der man ihn erledigt.">
           <option value="">– keine Stelle –</option>
           {(Object.keys(ZIELE) as Ziel[]).map((z) => <option key={z} value={z}>{ZIELE[z].name}</option>)}
         </SelectField>
-        <SelectField label="Automatisch abhaken, wenn … (optional)" value={e.automatik} onChange={(ev) => setE({ ...e, automatik: ev.target.value as Automatik | '' })}>
+        <SelectField label="Termin vereinbaren mit (optional)" value={e.termin_art ?? ''} onChange={(ev) => setE({ ...e, termin_art: ev.target.value as TerminArt | '' })}
+          hinweis="Der Punkt bekommt ein Termin-Feld; beim Eintragen entsteht ein Hinweis für das Team bzw. eine Absprache mit der Freizeitenkoordination.">
+          <option value="">– kein Termin –</option>
+          {(Object.keys(TERMIN_ART) as TerminArt[]).map((t) => <option key={t} value={t}>{TERMIN_ART[t].mit}</option>)}
+        </SelectField>
+        <div className="field">
+          <label className="field__label" htmlFor="vorlage-themen">Themen, die dabei besprochen werden (optional, eins je Zeile)</label>
+          <textarea id="vorlage-themen" className="input" rows={3} value={e.themen ?? ''} onChange={(ev) => setE({ ...e, themen: ev.target.value })} style={{ padding: 'var(--space-3)' }} />
+          {fehler.themen && <span className="field__error">{fehler.themen}</span>}
+        </div>
+        <SelectField label="Automatisch abhaken, wenn … (optional)" value={e.automatik} fehler={fehler.automatik} onChange={(ev) => setE({ ...e, automatik: ev.target.value as Automatik | '' })}>
           <option value="">– nur von Hand –</option>
           {(Object.keys(AUTOMATIK) as Automatik[]).map((a) => <option key={a} value={a}>{AUTOMATIK[a]}</option>)}
         </SelectField>
@@ -120,9 +135,11 @@ export function ChecklisteVorlage() {
                   <span>{vorlageFaelligText(p.tage, p.bezug)}</span>
                   {p.ziel && <Badge>{ZIELE[p.ziel].label}</Badge>}
                   {p.automatik && <Badge ton="success">automatisch: {AUTOMATIK[p.automatik]}</Badge>}
+                  {p.termin_art && <Badge ton="accent">Termin mit {p.termin_art === 'hinweis' ? 'dem Team' : 'der Freizeitenkoordination'}</Badge>}
                   {!p.aktiv && <Badge ton="warning">deaktiviert</Badge>}
                 </div>
                 {p.beschreibung && <p className="checkliste__text">{p.beschreibung}</p>}
+                {(p.themen ?? []).length > 0 && <p className="checkliste__text">Themen: {p.themen.join(' · ')}</p>}
               </div>
               <div className="row" style={{ gap: 'var(--space-2)' }}>
                 <Button klein disabled={arbeitet || i === 0} aria-label={`„${p.titel}“ nach oben`} onClick={() => verschiebe(i, -1)}>↑</Button>

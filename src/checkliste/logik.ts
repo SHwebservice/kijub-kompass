@@ -9,8 +9,11 @@ import { addTage } from '../treffs/dienstplan';
 
 export type PunktStatus = 'offen' | 'erledigt' | 'nicht_relevant';
 export type Ziel = 'team' | 'plan' | 'hinweise' | 'lebensmittel' | 'teamermappe' | 'quiz' | 'formulare';
-export type Automatik = 'leitung' | 'team' | 'bewerbungen' | 'wochenplan' | 'hinweis' | 'hinweise_gesehen' | 'lebensmittel';
-export type Bezug = 'start' | 'ende';
+export type Automatik = 'leitung' | 'team' | 'bewerbungen' | 'wochenplan' | 'hinweis' | 'hinweise_gesehen' | 'lebensmittel' | 'termin';
+/** Fälligkeit relativ zu Beginn oder Ende der Freizeit oder zum Ferienbeginn (Montag der Ferienwoche 1, seit 0031). */
+export type Bezug = 'start' | 'ende' | 'ferien';
+/** Mit wem ein Termin vereinbart wird: Hinweis für das Team oder Absprache mit der Freizeitenkoordination (seit 0031). */
+export type TerminArt = 'hinweis' | 'absprache';
 
 export interface Punkt {
   freizeit_id: string;
@@ -27,6 +30,12 @@ export interface Punkt {
   notiz: string;
   geaendert_von: string | null;
   geaendert_am: string | null;
+  /** Punkte mit Termin (Vortreffen, Vorgespräch): Art und eingetragener Termin (ISO-Zeitpunkt). */
+  termin_art?: TerminArt | null;
+  termin?: string | null;
+  /** Themen, die bei diesem Punkt besprochen werden, und die je Freizeit abgehakten (1-basiert). */
+  themen?: string[];
+  themen_erledigt?: number[];
 }
 
 export interface VorlagePunkt {
@@ -39,6 +48,8 @@ export interface VorlagePunkt {
   automatik: Automatik | null;
   position: number;
   aktiv: boolean;
+  termin_art: TerminArt | null;
+  themen: string[];
 }
 
 /** Wohin ein Punkt führt: dort lässt er sich direkt erledigen. */
@@ -61,7 +72,28 @@ export const AUTOMATIK: Record<Automatik, string> = {
   hinweis: 'mindestens ein Hinweis ist eingetragen',
   hinweise_gesehen: 'alle TeamerInnen haben alle Hinweise gesehen',
   lebensmittel: 'ein Lebensmittel-Eingang am Ort ist erfasst',
+  termin: 'der eingetragene Termin hat stattgefunden',
 };
+
+/** Was beim Eintragen eines Termins entsteht. */
+export const TERMIN_ART: Record<TerminArt, { mit: string; folge: string; push: 'hinweis' | 'absprache_freizeit' }> = {
+  hinweis: { mit: 'Team (als Hinweis)', folge: 'Das Team bekommt einen Hinweis mit Termin und Themen.', push: 'hinweis' },
+  absprache: { mit: 'Freizeitenkoordination (als Absprache)', folge: 'Die Freizeitenkoordination bekommt eine Absprache mit dem Termin.', push: 'absprache_freizeit' },
+};
+
+const WOCHENTAGE = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+const p2 = (n: number) => String(n).padStart(2, '0');
+/** „Mittwoch, 22.07.2027, 18:00 Uhr“ in Ortszeit des Geräts. */
+export function terminText(iso: string): string {
+  const d = new Date(iso);
+  return `${WOCHENTAGE[d.getDay()]}, ${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${d.getFullYear()}, ${p2(d.getHours())}:${p2(d.getMinutes())} Uhr`;
+}
+/** Datum und Uhrzeit aus den Eingabefeldern (Ortszeit) als ISO-Zeitpunkt; null bei fehlender Angabe. */
+export function terminAusEingabe(datum: string, uhrzeit: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum) || !/^\d{2}:\d{2}$/.test(uhrzeit)) return null;
+  const d = new Date(`${datum}T${uhrzeit}:00`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
 
 export const erfuellt = (p: Pick<Punkt, 'status' | 'auto_erfuellt'>) => p.status === 'erledigt' || (p.status === 'offen' && p.auto_erfuellt);
 /** Noch zu tun: weder erfüllt noch „nicht relevant“. */
@@ -108,16 +140,26 @@ export function faelligRelativ(faellig: string, heute: string): string {
 
 /** Fälligkeit einer Vorlage in Worten: „6 Wochen vor Beginn“, „3 Tage nach Ende“, „am ersten Tag“. */
 export function vorlageFaelligText(tage: number, bezug: Bezug): string {
-  if (tage === 0) return bezug === 'start' ? 'am ersten Tag' : 'am letzten Tag';
+  if (tage === 0) return bezug === 'start' ? 'am ersten Tag' : bezug === 'ende' ? 'am letzten Tag' : 'am ersten Ferientag';
   const n = Math.abs(tage);
   const menge = n % 7 === 0 ? `${n / 7} ${n === 7 ? 'Woche' : 'Wochen'}` : `${n} ${n === 1 ? 'Tag' : 'Tage'}`;
-  return `${menge} ${tage < 0 ? 'vor' : 'nach'} ${bezug === 'start' ? 'Beginn' : 'Ende'}`;
+  return `${menge} ${tage < 0 ? 'vor' : 'nach'} ${bezug === 'start' ? 'Beginn' : bezug === 'ende' ? 'Ende' : 'Ferienbeginn'}`;
 }
 
-export interface VorlageEingabe { titel: string; beschreibung: string; bezug: Bezug; tage: number | ''; ziel: Ziel | ''; automatik: Automatik | '' }
+export interface VorlageEingabe {
+  titel: string; beschreibung: string; bezug: Bezug; tage: number | ''; ziel: Ziel | ''; automatik: Automatik | '';
+  termin_art?: TerminArt | '';
+  /** Themen, eins je Zeile. */
+  themen?: string;
+}
 
-export function validiereVorlage(e: VorlageEingabe): { titel?: string; tage?: string } {
-  const f: { titel?: string; tage?: string } = {};
+/** Themen aus dem Textfeld: eins je Zeile, leere Zeilen fallen weg. */
+export const themenAusText = (t: string | undefined) => (t ?? '').split('\n').map((x) => x.trim()).filter(Boolean);
+
+export function validiereVorlage(e: VorlageEingabe): { titel?: string; tage?: string; automatik?: string; themen?: string } {
+  const f: { titel?: string; tage?: string; automatik?: string; themen?: string } = {};
+  if (e.automatik === 'termin' && !e.termin_art) f.automatik = 'Für „Termin hat stattgefunden“ bitte festlegen, mit wem der Termin vereinbart wird.';
+  if (themenAusText(e.themen).length > 20) f.themen = 'Höchstens 20 Themen.';
   if (!e.titel.trim()) f.titel = 'Bitte einen Titel eingeben.';
   else if (e.titel.trim().length > 200) f.titel = 'Höchstens 200 Zeichen.';
   if (e.tage === '' || !Number.isInteger(e.tage) || Math.abs(e.tage) > 365) f.tage = 'Bitte eine ganze Zahl zwischen −365 und 365 angeben.';

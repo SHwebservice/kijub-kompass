@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { ApiFehler } from '../lib/fehler';
-import type { EigenerEingabe, Punkt, PunktStatus, VorlageEingabe, VorlagePunkt } from './logik';
+import { themenAusText, type EigenerEingabe, type Punkt, type PunktStatus, type VorlageEingabe, type VorlagePunkt } from './logik';
 
 /** Dünne Schicht über Supabase für die Checkliste der Freizeiten (Migration 0029). Rechte entscheidet die Datenbank. */
 
@@ -24,6 +24,20 @@ export async function setzeStatus(p: Pick<Punkt, 'freizeit_id' | 'art' | 'id' | 
   pruefe(await supabase.from('checkliste_status').upsert({ freizeit_id: p.freizeit_id, vorlage_id: p.id, status, notiz: notiz.trim() }, { onConflict: 'freizeit_id,vorlage_id' }));
 }
 
+/**
+ * Trägt den Termin eines Punktes ein (null = löschen). Die Datenbank legt dazu einen Hinweis für das Team bzw. eine Absprache mit der
+ * Freizeitenkoordination an und ersetzt einen früheren; Ergebnis ist dessen ID (für die Mitteilung), null beim Löschen.
+ */
+export async function setzeTermin(p: Pick<Punkt, 'freizeit_id' | 'id'>, termin: string | null, text = ''): Promise<string | null> {
+  return pruefe(await supabase.rpc('fn_checkliste_termin', { p_freizeit: p.freizeit_id, p_vorlage: p.id, p_termin: termin, p_text: text.trim() })) as string | null;
+}
+
+/** Abgehakte Themen eines Punktes (1-basiert); der Status des Punktes bleibt. */
+export async function setzeThemen(p: Pick<Punkt, 'freizeit_id' | 'id' | 'status'>, erledigt: number[]): Promise<void> {
+  pruefe(await supabase.from('checkliste_status').upsert({ freizeit_id: p.freizeit_id, vorlage_id: p.id, status: p.status, themen_erledigt: [...erledigt].sort((x, y) => x - y) },
+    { onConflict: 'freizeit_id,vorlage_id' }));
+}
+
 export async function legeEigenenAn(freizeitId: string, e: EigenerEingabe): Promise<void> {
   pruefe(await supabase.from('checkliste_eigene').insert({
     freizeit_id: freizeitId, titel: e.titel.trim(), beschreibung: e.beschreibung.trim(), faellig_am: e.faellig_am || null,
@@ -37,7 +51,7 @@ export async function loescheEigenen(id: string): Promise<void> {
 /* ───── Standard-Checkliste (Freizeitenkoordination) ───── */
 
 export async function listeVorlage(): Promise<VorlagePunkt[]> {
-  return pruefe(await supabase.from('checkliste_vorlage').select('id, titel, beschreibung, bezug, tage, ziel, automatik, position, aktiv')
+  return pruefe(await supabase.from('checkliste_vorlage').select('id, titel, beschreibung, bezug, tage, ziel, automatik, position, aktiv, termin_art, themen')
     .order('position').order('titel')) as VorlagePunkt[];
 }
 
@@ -45,7 +59,7 @@ export async function listeVorlage(): Promise<VorlagePunkt[]> {
 export async function speichereVorlagePunkt(id: string | null, e: VorlageEingabe, position?: number): Promise<void> {
   const werte = {
     titel: e.titel.trim(), beschreibung: e.beschreibung.trim(), bezug: e.bezug, tage: e.tage === '' ? 0 : e.tage,
-    ziel: e.ziel || null, automatik: e.automatik || null,
+    ziel: e.ziel || null, automatik: e.automatik || null, termin_art: e.termin_art || null, themen: themenAusText(e.themen),
   };
   if (id) pruefe(await supabase.from('checkliste_vorlage').update(werte).eq('id', id));
   else pruefe(await supabase.from('checkliste_vorlage').insert({ ...werte, position: position ?? 0 }));

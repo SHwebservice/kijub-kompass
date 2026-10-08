@@ -6,6 +6,7 @@ import { VorbereitungTab } from './VorbereitungTab';
 import { renderMitAuth } from '../../test-utils';
 import { freizeitDetail, inTagen } from '../../test-daten';
 import { axeVerstoesse } from '../../test-a11y';
+import { sendePush } from '../../mitteilungen/senden';
 import type { Punkt } from '../../checkliste/logik';
 
 vi.mock('../../checkliste/api');
@@ -105,6 +106,56 @@ describe('Vorbereitung (Checkliste einer Freizeit)', () => {
     zeige();
     await u.click(await screen.findByRole('checkbox', { name: 'Vortreffen planen erledigt' }));
     expect(await screen.findByText('Dafür fehlt die Berechtigung.')).toBeInTheDocument();
+  });
+
+  it('Termin eintragen: Datum und Uhrzeit nötig; danach Mitteilung an das Team (Hinweis)', async () => {
+    vi.mocked(api.ladeCheckliste).mockResolvedValue([
+      punkt({ id: 'v', titel: 'Vortreffen mit dem Team', termin_art: 'hinweis', automatik: 'termin', themen: ['Teamermappe und Quiz', 'Ernährung und Allergien'], themen_erledigt: [] }),
+    ]);
+    vi.mocked(api.setzeTermin).mockResolvedValue('notiz-1');
+    const u = userEvent.setup();
+    zeige();
+    await u.click(await screen.findByRole('button', { name: 'Termin eintragen' }));
+    expect(screen.getByText('Das Team bekommt einen Hinweis mit Termin und Themen.')).toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'Termin speichern' }));
+    expect(screen.getByText('Bitte Datum und Uhrzeit angeben.')).toBeInTheDocument();
+    await u.type(screen.getByLabelText('Datum'), '2027-07-22');
+    await u.type(screen.getByLabelText('Uhrzeit'), '18:00');
+    await u.type(screen.getByLabelText('Ort / Info (optional)'), 'Jugendhaus');
+    await u.click(screen.getByRole('button', { name: 'Termin speichern' }));
+    expect(api.setzeTermin).toHaveBeenCalledWith(expect.objectContaining({ id: 'v' }), new Date('2027-07-22T18:00:00').toISOString(), 'Jugendhaus');
+    expect(sendePush).toHaveBeenCalledWith('hinweis', 'notiz-1');
+  });
+
+  it('eingetragener Termin: Anzeige, Löschen; Vorgespräch meldet die Absprache', async () => {
+    vi.mocked(api.ladeCheckliste).mockResolvedValue([
+      punkt({ id: 'g', titel: 'Vorgespräch mit der Freizeitenkoordination', termin_art: 'absprache', automatik: 'termin', termin: new Date('2027-06-01T10:30:00').toISOString() }),
+    ]);
+    vi.mocked(api.setzeTermin).mockResolvedValue(null);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const u = userEvent.setup();
+    zeige();
+    expect(await screen.findByText('Termin: Dienstag, 01.06.2027, 10:30 Uhr')).toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'Termin ändern' }));
+    expect(screen.getByLabelText('Datum')).toHaveValue('2027-06-01');
+    expect(screen.getByText(/Die Freizeitenkoordination bekommt eine Absprache mit dem Termin. Der bisherige Eintrag wird ersetzt./)).toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'Abbrechen' }));
+    await u.click(screen.getByRole('button', { name: 'Termin löschen' }));
+    expect(api.setzeTermin).toHaveBeenCalledWith(expect.objectContaining({ id: 'g' }), null);
+    expect(sendePush).not.toHaveBeenCalled();
+  });
+
+  it('Themen beim Vortreffen abhaken', async () => {
+    vi.mocked(api.ladeCheckliste).mockResolvedValue([
+      punkt({ id: 'v', titel: 'Vortreffen mit dem Team', termin_art: 'hinweis', themen: ['Teamermappe und Quiz', 'Ernährung und Allergien'], themen_erledigt: [2] }),
+    ]);
+    vi.mocked(api.setzeThemen).mockResolvedValue(undefined);
+    const u = userEvent.setup();
+    zeige();
+    expect(await screen.findByText('Dabei besprechen (1 von 2)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ernährung und Allergien')).toBeChecked();
+    await u.click(screen.getByLabelText('Teamermappe und Quiz'));
+    expect(api.setzeThemen).toHaveBeenCalledWith(expect.objectContaining({ id: 'v' }), [2, 1]);
   });
 
   it('Barrierefreiheit (axe): keine Verstöße', async () => {
