@@ -25,9 +25,11 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.holeFreizeit).mockResolvedValue(detail);
   vi.mocked(api.holeVerpflegung).mockResolvedValue([
-    { datum: null, mischkost: 50, vegetarisch: 3, allergiker: 3 },
-    { datum: '2027-07-05', mischkost: 52, vegetarisch: 4, allergiker: 1 },
+    { datum: null, mischkost: 50, vegetarisch: 3, allergiker: 3, menue_mischkost: null, menue_vegetarisch: null, dessert: null },
+    { datum: '2027-07-05', mischkost: 52, vegetarisch: 4, allergiker: 1, menue_mischkost: null, menue_vegetarisch: null, dessert: null },
   ]);
+  vi.mocked(api.holeSonderkost).mockResolvedValue([]);
+  vi.mocked(api.holeLieferungen).mockResolvedValue([]);
   vi.mocked(api.holeMaterial).mockResolvedValue([{ id: 'm1', name: 'Bälle', einheit: 'Stück', menge: 10, notiz: null }]);
   vi.mocked(api.holeTeam).mockResolvedValue([]);
   vi.mocked(api.listePersonen).mockResolvedValue([]);
@@ -109,11 +111,24 @@ describe('Freizeit-Übersicht', () => {
     expect(within(karte).getByText('Küche')).toBeInTheDocument();
   });
 
-  it('TeamerIn sieht keine Verpflegung und kein Material (nur Leitung und Koordination)', async () => {
+  it('TeamerIn sieht keine Verpflegung und kein Material (die Datenbank liefert ihr nichts)', async () => {
+    vi.mocked(api.holeVerpflegung).mockResolvedValue([]);
     zeige({ freizeiten: [{ freizeit_id: 'f1', rolle: 'teamer' }] });
     await screen.findByRole('heading', { name: 'Stammdaten' });
+    await waitFor(() => expect(api.holeVerpflegung).toHaveBeenCalled());
     expect(screen.queryByRole('heading', { name: 'Verpflegung' })).not.toBeInTheDocument();
-    expect(api.holeVerpflegung).not.toHaveBeenCalled();
+    expect(api.holeMaterial).not.toHaveBeenCalled();
+  });
+
+  it('Küchenteam sieht Verpflegung, Gerichte und Sonderkost, aber kein Material', async () => {
+    vi.mocked(api.holeVerpflegung).mockResolvedValue([
+      { datum: '2027-07-05', mischkost: 52, vegetarisch: 4, allergiker: 1, menue_mischkost: 'Schnitzel', menue_vegetarisch: 'Gemüsepfanne', dessert: 'Pudding' },
+    ]);
+    vi.mocked(api.holeSonderkost).mockResolvedValue([{ text: 'Nüsse', anzahl: 2 }, { text: 'Laktose', anzahl: 1 }]);
+    zeige({ freizeiten: [{ freizeit_id: 'f1', rolle: 'teamer' }] });
+    expect(await screen.findByRole('heading', { name: 'Verpflegung' })).toBeInTheDocument();
+    expect(screen.getByText(/2× Nüsse, 1× Laktose/)).toBeInTheDocument();
+    expect(screen.getByText('veg.: Gemüsepfanne · Mischkost: Schnitzel · Dessert: Pudding')).toBeInTheDocument();
     expect(api.holeMaterial).not.toHaveBeenCalled();
   });
 
@@ -122,13 +137,28 @@ describe('Freizeit-Übersicht', () => {
     expect(await screen.findByText(/50 Mischkost · 3 vegetarisch · 3 Allergiker/)).toBeInTheDocument();
     expect(screen.getByRole('row', { name: /Mo 05\.07\.\s*52\s*4\s*1/ })).toBeInTheDocument();
     expect(screen.getByText('Bälle')).toBeInTheDocument();
-    expect(screen.getAllByText(/Aus KiJuKo übernommen/)).toHaveLength(2);
+    expect(screen.getAllByText(/Aus KiJuKo übernommen/)).toHaveLength(3);
+    expect(screen.getByText(/noch keine Lieferungen eingetragen/)).toBeInTheDocument();
+  });
+
+  it('Leitung sieht die Lieferungen nach Art', async () => {
+    vi.mocked(api.holeLieferungen).mockResolvedValue([
+      { id: 'l1', art: 'lebensmittel', bezeichnung: 'Toastbrot', menge: 6, einheit: 'Packung', datum: '2027-07-03', notiz: null },
+      { id: 'l2', art: 'material', bezeichnung: 'Bastelkleber', menge: 5, einheit: 'Stück', datum: null, notiz: 'im Schrank' },
+    ]);
+    zeige({ ich: { kategorie: 'Hauptamtliche*r' }, freizeiten: [{ freizeit_id: 'f1', rolle: 'leitung' }] });
+    const lm = await screen.findByRole('list', { name: 'Lieferungen Lebensmittel' });
+    expect(within(lm).getByText('Toastbrot')).toBeInTheDocument();
+    expect(within(lm).getByText('6 Packung')).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Lieferungen Material' })).getByText('im Schrank')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Lieferungen Ausstattung' })).not.toBeInTheDocument();
+    expect(screen.getByText(/dort nur noch den Verbrauch eintragen/)).toBeInTheDocument();
   });
 });
 
 describe('Team-Reiter', () => {
   const team = [
-    mitglied({ person_id: 'p1', vorname: 'Tom', nachname: 'Zeh', rolle: 'teamer' }),
+    mitglied({ person_id: 'p1', vorname: 'Tom', nachname: 'Zeh', rolle: 'teamer', kueche: true }),
     mitglied({ person_id: 'p2', vorname: 'Lea', nachname: 'Leitner', rolle: 'leitung', mail: 'lea@test.example', telefon: '0170 123', ernaehrung: 'Vegan', notizen: 'Nussallergie' }),
   ];
 
@@ -141,6 +171,8 @@ describe('Team-Reiter', () => {
     expect(within(eintraege[0]!).getByRole('link', { name: '0170 123' })).toHaveAttribute('href', 'tel:0170123');
     expect(within(eintraege[0]!).getByText('Nussallergie')).toBeInTheDocument();
     expect(within(eintraege[1]!).getByText('Tom Zeh')).toBeInTheDocument();
+    expect(within(eintraege[1]!).getByText('Küche')).toBeInTheDocument();
+    expect(within(eintraege[0]!).queryByText('Küche')).not.toBeInTheDocument();
   });
 
   it('TeamerIn sieht Namen, aber keine Kontaktdaten und keine Verwaltung', async () => {

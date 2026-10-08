@@ -2,7 +2,11 @@ import { bestand, hochrechnung, tageVonBis, type BestandStatus } from './logik';
 
 /** Lebensmittelbestand je Ort: Wareneingang und Verbrauch, Ampel und Hochrechnung. */
 
-export interface Eingang { id: string; name: string; menge: number; einheit: string | null; datum: string; freizeit_id: string | null }
+export interface Eingang {
+  id: string; name: string; menge: number; einheit: string | null; datum: string; freizeit_id: string | null;
+  /** Gesetzt, wenn der Eingang aus einer KiJuKo-Lieferung stammt (nur der Import ändert ihn) */
+  kijuko_id?: string | null;
+}
 export interface Verbrauch { id: string; name: string; menge: number; datum: string; freizeit_id: string | null }
 
 export interface Artikel {

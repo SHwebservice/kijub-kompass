@@ -125,7 +125,7 @@ describe('baueImportPlan', () => {
     for (const p of PRIVAT) expect(json).not.toContain(p);
     expect(json).not.toContain('Nicht importieren');
     expect(json).not.toContain('birthDate');
-    expect(Object.keys(plan).sort()).toEqual(['freizeiten', 'hinweise', 'material', 'orte', 'personen', 'uebersprungen', 'verpflegung', 'version', 'zuteilungen']);
+    expect(Object.keys(plan).sort()).toEqual(['freizeiten', 'hinweise', 'kueche', 'lieferungen', 'material', 'orte', 'personen', 'sonderkost', 'uebersprungen', 'verpflegung', 'version', 'zuteilungen']);
   });
 
   it('ist tolerant gegenüber fehlenden Bereichen', () => {

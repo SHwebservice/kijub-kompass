@@ -11,6 +11,12 @@
 > - Essenszahlen kommen nur noch je Tag (von KiJuKo aus Teilnehmenden und Personal berechnet; Wochenenden nur bei Übernachtungsfreizeiten); die Gesamtzeile entfällt.
 > - Küchenteams sind in KiJuKo 3 Teil ihrer Freizeit; frühere eigene „Küchen-Freizeiten“ erscheinen beim ersten Import als „nicht mehr in KiJuKo“.
 > - Zugangscodes/-links gibt es nicht mehr; Zugänge richtet die Koordination im Kompass ein (Abschnitt 5).
+> - **Entscheidung 2026-10-08:** Allergien und Notizen der Personen bleiben in KiJuKo (früher übernommene Notizen bleiben im Kompass stehen, weil leere Werte nie überschreiben).
+> - **Küche & Essen (Migration 0033):** Gerichte je Tag aus dem Speiseplan, Sonderkost ohne Namen je Freizeit, Kennzeichen „Küchenteam“. Lesen dürfen Koordination, Leitung und das Küchenteam.
+> - **Lieferungen (Migration 0034):** was die Koordination bringt (Lebensmittel, Material, Ausstattung) als Liste je Freizeit; Lebensmittel zusätzlich als Eingang im Bestand am Ort (`lebensmittel_eingang.kijuko_id`, nur der Import ändert/löscht sie). Fällt eine Lieferung in KiJuKo weg, verschwindet sie auch hier (Kopie, keine Konfliktregel).
+> - **Freizeit-Typ (Migration 0034):** Typ 1–4 aus KiJuKo; Typ 5 (Kooperation) gibt es im Kompass nicht. Leer überschreibt nie; im Kompass anders geändert → Kompass-Wert bleibt, Hinweis in der Vorschau.
+> - **0034 korrigiert 0033:** Die Team-Sicht aus 0033 ließ auch die Treffkoordination Freizeit-Teams sehen; 0034 stellt den Stand von 0018 wieder her. 0034 ist wiederholbar.
+> - **Ablauf übers Jahr:** immer der vollständige Export (Teilexporte würden Freizeiten als „entfallen“ markieren). Frühjahr: Freizeiten und Leitungen · laufend: Team · kurz vor Beginn: Essenszahlen, Gerichte, Material, Lieferungen. KiJuKo erinnert auf der Übersicht, wenn sich seit dem letzten Export etwas geändert hat.
 
 Stand: 2026-09-30 · Grundlage: Backup `KiJuKo-Backup-2026-09-30.json` (469 KB) und `js/backup-import.js` des Altcodes.
 **Entscheidung:** KiJuKo2.1 bleibt die Offline-Verwaltungssoftware; der Kompass importiert dauerhaft aus ihr, und der Import wird gegenüber dem Altcode erweitert.

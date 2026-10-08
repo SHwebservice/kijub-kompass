@@ -77,6 +77,11 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Absprachen (Leitung ↔ Koordination) | L E Ä X | L E Ä X | — · **Δ** Altcode: Lesezugriff war technisch offen, nur UI versteckte sie | — | — | — |
 | Absprache bestätigen/kommentieren | alle | E (eig.) Ä/X (eig. Kommentar) | — | — | — | — |
 | Lebensmittel Eingang/Verbrauch (am Ort) | L E Ä X | L E Ä X (Orte der eigenen Freizeit) | — | — | — | — |
+| Lebensmittel-Eingang **aus KiJuKo** (Lieferung, `kijuko_id`; Migration 0034) | L (Ä/X nur der Import) | L (Orte der eigenen Freizeit) | — | — | — | — |
+| Verpflegung, Gerichte, Sonderkost aus KiJuKo (nur lesbar; Migration 0033) | L | L (eigene Freizeit) | L nur Küchenteam der Freizeit | — | — | — |
+| Lieferungen aus KiJuKo (nur lesbar; Migration 0034) | L | L (eigene Freizeit) | L nur Küchenteam der Freizeit | — | — | — |
+| Materialbedarf aus KiJuKo (nur lesbar) | L | L (eigene Freizeit) | — | — | — | — |
+| Kennzeichen „Küchenteam“ in der Team-Liste (setzt nur der Import; Migration 0033) | L | L (Team) | L (Team) | — | — | — |
 | Bewerbung (seit 0030 nur, solange die Freizeit „Bewerbungen möglich“ hat) | L Ä (annehmen/ablehnen) X | — | — | — | — | Bewerbende: E (eig.), X (eig., solange offen), L (eig.) |
 | Bewerbung für eine Ferienzeit (Migration 0030) | L, zuordnen, als erledigt markieren, X | — | — | — | — | Bewerbende: E (eig., dieses/nächstes Jahr), Ä und X (eig., solange offen), L (eig.) |
 | Bewerbungsfrist (Einstellung) | L Ä (nur Freizeitenkoordination) | L | L | L | L | L |

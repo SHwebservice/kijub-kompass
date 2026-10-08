@@ -46,6 +46,8 @@ export interface PlanFreizeit {
   max_teilnehmende?: number;
   /** KiJuKo-IDs der Personen, die diese Freizeit leiten. */
   leitung_kijuko_ids: string[];
+  /** Freizeit-Typ 1–4 (nur aus KiJuKo 3; Typ 5 „Kooperation“ gibt es im Kompass nicht) */
+  typ?: 1 | 2 | 3 | 4;
 }
 
 export interface PlanZuteilung { freizeit_kijuko_id: string; person_kijuko_id: string }
@@ -54,6 +56,15 @@ export interface PlanVerpflegung {
   /** null = Gesamtwerte der Freizeit */
   datum: string | null;
   mischkost: number; vegetarisch: number; allergiker: number;
+  /** Gerichte laut Speiseplan (nur aus KiJuKo 3) */
+  menue_mischkost?: string; menue_vegetarisch?: string; dessert?: string;
+}
+/** Sonderkost ohne Namen, z. B. „Nüsse“ × 2 (nur aus KiJuKo 3) */
+export interface PlanSonderkost { freizeit_kijuko_id: string; text: string; anzahl: number }
+/** Was die Koordination zur Freizeit bringt (nur aus KiJuKo 3); Lebensmittel kommen zusätzlich in den Bestand am Ort. */
+export interface PlanLieferung {
+  kijuko_id: string; freizeit_kijuko_id: string; art: 'lebensmittel' | 'material' | 'ausstattung';
+  bezeichnung: string; menge: number; einheit?: string; datum?: string; notiz?: string;
 }
 export interface PlanMaterial {
   kijuko_id: string; freizeit_kijuko_id: string; name: string; einheit?: string; menge?: number; notiz?: string;
@@ -68,6 +79,10 @@ export interface ImportPlan {
   zuteilungen: PlanZuteilung[];
   verpflegung: PlanVerpflegung[];
   material: PlanMaterial[];
+  /** Personen im Küchenteam einer Freizeit (nur aus KiJuKo 3) */
+  kueche: PlanZuteilung[];
+  sonderkost: PlanSonderkost[];
+  lieferungen: PlanLieferung[];
   uebersprungen: Uebersprungen[];
   hinweise: string[];
 }
@@ -158,7 +173,7 @@ export function baueImportPlan(roh: unknown): ImportPlan {
 
   const plan: ImportPlan = {
     version: 1, orte: [], personen: [], freizeiten: [], zuteilungen: [],
-    verpflegung: [], material: [], uebersprungen: [], hinweise: [],
+    verpflegung: [], material: [], kueche: [], sonderkost: [], lieferungen: [], uebersprungen: [], hinweise: [],
   };
   const skip = (art: string, name: string, grund: string) => plan.uebersprungen.push({ art, name, grund });
 
@@ -342,7 +357,7 @@ export function baueImportPlanAusExport(roh: Roh): ImportPlan {
   }
   const plan: ImportPlan = {
     version: 1, orte: [], personen: [], freizeiten: [], zuteilungen: [],
-    verpflegung: [], material: [], uebersprungen: [], hinweise: [],
+    verpflegung: [], material: [], kueche: [], sonderkost: [], lieferungen: [], uebersprungen: [], hinweise: [],
   };
   const skip = (art: string, name: string, grund: string) => plan.uebersprungen.push({ art, name, grund });
 
@@ -423,8 +438,21 @@ export function baueImportPlanAusExport(roh: Roh): ImportPlan {
       paare.add(`${id}|${ziel}`);
       plan.zuteilungen.push({ freizeit_kijuko_id: id, person_kijuko_id: ziel });
     }
+    const kueche = new Set<string>();
+    for (const pid of ids(f.kueche)) {
+      const ziel = alias.get(pid);
+      if (ziel && !kueche.has(ziel)) { kueche.add(ziel); plan.kueche.push({ freizeit_kijuko_id: id, person_kijuko_id: ziel }); }
+    }
+    const sorten = new Set<string>();
+    for (const k of liste(f.sonderkost)) {
+      const t = text(k.text); const n = zahl(k.anzahl);
+      if (!t || !n || n < 1 || sorten.has(t)) continue;
+      sorten.add(t);
+      plan.sonderkost.push({ freizeit_kijuko_id: id, text: t, anzahl: Math.round(n) });
+    }
 
     const max = zahl(f.maxTeilnehmende);
+    const typ = ({ '1': 1, '2': 2, '3': 3, '4': 4 } as const)[text(f.freizeittyp) as '1' | '2' | '3' | '4'];
     freizeitIds.add(id);
     plan.freizeiten.push({
       kijuko_id: id, name, start_datum: f.von, ende_datum: f.bis,
@@ -436,17 +464,22 @@ export function baueImportPlanAusExport(roh: Roh): ImportPlan {
       ...parseAlter(f.altersgruppe),
       max_teilnehmende: max && max > 0 ? Math.round(max) : undefined,
       leitung_kijuko_ids: leitung,
+      ...(typ ? { typ } : {}),
     });
   }
 
-  /* Essenszahlen je Tag (KiJuKo 3 rechnet sie aus Teilnehmenden und Personal; eine Gesamtzeile gibt es nicht mehr) */
+  /* Essenszahlen und Gerichte je Tag (KiJuKo 3 rechnet sie aus Teilnehmenden und Personal; eine Gesamtzeile gibt es nicht mehr) */
   const tage = new Set<string>();
   const anzahl = (x: unknown) => Math.max(0, Math.round(zahl(x) ?? 0));
   for (const v of liste(roh.verpflegung)) {
     const fid = text(v.freizeitId);
     if (!fid || !freizeitIds.has(fid) || !istDatum(v.datum) || tage.has(`${fid}|${v.datum}`)) continue;
     tage.add(`${fid}|${v.datum}`);
-    plan.verpflegung.push({ freizeit_kijuko_id: fid, datum: v.datum, mischkost: anzahl(v.mischkost), vegetarisch: anzahl(v.vegetarisch), allergiker: anzahl(v.allergiker) });
+    const g = istObjekt(v.gerichte) ? v.gerichte : {};
+    plan.verpflegung.push({
+      freizeit_kijuko_id: fid, datum: v.datum, mischkost: anzahl(v.mischkost), vegetarisch: anzahl(v.vegetarisch), allergiker: anzahl(v.allergiker),
+      menue_mischkost: text(g.mischkost), menue_vegetarisch: text(g.vegetarisch), dessert: text(g.dessert),
+    });
   }
 
   /* Materialbedarf */
@@ -458,6 +491,23 @@ export function baueImportPlanAusExport(roh: Roh): ImportPlan {
     if (notiz && /beispielzeile/i.test(notiz)) { skip('Material', name, 'Beispielzeile aus KiJuKo („bitte löschen")'); continue; }
     plan.material.push({ kijuko_id: id, freizeit_kijuko_id: fid, name, einheit: text(m.einheit), menge: zahl(m.menge), notiz });
   }
+
+  /* Lieferungen */
+  const ARTEN_LIEFERUNG = ['lebensmittel', 'material', 'ausstattung'] as const;
+  const ohneOrt = new Set<string>();
+  for (const l of liste(roh.lieferungen)) {
+    const id = text(l.id); const fid = text(l.freizeitId); const bez = text(l.bezeichnung); const menge = zahl(l.menge);
+    const art = ARTEN_LIEFERUNG.find((a) => a === l.art);
+    if (!id || !fid || !freizeitIds.has(fid) || !art) continue;
+    if (!bez || !menge || menge <= 0) { skip('Lieferung', bez ?? '(ohne Bezeichnung)', 'Bezeichnung oder Menge fehlt'); continue; }
+    const fz = plan.freizeiten.find((x) => x.kijuko_id === fid)!;
+    if (art === 'lebensmittel' && !fz.ort_kijuko_id) ohneOrt.add(fz.name);
+    plan.lieferungen.push({
+      kijuko_id: id, freizeit_kijuko_id: fid, art, bezeichnung: bez, menge,
+      einheit: text(l.einheit), datum: istDatum(l.datum) ? l.datum : undefined, notiz: text(l.notiz),
+    });
+  }
+  for (const name of ohneOrt) plan.hinweise.push(`${name}: Freizeit ohne Ort – Lebensmittel-Lieferungen erscheinen nicht im Lebensmittel-Bestand.`);
 
   return plan;
 }

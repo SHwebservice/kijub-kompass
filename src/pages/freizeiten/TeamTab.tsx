@@ -76,6 +76,7 @@ export function TeamTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDaten;
                 <div className="list__title">{m.vorname} {m.nachname}</div>
                 <div className="list__meta">
                   <Badge ton={m.rolle === 'leitung' ? 'accent' : 'neutral'}>{ROLLEN_LABEL[m.rolle]}</Badge>
+                  {m.kueche && <Badge>Küche</Badge>}
                   <Badge>{m.kategorie}</Badge>
                 </div>
                 <Kontakt m={m} />

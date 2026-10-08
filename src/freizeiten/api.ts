@@ -78,6 +78,8 @@ export interface TeamMitglied {
   notizen: string | null;
   tzk_regeltage: string | null;
   tzk_max_stunden: number | null;
+  /** Gehört zum Küchenteam (aus KiJuKo) */
+  kueche?: boolean;
 }
 
 export interface PersonKurz { id: string; vorname: string; nachname: string; kategorie: string; aktiv: boolean }
@@ -90,7 +92,11 @@ export interface OffeneBewerbung {
   freizeit: { id: string; name: string; start_datum: string; ende_datum: string };
 }
 
-export interface VerpflegungZeile { datum: string | null; mischkost: number; vegetarisch: number; allergiker: number }
+export interface VerpflegungZeile {
+  datum: string | null; mischkost: number; vegetarisch: number; allergiker: number;
+  menue_mischkost: string | null; menue_vegetarisch: string | null; dessert: string | null;
+}
+export interface SonderkostZeile { text: string; anzahl: number }
 export interface MaterialZeile { id: string; name: string; einheit: string | null; menge: number | null; notiz: string | null }
 
 type Roh = Record<string, unknown>;
@@ -198,7 +204,7 @@ export async function loescheOrt(id: string): Promise<void> {
 
 export async function holeTeam(freizeitId: string): Promise<TeamMitglied[]> {
   return pruefe(await supabase.from('v_team_freizeit')
-    .select('person_id, rolle, vorname, nachname, kategorie, mail, telefon, ernaehrung, notizen, tzk_regeltage, tzk_max_stunden')
+    .select('person_id, rolle, vorname, nachname, kategorie, mail, telefon, ernaehrung, notizen, tzk_regeltage, tzk_max_stunden, kueche')
     .eq('freizeit_id', freizeitId)) as TeamMitglied[];
 }
 
@@ -328,8 +334,25 @@ export async function gibMateriallisteAb(freizeitId: string): Promise<void> {
 /* ───── Verpflegung und Material (aus KiJuKo, nur lesbar) ───── */
 
 export async function holeVerpflegung(freizeitId: string): Promise<VerpflegungZeile[]> {
-  return pruefe(await supabase.from('freizeit_verpflegung').select('datum, mischkost, vegetarisch, allergiker')
+  return pruefe(await supabase.from('freizeit_verpflegung').select('datum, mischkost, vegetarisch, allergiker, menue_mischkost, menue_vegetarisch, dessert')
     .eq('freizeit_id', freizeitId).order('datum', { nullsFirst: true })) as VerpflegungZeile[];
+}
+
+export interface LieferungZeile {
+  id: string; art: 'lebensmittel' | 'material' | 'ausstattung'; bezeichnung: string; menge: number;
+  einheit: string | null; datum: string | null; notiz: string | null;
+}
+
+/** Was die Koordination zur Freizeit bringt (aus KiJuKo; Leitung, Küchenteam, Koordination). */
+export async function holeLieferungen(freizeitId: string): Promise<LieferungZeile[]> {
+  return pruefe(await supabase.from('freizeit_lieferungen').select('id, art, bezeichnung, menge, einheit, datum, notiz')
+    .eq('freizeit_id', freizeitId).order('datum', { nullsFirst: true }).order('bezeichnung')) as LieferungZeile[];
+}
+
+/** Sonderkost ohne Namen (Leitung, Küchenteam, Koordination). */
+export async function holeSonderkost(freizeitId: string): Promise<SonderkostZeile[]> {
+  return pruefe(await supabase.from('freizeit_sonderkost').select('text, anzahl')
+    .eq('freizeit_id', freizeitId).order('anzahl', { ascending: false }).order('text')) as SonderkostZeile[];
 }
 
 export async function holeMaterial(freizeitId: string): Promise<MaterialZeile[]> {
@@ -435,7 +458,7 @@ export async function loescheKommentar(id: string): Promise<void> {
 const zahlen = <T extends { menge: unknown }>(r: T[]): (T & { menge: number })[] => r.map((x) => ({ ...x, menge: Number(x.menge) }));
 
 export async function listeEingaenge(ortId: string): Promise<Eingang[]> {
-  return zahlen(pruefe(await supabase.from('lebensmittel_eingang').select('id, name, menge, einheit, datum, freizeit_id').eq('ort_id', ortId).order('datum')) as Eingang[]);
+  return zahlen(pruefe(await supabase.from('lebensmittel_eingang').select('id, name, menge, einheit, datum, freizeit_id, kijuko_id').eq('ort_id', ortId).order('datum')) as Eingang[]);
 }
 
 export async function listeVerbrauch(ortId: string): Promise<Verbrauch[]> {

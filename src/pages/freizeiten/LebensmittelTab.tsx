@@ -15,8 +15,8 @@ import { Alert, Badge, Button, Card, EmptyState, Spinner, TextField } from '../.
 type Ausfuehren = (aktion: () => Promise<void>) => Promise<boolean>;
 
 /** Eine Buchung (Eingang oder Verbrauch) mit Ändern und Löschen. */
-function BuchungZeile({ datum, menge, einheit, tage, speichern, loeschen, bezeichnung }: {
-  datum: string; menge: number; einheit: string; tage?: string[]; bezeichnung: string;
+function BuchungZeile({ datum, menge, einheit, tage, speichern, loeschen, bezeichnung, ausKijuko = false }: {
+  datum: string; menge: number; einheit: string; tage?: string[]; bezeichnung: string; ausKijuko?: boolean;
   speichern: (menge: number, datum: string) => Promise<boolean>; loeschen: () => Promise<boolean>;
 }) {
   const [bearbeite, setBearbeite] = useState(false);
@@ -24,6 +24,14 @@ function BuchungZeile({ datum, menge, einheit, tage, speichern, loeschen, bezeic
   const [tag, setTag] = useState(datum);
   const [fehler, setFehler] = useState<string | null>(null);
 
+  if (ausKijuko) {
+    return (
+      <li className="list__item">
+        <span>{formatDatum(datum)} · <strong>{formatMenge(menge)} {einheit}</strong></span>
+        <Badge>aus KiJuKo</Badge>
+      </li>
+    );
+  }
   if (!bearbeite) {
     return (
       <li className="list__item">
@@ -130,7 +138,7 @@ function ArtikelKarte({ a, tage, standard, ortId, freizeitId, ausfuehren }: {
         <h3>Wareneingang</h3>
         <ul className="list" aria-label={`Wareneingänge von ${a.name}`}>
           {a.eingaenge.map((e) => (
-            <BuchungZeile key={e.id} datum={e.datum} menge={e.menge} einheit={e.einheit ?? a.einheit} bezeichnung="Eingang"
+            <BuchungZeile key={e.id} datum={e.datum} menge={e.menge} einheit={e.einheit ?? a.einheit} bezeichnung="Eingang" ausKijuko={!!e.kijuko_id}
               speichern={(m) => ausfuehren(() => aendereEingang(e.id, m))}
               loeschen={() => ausfuehren(() => loescheEingang(e.id))} />
           ))}

@@ -30,6 +30,9 @@ export const ARTEN: { schluessel: string; label: string }[] = [
   { schluessel: 'zuteilungen', label: 'Zuteilungen' },
   { schluessel: 'verpflegung', label: 'Verpflegung' },
   { schluessel: 'material', label: 'Material' },
+  { schluessel: 'kueche', label: 'Küche & Essen' },
+  { schluessel: 'lieferungen', label: 'Lieferungen' },
+  { schluessel: 'typ', label: 'Freizeit-Typ' },
 ];
 
 export const FELD_LABEL: Record<string, string> = {
