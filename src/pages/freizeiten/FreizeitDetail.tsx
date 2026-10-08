@@ -2,7 +2,7 @@ import { Link, NavLink, Navigate, Route, Routes, useParams } from 'react-router-
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { holeFreizeit } from '../../freizeiten/api';
-import { ferienText, heuteIso, phase, zeitraumText } from '../../freizeiten/logik';
+import { ferienText, heuteIso, phase, typText, zeitraumText } from '../../freizeiten/logik';
 import { istLeitungOderKoordination, rolleInFreizeit, type RolleInFreizeit } from '../../lib/rollen';
 import { Alert, Badge, EmptyState, Spinner } from '../../components/ui';
 import { FzPunkt } from '../../components/FreizeitFarbe';
@@ -12,6 +12,7 @@ import { PlanTab } from './PlanTab';
 import { HinweiseTab } from './HinweiseTab';
 import { LebensmittelTab } from './LebensmittelTab';
 import { VorbereitungTab } from './VorbereitungTab';
+import { MaterialTab } from './MaterialTab';
 
 interface TabDef { pfad: string; label: string; sichtbar: (r: RolleInFreizeit) => boolean }
 
@@ -22,6 +23,7 @@ export const TABS: TabDef[] = [
   { pfad: 'hinweise', label: 'Hinweise', sichtbar: (r) => r !== 'gast' },
   { pfad: 'lebensmittel', label: 'Lebensmittel', sichtbar: istLeitungOderKoordination },
   { pfad: 'team', label: 'Team', sichtbar: (r) => r !== 'gast' },
+  { pfad: 'material', label: 'Material', sichtbar: istLeitungOderKoordination },
   { pfad: 'vorbereitung', label: 'Vorbereitung', sichtbar: istLeitungOderKoordination },
 ];
 
@@ -50,6 +52,7 @@ export function FreizeitDetail() {
           <div className="list__meta">
             <span>{zeitraumText(d.start_datum, d.ende_datum)}</span>
             {d.ferienzeitraum && <span>{ferienText(d)}</span>}
+            {d.typ && <span>{typText(d.typ)}</span>}
             {d.ort_name && <span>{d.ort_name}</span>}
             {rolle === 'leitung' && <Badge ton="accent">Leitung</Badge>}
             {rolle === 'teamer' && <Badge ton="accent">Team</Badge>}
@@ -62,7 +65,7 @@ export function FreizeitDetail() {
       </div>
 
       {d.kijuko_entfallen_am && rolle === 'koordination' && (
-        <Alert ton="info">Diese Freizeit ist in der letzten KiJuKo-Sicherung nicht mehr enthalten.</Alert>
+        <Alert ton="info">Diese Freizeit ist im letzten KiJuKo-Import nicht mehr enthalten.</Alert>
       )}
 
       {tabs.length > 1 && (
@@ -79,6 +82,7 @@ export function FreizeitDetail() {
         {tabs.some((t) => t.pfad === 'hinweise') && <Route path="hinweise" element={<HinweiseTab freizeit={d} rolle={rolle} />} />}
         {tabs.some((t) => t.pfad === 'lebensmittel') && <Route path="lebensmittel" element={<LebensmittelTab freizeit={d} />} />}
         {tabs.some((t) => t.pfad === 'team') && <Route path="team" element={<TeamTab freizeit={d} rolle={rolle} />} />}
+        {tabs.some((t) => t.pfad === 'material') && <Route path="material" element={<MaterialTab freizeit={d} />} />}
         {tabs.some((t) => t.pfad === 'vorbereitung') && <Route path="vorbereitung" element={<VorbereitungTab freizeit={d} />} />}
         <Route path="*" element={<Navigate to={`/freizeiten/${id}`} replace />} />
       </Routes>

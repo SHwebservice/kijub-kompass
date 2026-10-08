@@ -3,7 +3,7 @@ import { MAX_FERIENWOCHEN, tageZwischen } from './logik';
 
 export const leeresFormular = (): FreizeitFormular => ({
   name: '', status: 'geplant', ferienzeitraum: '', ferienwoche: '', start_datum: '', ende_datum: '',
-  arbeitsbeginn: '', arbeitsende: '', alter_von: '', alter_bis: '', max_teilnehmende: '', ort_id: '', tags: [], farbe: '', bewerbung_offen: true,
+  arbeitsbeginn: '', arbeitsende: '', alter_von: '', alter_bis: '', max_teilnehmende: '', ort_id: '', tags: [], farbe: '', bewerbung_offen: true, typ: '',
 });
 
 export function formularAusDetail(d: FreizeitDetailDaten): FreizeitFormular {
@@ -11,7 +11,7 @@ export function formularAusDetail(d: FreizeitDetailDaten): FreizeitFormular {
     name: d.name, status: d.status, ferienzeitraum: d.ferienzeitraum ?? '', ferienwoche: d.ferienwoche ?? '',
     start_datum: d.start_datum, ende_datum: d.ende_datum, arbeitsbeginn: d.arbeitsbeginn ?? '', arbeitsende: d.arbeitsende ?? '',
     alter_von: d.alter_von ?? '', alter_bis: d.alter_bis ?? '', max_teilnehmende: d.max_teilnehmende ?? '',
-    ort_id: d.ort_id ?? '', tags: [...d.tags], farbe: d.farbe ?? '', bewerbung_offen: d.bewerbung_offen,
+    ort_id: d.ort_id ?? '', tags: [...d.tags], farbe: d.farbe ?? '', bewerbung_offen: d.bewerbung_offen, typ: d.typ ?? '',
   };
 }
 

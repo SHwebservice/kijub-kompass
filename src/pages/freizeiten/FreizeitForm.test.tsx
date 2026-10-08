@@ -57,6 +57,20 @@ describe('Neue Freizeit', () => {
     expect(await screen.findByTestId('andere-seite')).toBeInTheDocument();
   });
 
+  it('Typ wählen: Themen-, Betreuungs-, Groß- oder Übernachtungsfreizeit (0032)', async () => {
+    await neu();
+    expect(screen.getByLabelText('Typ')).toHaveValue('');
+    expect(within(screen.getByLabelText('Typ')).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      '– noch nicht festgelegt –', 'Typ 1 · Themenfreizeit', 'Typ 2 · Betreuungsfreizeit', 'Typ 3 · Großfreizeit', 'Typ 4 · Übernachtungsfreizeit',
+    ]);
+    await userEvent.selectOptions(screen.getByLabelText('Typ'), '4');
+    await userEvent.type(screen.getByLabelText('Name'), 'Zelten');
+    await userEvent.type(screen.getByLabelText('Start'), '2027-10-11');
+    await userEvent.type(screen.getByLabelText('Ende'), '2027-10-15');
+    await userEvent.click(screen.getByRole('button', { name: 'Freizeit anlegen' }));
+    expect(vi.mocked(api.speichereFreizeit).mock.calls[0]![1].typ).toBe(4);
+  });
+
   it('„Bewerbungen möglich“ ist vorgewählt und lässt sich abschalten (0030)', async () => {
     await neu();
     const schalter = screen.getByRole('checkbox', { name: /Bewerbungen möglich/ });

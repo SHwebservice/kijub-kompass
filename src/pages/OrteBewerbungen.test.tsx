@@ -147,7 +147,7 @@ describe('Bewerbungen: Ferienzeiten und Frist (0030)', () => {
     created_at: '2027-05-01T10:00:00Z', person: { vorname: 'Tina', nachname: 'Teamer', kategorie: 'TeamerIn' } };
   const fz = (id: string, woche: number, o: Record<string, unknown> = {}) => ({
     id, name: `Sommer ${woche}`, status: 'geplant' as const, ferienzeitraum: 'sommer' as const, ferienwoche: woche, start_datum: `2027-07-0${woche}`, ende_datum: '2027-07-09',
-    ort_id: null, ort_name: null, max_teilnehmende: null, alter_von: null, alter_bis: null, tags: [], farbe: null, bewerbung_offen: true, ...o,
+    ort_id: null, ort_name: null, max_teilnehmende: null, alter_von: null, alter_bis: null, tags: [], farbe: null, bewerbung_offen: true, typ: null, ...o,
   });
 
   it('zeigt Zeitraum-Bewerbungen mit passenden Freizeiten; Zuordnen mit Rolle schickt „Bewerbung angenommen“', async () => {

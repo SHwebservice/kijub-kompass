@@ -6,7 +6,7 @@ import {
   holeFreizeit, listeOrte, listeTags, loescheFreizeit, speichereFreizeit, type FreizeitFormular,
 } from '../../freizeiten/api';
 import { leeresFormular, formularAusDetail, validiereFreizeit, type Fehlerliste } from '../../freizeiten/formular';
-import { FERIEN_LABEL, FREIZEIT_FARBEN, MAX_FERIENWOCHEN, freizeitFarbe, type Ferienzeitraum } from '../../freizeiten/logik';
+import { FERIEN_LABEL, FREIZEIT_FARBEN, FREIZEIT_TYPEN, MAX_FERIENWOCHEN, freizeitFarbe, type Ferienzeitraum, type FreizeitTyp } from '../../freizeiten/logik';
 import { nameBestaetigt } from '../PersonEntfernen';
 import { Alert, Button, Card, PageHeader, SelectField, Spinner, TextField } from '../../components/ui';
 
@@ -72,6 +72,11 @@ function FormInhalt({ id, start }: { id: string | null; start: FreizeitFormular 
           <SelectField label="Status" value={f.status} onChange={(e) => set('status', e.target.value as 'geplant' | 'abgesagt')}>
             <option value="geplant">Geplant</option>
             <option value="abgesagt">Abgesagt</option>
+          </SelectField>
+          <SelectField label="Typ" value={String(f.typ)} onChange={(e) => set('typ', e.target.value === '' ? '' : (Number(e.target.value) as FreizeitTyp))}
+            hinweis="Nur Übernachtungsfreizeiten (Typ 4) haben im Wochenplan einen Abend-Abschnitt.">
+            <option value="">– noch nicht festgelegt –</option>
+            {(Object.keys(FREIZEIT_TYPEN) as unknown as FreizeitTyp[]).map((t) => <option key={t} value={t}>{`Typ ${t} · ${FREIZEIT_TYPEN[t]}`}</option>)}
           </SelectField>
           <label className="option">
             <input type="checkbox" checked={f.bewerbung_offen} onChange={(e) => set('bewerbung_offen', e.target.checked)} />

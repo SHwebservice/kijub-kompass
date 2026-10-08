@@ -151,8 +151,9 @@ export function hauptamtlicheName(vorname: string | undefined, name: string | un
 /* ───── Hauptfunktion ───── */
 
 export function baueImportPlan(roh: unknown): ImportPlan {
+  if (istObjekt(roh) && roh.format === KOMPASS_FORMAT) return baueImportPlanAusExport(roh);
   if (!istObjekt(roh) || !Array.isArray(roh.projects) || !Array.isArray(roh.staff) || !Array.isArray(roh.locations)) {
-    throw new ImportFormatFehler('Das ist keine KiJuKo-Sicherung (projects, staff und locations fehlen).');
+    throw new ImportFormatFehler('Das ist keine Datei aus KiJuKo. In KiJuKo unter „Einstellungen → KiJuB-Kompass“ exportieren und diese Datei wählen.');
   }
 
   const plan: ImportPlan = {
@@ -315,6 +316,147 @@ export function baueImportPlan(roh: unknown): ImportPlan {
     const notiz = text(m.note);
     if (notiz && /beispielzeile/i.test(notiz)) { skip('Material', name, 'Beispielzeile aus KiJuKo („bitte löschen")'); continue; }
     plan.material.push({ kijuko_id: id, freizeit_kijuko_id: fid, name, einheit: text(m.unit), menge: zahl(m.qtyNeeded), notiz });
+  }
+
+  return plan;
+}
+
+/* ───── KiJuKo 3: „Einstellungen → KiJuB-Kompass → Exportieren“ ───── */
+
+/** Kennung der Exportdatei aus KiJuKo 3 (dort src/shared/kompassExport.ts). */
+export const KOMPASS_FORMAT = 'kijuko-kompass';
+
+const FERIEN_KOMPASS: Record<string, 'ostern' | 'sommer' | 'herbst'> = { Ostern: 'ostern', Sommer: 'sommer', Herbst: 'herbst' };
+
+/** Unvollständige Kennziffern (KiJuKo setzt "?" bzw. "…" für fehlende Teile) werden nicht übernommen. */
+const kennzifferOk = (v: unknown) => { const t = text(v); return t && !/[?…]/.test(t) ? t : undefined; };
+
+/**
+ * Exportdatei aus KiJuKo 3 → Importplan. Die Datei enthält schon nur die Felder, die der Kompass braucht;
+ * es gelten dieselben Regeln wie beim alten Backup (gültige Mail, Name, Datum; Hauptamtliche gewinnen bei gleicher Mail).
+ * In KiJuKo 3 kann jede Person Leitung sein, nicht nur Hauptamtliche.
+ */
+export function baueImportPlanAusExport(roh: Roh): ImportPlan {
+  if (roh.version !== 1) {
+    throw new ImportFormatFehler('Diese KiJuKo-Datei stammt aus einer neueren KiJuKo-Version. Bitte den Kompass aktualisieren.');
+  }
+  const plan: ImportPlan = {
+    version: 1, orte: [], personen: [], freizeiten: [], zuteilungen: [],
+    verpflegung: [], material: [], uebersprungen: [], hinweise: [],
+  };
+  const skip = (art: string, name: string, grund: string) => plan.uebersprungen.push({ art, name, grund });
+
+  /* Orte */
+  const ortIds = new Set<string>();
+  for (const o of liste(roh.orte)) {
+    const id = text(o.id); const name = text(o.name);
+    if (!id || !name) { skip('Ort', name ?? '(ohne Namen)', 'Name oder ID fehlt'); continue; }
+    if (ortIds.has(id)) continue;
+    ortIds.add(id);
+    plan.orte.push({ kijuko_id: id, name, adresse: text(o.adresse), lieferstelle_nr: text(o.lieferstelleNr) });
+  }
+
+  /* Personen – Hauptamtliche zuerst, damit sie bei gleicher Mail gewinnen */
+  const alias = new Map<string, string>();
+  const mails = new Map<string, string>();
+  const personen = liste(roh.personen).sort((a, b) => Number(b.hauptamt === true) - Number(a.hauptamt === true));
+  for (const s of personen) {
+    const id = text(s.id); const mail = text(s.email);
+    const vorname = text(s.vorname); const nachname = text(s.nachname);
+    const anzeige = [vorname, nachname].filter(Boolean).join(' ') || '(ohne Namen)';
+    if (!id) { skip('Person', anzeige, 'ID fehlt'); continue; }
+    if (!mailGueltig(mail)) { skip('Person', anzeige, 'Keine gültige Mail-Adresse'); continue; }
+    const n = vorname && nachname ? { vorname, nachname } : hauptamtlicheName(undefined, nachname ?? vorname);
+    if (!n) { skip('Person', anzeige, 'Vor- oder Nachname fehlt'); continue; }
+
+    const haupt = s.hauptamt === true;
+    let kategorie: Kat = haupt ? 'Hauptamtliche*r' : 'TeamerIn';
+    const art = text(s.beschaeftigungsart);
+    if (!haupt && art && (KATEGORIEN_IMPORT as readonly string[]).includes(art)) kategorie = art as Kat;
+    else if (!haupt && art) plan.hinweise.push(`${anzeige}: Beschäftigungsart „${art}" gibt es im Kompass nicht – als TeamerIn übernommen.`);
+
+    // Allergien und Notizen bleiben in KiJuKo (Entscheidung 2026-10-08)
+    const diet = text(s.ernaehrung);
+    const k = mailSchluessel(mail);
+    const vorhanden = mails.get(k);
+    if (vorhanden) {
+      alias.set(id, vorhanden);
+      skip('Person', `${n.vorname} ${n.nachname}`, 'Mail-Adresse steht schon bei einer anderen Person im Import');
+      continue;
+    }
+    mails.set(k, id); alias.set(id, id);
+    plan.personen.push({
+      kijuko_id: id, kijuko_quelle: haupt ? 'hauptamtliche' : 'staff', ...n, mail: mail.trim(), kategorie,
+      telefon: text(s.telefon),
+      ernaehrung: diet === 'Mischkost' || diet === 'Vegetarisch' || diet === 'Vegan' ? diet : undefined,
+      ...(s.aktiv === false ? { aktiv: false as const } : {}),
+    });
+  }
+
+  /* Freizeiten mit Leitung und Team */
+  const freizeitIds = new Set<string>();
+  const paare = new Set<string>();
+  const ids = (v: unknown) => (Array.isArray(v) ? v.map(text).filter((x): x is string => !!x) : []);
+  for (const f of liste(roh.freizeiten)) {
+    const id = text(f.id); const name = text(f.name);
+    if (!id || !name) { skip('Freizeit', name ?? '(ohne Namen)', 'Name oder ID fehlt'); continue; }
+    if (!istDatum(f.von) || !istDatum(f.bis) || f.von > f.bis) { skip('Freizeit', name, 'Start- oder Enddatum fehlt oder ist ungültig'); continue; }
+    const ferien = istObjekt(f.ferien) ? f.ferien : null;
+    const ferienzeitraum = ferien ? FERIEN_KOMPASS[text(ferien.art) ?? ''] : undefined;
+    const nummer = zahl(ferien?.nummer);
+    const ferienwoche = nummer !== undefined ? parseWoche(String(nummer), ferienzeitraum) : undefined;
+    if (ferienzeitraum && nummer !== undefined && !ferienwoche) {
+      plan.hinweise.push(`${name}: Ferienwoche ${nummer} passt nicht zur Ferienzeit – ohne Woche übernommen.`);
+    }
+    const ortId = text(f.ortId);
+    if (ortId && !ortIds.has(ortId)) plan.hinweise.push(`${name}: Ort nicht in der Datei gefunden – ohne Ort übernommen.`);
+
+    const leitung: string[] = [];
+    for (const pid of ids(f.leitung)) {
+      const ziel = alias.get(pid);
+      if (!ziel) { plan.hinweise.push(`${name}: Eine Leitung ist nicht importierbar (fehlende Mail oder Daten) und wird übersprungen.`); continue; }
+      if (!leitung.includes(ziel)) leitung.push(ziel);
+    }
+    for (const pid of ids(f.team)) {
+      const ziel = alias.get(pid);
+      if (!ziel || leitung.includes(ziel) || paare.has(`${id}|${ziel}`)) continue;
+      paare.add(`${id}|${ziel}`);
+      plan.zuteilungen.push({ freizeit_kijuko_id: id, person_kijuko_id: ziel });
+    }
+
+    const max = zahl(f.maxTeilnehmende);
+    freizeitIds.add(id);
+    plan.freizeiten.push({
+      kijuko_id: id, name, start_datum: f.von, ende_datum: f.bis,
+      status: text(f.status)?.toLowerCase() === 'abgesagt' ? 'abgesagt' : 'geplant',
+      ort_kijuko_id: ortId && ortIds.has(ortId) ? ortId : undefined,
+      kijuko_code: kennzifferOk(f.kennziffer), kijuko_serie_id: text(f.serieId),
+      ferienzeitraum, ferienwoche,
+      arbeitsbeginn: uhrzeit(f.arbeitsbeginn), arbeitsende: uhrzeit(f.arbeitsende),
+      ...parseAlter(f.altersgruppe),
+      max_teilnehmende: max && max > 0 ? Math.round(max) : undefined,
+      leitung_kijuko_ids: leitung,
+    });
+  }
+
+  /* Essenszahlen je Tag (KiJuKo 3 rechnet sie aus Teilnehmenden und Personal; eine Gesamtzeile gibt es nicht mehr) */
+  const tage = new Set<string>();
+  const anzahl = (x: unknown) => Math.max(0, Math.round(zahl(x) ?? 0));
+  for (const v of liste(roh.verpflegung)) {
+    const fid = text(v.freizeitId);
+    if (!fid || !freizeitIds.has(fid) || !istDatum(v.datum) || tage.has(`${fid}|${v.datum}`)) continue;
+    tage.add(`${fid}|${v.datum}`);
+    plan.verpflegung.push({ freizeit_kijuko_id: fid, datum: v.datum, mischkost: anzahl(v.mischkost), vegetarisch: anzahl(v.vegetarisch), allergiker: anzahl(v.allergiker) });
+  }
+
+  /* Materialbedarf */
+  for (const m of liste(roh.material)) {
+    const id = text(m.id); const fid = text(m.freizeitId); const name = text(m.name);
+    if (!id || !fid || !freizeitIds.has(fid)) continue;
+    if (!name) { skip('Material', '(ohne Namen)', 'Name fehlt'); continue; }
+    const notiz = text(m.notiz);
+    if (notiz && /beispielzeile/i.test(notiz)) { skip('Material', name, 'Beispielzeile aus KiJuKo („bitte löschen")'); continue; }
+    plan.material.push({ kijuko_id: id, freizeit_kijuko_id: fid, name, einheit: text(m.einheit), menge: zahl(m.menge), notiz });
   }
 
   return plan;

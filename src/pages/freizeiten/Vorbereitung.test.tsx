@@ -58,7 +58,7 @@ describe('Vorbereitung (Checkliste einer Freizeit)', () => {
     await screen.findByText('Vortreffen planen');
     expect(within(liste('Überfällig')).getByRole('link', { name: 'Zu den Hinweisen →' })).toHaveAttribute('href', '/freizeiten/f1/hinweise');
     expect(within(liste('Später')).getByRole('link', { name: 'Zu den Formularen →' })).toHaveAttribute('href', '/formulare');
-    expect(within(liste('In den nächsten 7 Tagen')).getByText(/Wird automatisch abgehakt, sobald gilt: jeder Tag hat einen Eintrag im Wochenplan/)).toBeInTheDocument();
+    expect(within(liste('In den nächsten 7 Tagen')).getByText(/Wird automatisch abgehakt, sobald gilt: jeder Tag hat am Vormittag und am Nachmittag einen Eintrag im Wochenplan/)).toBeInTheDocument();
   });
 
   it('abhaken, „nicht relevant“, wieder aufnehmen; automatisch erkannte Punkte lassen sich nicht abhaken', async () => {

@@ -15,7 +15,7 @@ beforeAll(async () => {
   teamer = await person(db, 'Tom');
   teamer2 = await person(db, 'Tina');
   fremder = await person(db, 'Fremder');
-  fz = (await q<{ id: string }>(`insert into freizeiten (name, start_datum, ende_datum) values ('F', current_date + 30, current_date + 32) returning id`)).rows[0]!.id;
+  fz = (await q<{ id: string }>(`insert into freizeiten (name, start_datum, ende_datum, typ) values ('F', current_date + 30, current_date + 32, 4) returning id`)).rows[0]!.id;
   await q(`insert into freizeit_team values ($1, $2, 'leitung'), ($1, $3, 'teamer'), ($1, $4, 'teamer')`, [fz, leitung.id, teamer.id, teamer2.id]);
   vm = (await q<{ id: string }>(`select id from freizeit_slots where freizeit_id = $1 and name = 'Vormittag'`, [fz])).rows[0]!.id;
   angebot = (await q<{ id: string }>(`insert into angebote (name, kategorie) values ('Fangen', 'bewegung') returning id`)).rows[0]!.id;

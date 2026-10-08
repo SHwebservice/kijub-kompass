@@ -46,14 +46,14 @@ describe('Freizeit-Detail: Reiter je Rolle', () => {
   it('Leitung: zusätzlich Lebensmittel', async () => {
     zeige({ ich: { kategorie: 'Hauptamtliche*r' }, freizeiten: [{ freizeit_id: 'f1', rolle: 'leitung' }] });
     await screen.findByRole('heading', { name: 'Sommer-Sause' });
-    expect(tabNamen()).toEqual(['Übersicht', 'Wochenplan', 'Hinweise', 'Lebensmittel', 'Team', 'Vorbereitung']);
+    expect(tabNamen()).toEqual(['Übersicht', 'Wochenplan', 'Hinweise', 'Lebensmittel', 'Team', 'Material', 'Vorbereitung']);
     expect(screen.getByText('Leitung', { selector: '.badge' })).toBeInTheDocument();
   });
 
   it('Koordination: alle Reiter und „Bearbeiten"', async () => {
     zeige({ ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } });
     await screen.findByRole('heading', { name: 'Sommer-Sause' });
-    expect(tabNamen()).toHaveLength(6);
+    expect(tabNamen()).toHaveLength(7);
     expect(screen.getByRole('link', { name: 'Bearbeiten' })).toHaveAttribute('href', '/freizeiten/f1/bearbeiten');
   });
 
@@ -93,7 +93,7 @@ describe('Freizeit-Detail: Reiter je Rolle', () => {
     vi.mocked(api.holeFreizeit).mockResolvedValue({ ...detail, status: 'abgesagt', kijuko_entfallen_am: '2027-01-01T00:00:00Z' });
     zeige({ ich: { ist_koordination: true } });
     expect(await screen.findByText('Abgesagt')).toBeInTheDocument();
-    expect(screen.getByText(/in der letzten KiJuKo-Sicherung nicht mehr enthalten/)).toBeInTheDocument();
+    expect(screen.getByText(/im letzten KiJuKo-Import nicht mehr enthalten/)).toBeInTheDocument();
   });
 });
 

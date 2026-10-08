@@ -33,13 +33,13 @@ beforeAll(async () => {
   await q(`insert into checkliste_vorlage (position, titel, bezug, tage, automatik) values
     (1, 'Leitung steht fest', 'start', -84, 'leitung'), (2, 'Team ist zusammengestellt', 'start', -42, 'team'),
     (3, 'Offene Bewerbungen sind entschieden', 'start', -42, 'bewerbungen'), (4, 'Infos für das Team veröffentlicht', 'start', -14, 'hinweis'),
-    (5, 'Alle haben die Hinweise gesehen', 'start', -3, 'hinweise_gesehen')`);
+    (5, 'Alle haben die Hinweise gesehen', 'start', -3, 'hinweise_gesehen'), (6, 'Lebensmittel-Bestand am Ort geprüft', 'start', -7, 'lebensmittel')`);
 });
 
 describe('Standard-Checkliste', () => {
   it('enthält den Vorschlag; alle Aktiven lesen, nur die Freizeitenkoordination pflegt', async () => {
     const n = (await als(db, teamer, () => q(`select 1 from checkliste_vorlage`))).rows.length;
-    expect(n).toBe(12);                                                                                   // 7 Standardpunkte (0031) + 5 Testpunkte
+    expect(n).toBe(16);                                                                                   // 10 Standardpunkte (0032) + 6 Testpunkte
     await als(db, fk, () => q(`insert into checkliste_vorlage (titel, tage, position) values ('Bus bestellen', -30, 35)`));
     for (const wer of [tk, leitung, teamer]) {
       expect(await als(db, wer, () => fehler(() => q(`insert into checkliste_vorlage (titel) values ('x')`)))).toMatch(/row-level security/i);
@@ -57,10 +57,10 @@ describe('fn_checkliste', () => {
   it('Fälligkeit relativ zu Start bzw. Ende; Leitung und Freizeitenkoordination sehen die Punkte, andere nicht', async () => {
     const p = await punkt('Wochenplan steht');
     expect(p.faellig).toBe((await q<{ d: string }>(`select (current_date + 6)::text as d`)).rows[0]!.d);             // Start − 14
-    expect((await punkt('Nachbesprechung mit dem Team')).faellig).toBe((await q<{ d: string }>(`select (current_date + 36)::text as d`)).rows[0]!.d);   // Ende + 14
-    expect((await liste(fk)).length).toBe(13);
+    expect((await punkt('Nachbesprechung mit dem Team')).faellig).toBe((await q<{ d: string }>(`select (current_date + 22)::text as d`)).rows[0]!.d);   // letzter Tag
+    expect((await liste(fk)).length).toBe(17);
     for (const wer of [teamer, tk, fremdeLeitung]) expect(await liste(wer)).toEqual([]);
-    expect((await liste(fk, [fz, andere])).length).toBe(26);
+    expect((await liste(fk, [fz, andere])).length).toBe(34);
   });
 
   it('automatisch erkannt: Leitung, Team, Bewerbungen; Hinweis und „alle gesehen“; Wochenplan; Lebensmittel', async () => {
@@ -75,10 +75,14 @@ describe('fn_checkliste', () => {
     await q(`insert into notiz_bestaetigungen (notiz_id, person_id) values ($1, $2)`, [n, teamer.id]);
     expect((await punkt('Alle haben die Hinweise gesehen')).auto_erfuellt).toBe(true);
 
-    const slot = (await q<{ id: string }>(`select id from freizeit_slots where freizeit_id = $1 limit 1`, [fz])).rows[0]!.id;
-    await q(`insert into plan_eintraege (freizeit_id, datum, slot_id, freitext) values ($1, current_date + 20, $2, 'A'), ($1, current_date + 21, $2, 'B')`, [fz, slot]);
-    expect((await punkt('Wochenplan steht')).auto_erfuellt).toBe(false);                               // ein Tag fehlt
-    await q(`insert into plan_eintraege (freizeit_id, datum, slot_id, freitext) values ($1, current_date + 22, $2, 'C')`, [fz, slot]);
+    // seit 0032: an jedem Tag Vormittag und Nachmittag
+    const slot = async (name: string) => (await q<{ id: string }>(`select id from freizeit_slots where freizeit_id = $1 and name = $2`, [fz, name])).rows[0]!.id;
+    const vm = await slot('Vormittag'); const nm = await slot('Nachmittag');
+    await q(`insert into plan_eintraege (freizeit_id, datum, slot_id, freitext) values ($1, current_date + 20, $2, 'A'), ($1, current_date + 21, $2, 'B'), ($1, current_date + 22, $2, 'C')`, [fz, vm]);
+    expect((await punkt('Wochenplan steht')).auto_erfuellt).toBe(false);                               // nachmittags fehlt alles
+    await q(`insert into plan_eintraege (freizeit_id, datum, slot_id, freitext) values ($1, current_date + 20, $2, 'A'), ($1, current_date + 21, $2, 'B')`, [fz, nm]);
+    expect((await punkt('Wochenplan steht')).auto_erfuellt).toBe(false);                               // ein Nachmittag fehlt
+    await q(`insert into plan_eintraege (freizeit_id, datum, slot_id, freitext) values ($1, current_date + 22, $2, 'C')`, [fz, nm]);
     expect((await punkt('Wochenplan steht')).auto_erfuellt).toBe(true);
 
     expect((await punkt('Lebensmittel-Bestand am Ort geprüft')).auto_erfuellt).toBe(false);
@@ -92,12 +96,12 @@ describe('fn_checkliste', () => {
 
 describe('Stand je Freizeit und eigene Punkte', () => {
   it('Leitung hakt ab und setzt „nicht relevant“; wer und wann wird vermerkt', async () => {
-    const v = await vorlageId('Formulare vorbereitet');
+    const v = await vorlageId('Leitungsmappe überprüft');
     await als(db, leitung, () => q(`insert into checkliste_status (freizeit_id, vorlage_id, status, notiz, geaendert_von) values ($1, $2, 'erledigt', 'gedruckt', $3)`, [fz, v, fk.id]));
-    const p = await punkt('Formulare vorbereitet');
+    const p = await punkt('Leitungsmappe überprüft');
     expect(p).toMatchObject({ status: 'erledigt', geaendert_von: leitung.id });
     await als(db, fk, () => q(`update checkliste_status set status = 'nicht_relevant' where freizeit_id = $1 and vorlage_id = $2`, [fz, v]));
-    expect(await punkt('Formulare vorbereitet')).toMatchObject({ status: 'nicht_relevant', geaendert_von: fk.id });
+    expect(await punkt('Leitungsmappe überprüft')).toMatchObject({ status: 'nicht_relevant', geaendert_von: fk.id });
   });
 
   it('TeamerIn, Treffkoordination und Leitung einer anderen Freizeit dürfen nichts ändern', async () => {

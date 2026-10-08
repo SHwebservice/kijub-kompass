@@ -41,7 +41,7 @@ function Zaehlertabelle({ e }: { e: ImportErgebnis }) {
   );
 }
 
-/** Koordination: KiJuKo-Sicherung einlesen, Vorschau prüfen, Konflikte entscheiden, übernehmen. */
+/** Koordination: KiJuKo-Datei einlesen, Vorschau prüfen, Konflikte entscheiden, übernehmen. */
 export function KijukoImport({ vorschau, anwenden }: Props) {
   const [phase, setPhase] = useState<Phase>('start');
   const [plan, setPlan] = useState<ImportPlan | null>(null);
@@ -114,12 +114,12 @@ export function KijukoImport({ vorschau, anwenden }: Props) {
 
       {phase === 'start' && (
         <Card>
-          <h2>Sicherung einlesen</h2>
-          <p>Wähle die Sicherungsdatei aus KiJuKo (<code>KiJuKo-Backup-….json</code>). Die Datei wird zuerst nur geprüft –
+          <h2>KiJuKo-Datei einlesen</h2>
+          <p>Exportiere die Daten in KiJuKo unter <strong>Einstellungen → KiJuB-Kompass</strong> und wähle hier die Datei (<code>KiJuKo-Kompass ….json</code>). Die Datei wird zuerst nur geprüft –
             verändert wird erst, wenn du die Vorschau bestätigst. Nur die Angaben, die der Kompass braucht, werden übertragen
-            (keine Adressen, Geburtsdaten oder Zugangscodes).</p>
+            (keine Adressen oder Geburtsdaten). Sicherungsdateien aus dem alten KiJuKo 2.1 werden weiterhin erkannt.</p>
           <div className="field">
-            <label className="field__label" htmlFor="kijuko-datei">KiJuKo-Sicherung (.json)</label>
+            <label className="field__label" htmlFor="kijuko-datei">KiJuKo-Datei (.json)</label>
             <input id="kijuko-datei" className="input" type="file" accept=".json,application/json" onChange={(e) => void dateiGewaehlt(e)} />
           </div>
         </Card>
@@ -138,7 +138,7 @@ export function KijukoImport({ vorschau, anwenden }: Props) {
             </p>
             {phase === 'fertig' && <Alert ton="success">Der Import wurde übernommen und im Protokoll festgehalten.</Alert>}
             <Zaehlertabelle e={ergebnis} />
-            {!hatAenderungen(ergebnis) && <p>Es gibt keine Änderungen – der Kompass ist auf dem Stand der Sicherung.</p>}
+            {!hatAenderungen(ergebnis) && <p>Es gibt keine Änderungen – der Kompass ist auf dem Stand von KiJuKo.</p>}
           </Card>
 
           {ergebnis.konflikte.length > 0 && (

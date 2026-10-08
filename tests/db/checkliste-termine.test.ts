@@ -30,9 +30,10 @@ beforeAll(async () => {
 describe('Standard-Checkliste nach der Durchsicht', () => {
   it('enthält genau diese Punkte in dieser Reihenfolge', async () => {
     const r = await q<{ titel: string }>(`select titel from checkliste_vorlage where aktiv order by position`);
-    expect(r.rows.map((x) => x.titel)).toEqual([
-      'Vorgespräch mit der Freizeitenkoordination', 'Vortreffen mit dem Team', 'Wochenplan steht', 'Lebensmittel-Bestand am Ort geprüft',
-      'Formulare vorbereitet', 'Notfallnummern und Erste-Hilfe-Material geprüft', 'Nachbesprechung mit dem Team',
+    expect(r.rows.map((x) => x.titel)).toEqual([                                                             // Stand nach 0032
+      'Vorgespräch mit der Freizeitenkoordination', 'Materialliste geschrieben und an die Freizeitenkoordination abgegeben', 'Vortreffen mit dem Team',
+      'Wochenplan steht', 'Übergabe der Räumlichkeiten', 'Lebensmittel kontrollieren', 'Leitungsmappe überprüft', 'Material überprüft',
+      'Nachbesprechung mit dem Team', 'Nachgespräch mit der Freizeitenkoordination',
     ]);
   });
 

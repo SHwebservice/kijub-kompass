@@ -13,7 +13,7 @@ vi.mock('../../freizeiten/api');
 
 const tag1 = inTagen(1);
 const tag2 = inTagen(2);
-const f = freizeitDetail({ id: 'f1', start_datum: tag1, ende_datum: tag2 });
+const f = freizeitDetail({ id: 'f1', start_datum: tag1, ende_datum: tag2, typ: 4 });          // Übernachtungsfreizeit: Abend möglich (0032)
 const slots: Slot[] = [{ id: 's1', name: 'Vormittag', position: 1 }, { id: 's2', name: 'Nachmittag', position: 2 }];
 const eintrag = (o: Partial<PlanEintrag> & { id: string }): PlanEintrag => ({
   datum: tag1, slot_id: 's1', angebot_id: null, angebot_name: null, angebot_kategorie: null, freitext: null, notiz: null,
@@ -211,6 +211,12 @@ describe('Wochenplan: Leitung und Koordination', () => {
     await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Programmpunkt ändern' }));
     await userEvent.click(await screen.findByRole('button', { name: /Wasserbomben/ }));
     expect(api.aendereEintrag).toHaveBeenCalledWith('e1', { angebot_id: 'a3', freitext: null });
+  });
+
+  it('kein Abend-Abschnitt bei Freizeiten, die keine Übernachtungsfreizeit (Typ 4) sind', async () => {
+    renderMitAuth(<PlanTab freizeit={{ ...f, typ: 1 }} rolle="leitung" />, leitung);
+    expect(await screen.findAllByRole('heading', { level: 2 })).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: '+ Abend-Slot hinzufügen' })).not.toBeInTheDocument();
   });
 
   it('fügt den Abend-Zeitabschnitt hinzu, solange es ihn nicht gibt', async () => {

@@ -14,7 +14,7 @@ function datei(inhalt: unknown, name = 'KiJuKo-Backup.json') {
   return new File([typeof inhalt === 'string' ? inhalt : JSON.stringify(inhalt)], name, { type: 'application/json' });
 }
 async function laden(f: File) {
-  await userEvent.upload(screen.getByLabelText('KiJuKo-Sicherung (.json)'), f);
+  await userEvent.upload(screen.getByLabelText('KiJuKo-Datei (.json)'), f);
 }
 
 describe('Hilfsfunktionen der Anzeige', () => {
@@ -39,7 +39,7 @@ describe('Hilfsfunktionen der Anzeige', () => {
 describe('KijukoImport', () => {
   it('zeigt zuerst nur die Dateiauswahl', () => {
     render(<KijukoImport vorschau={vi.fn()} anwenden={vi.fn()} />);
-    expect(screen.getByLabelText('KiJuKo-Sicherung (.json)')).toBeInTheDocument();
+    expect(screen.getByLabelText('KiJuKo-Datei (.json)')).toBeInTheDocument();
     expect(screen.queryByText('Import durchführen')).not.toBeInTheDocument();
   });
 
@@ -51,11 +51,11 @@ describe('KijukoImport', () => {
     expect(vorschau).not.toHaveBeenCalled();
   });
 
-  it('lehnt JSON ab, das keine KiJuKo-Sicherung ist', async () => {
+  it('lehnt JSON ab, das keine KiJuKo-Datei ist', async () => {
     const vorschau = vi.fn();
     render(<KijukoImport vorschau={vorschau} anwenden={vi.fn()} />);
     await laden(datei({ irgendwas: 1 }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('keine KiJuKo-Sicherung');
+    expect(await screen.findByRole('alert')).toHaveTextContent('keine Datei aus KiJuKo');
     expect(vorschau).not.toHaveBeenCalled();
   });
 
@@ -135,7 +135,7 @@ describe('KijukoImport', () => {
     render(<KijukoImport vorschau={vi.fn().mockResolvedValue(leer)} anwenden={vi.fn()} />);
     await laden(datei(beispielBackup()));
     await userEvent.click(await screen.findByRole('button', { name: 'Abbrechen' }));
-    expect(screen.getByLabelText('KiJuKo-Sicherung (.json)')).toBeInTheDocument();
+    expect(screen.getByLabelText('KiJuKo-Datei (.json)')).toBeInTheDocument();
   });
 
   it('Fehler der Vorschau werden verständlich gemeldet, mit technischer Angabe', async () => {

@@ -446,3 +446,12 @@ Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und
 - **Themen:** Ein Punkt kann Themen haben, die dabei besprochen werden; sie werden je Freizeit abgehakt („Dabei besprechen (1 von 2)“).
 - **Standard-Checkliste pflegen:** Bezug „Ferienbeginn“, „Termin vereinbaren mit“ (Team oder Freizeitenkoordination) und Themen (eins je Zeile) sind wählbar.
 
+## Stand der Umsetzung: Freizeit-Typ, Materialliste, Checkliste (zweite Durchsicht) (Phase 17, 2026-10-08)
+
+**Umgesetzt und getestet** (Migration `0032`):
+- **Typ einer Freizeit** im Formular: Typ 1 Themenfreizeit, Typ 2 Betreuungsfreizeit, Typ 3 Großfreizeit, Typ 4 Übernachtungsfreizeit (leer = noch nicht festgelegt); steht im Kopf der Freizeit.
+- **Wochenplan:** Standard sind Vormittag und Nachmittag. Einen Abend-Abschnitt gibt es nur bei Übernachtungsfreizeiten (Typ 4) – die Datenbank lehnt ihn sonst ab; er ist freiwillig. „Wochenplan steht“ heißt jetzt: an jedem Tag sind Vormittag **und** Nachmittag belegt.
+- **Materialliste** (neuer Reiter *Material*, Leitung und Freizeitenkoordination): Positionen mit Menge und Notiz anlegen, ändern, löschen; **„An die Freizeitenkoordination abgeben“** (auch erneut) vermerkt wer und wann, schickt der Freizeitenkoordination eine Mitteilung und hakt den Checklisten-Punkt ab. Kommen danach Positionen dazu, weist der Reiter darauf hin. Wer die Liste außerhalb der App abgibt, hakt den Punkt von Hand ab.
+- **Standard-Checkliste jetzt (10 Punkte):** Vorgespräch mit der Freizeitenkoordination (4 Wochen vor Ferienbeginn, Termin → Absprache) · Materialliste geschrieben und abgegeben (4 Wochen vor Beginn) · Vortreffen mit dem Team (10 Tage vorher, Termin → Hinweis, Themen) · Wochenplan steht (2 Wochen vorher) · **Übergabe der Räumlichkeiten** (2 Wochen vorher, mit eigener Checkliste aus 11 Punkten – Vorschlag, bitte prüfen) · Lebensmittel kontrollieren (1 Woche vorher, nur Erinnerung; Bestellung und Nachkauf macht die Freizeitenkoordination) · Leitungsmappe überprüft (4 Tage vorher; die Mappe mit allen Formularen stellt die Freizeitenkoordination auf Papier bereit) · Material überprüft (3 Tage vorher) · Nachbesprechung mit dem Team (am letzten Tag) · **Nachgespräch mit der Freizeitenkoordination** (4 Wochen nach Ende, Termin → Absprache).
+  Entfernt: „Notfallnummern und Erste-Hilfe-Material geprüft“.
+

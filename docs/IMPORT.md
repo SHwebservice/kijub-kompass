@@ -1,5 +1,17 @@
 # KiJuKo-Import (Phase 1)
 
+> **Stand 2026-10-08 – KiJuKo 3:** KiJuKo 2.1 ist durch KiJuKo 3 ersetzt. KiJuKo 3 speichert unter
+> *Einstellungen → KiJuB-Kompass → Exportieren* eine eigene Datei (`"format": "kijuko-kompass"`, `version: 1`), die nur die
+> hier benötigten Felder enthält (Orte, Personen ohne Geburtsdatum/Adresse/Anrede, Freizeiten mit `leitung`/`team`,
+> Essenszahlen je Tag, Materialbedarf; keine Kurse, Teilnehmenden, Haushalt, Zugangscodes). `baueImportPlanAusExport`
+> in `src/import/kijuko.ts` macht daraus denselben Plan wie bisher – Datenbankfunktion, Vorschau und Feldregeln sind unverändert.
+> Alte Sicherungen aus KiJuKo 2.1 werden weiter erkannt. Unterschiede zur alten Sicherung:
+> - KiJuKo 3 übernimmt die IDs der alten Sicherung → nach einem alten Import wird alles wiedererkannt (`tests/db/import-kijuko3.test.ts`).
+> - Leitung kann jede Person sein (nicht nur Hauptamtliche). Beschäftigungsarten, die es im Kompass nicht gibt (z. B. Küchenkraft), werden „TeamerIn“ mit Hinweis.
+> - Essenszahlen kommen nur noch je Tag (von KiJuKo aus Teilnehmenden und Personal berechnet; Wochenenden nur bei Übernachtungsfreizeiten); die Gesamtzeile entfällt.
+> - Küchenteams sind in KiJuKo 3 Teil ihrer Freizeit; frühere eigene „Küchen-Freizeiten“ erscheinen beim ersten Import als „nicht mehr in KiJuKo“.
+> - Zugangscodes/-links gibt es nicht mehr; Zugänge richtet die Koordination im Kompass ein (Abschnitt 5).
+
 Stand: 2026-09-30 · Grundlage: Backup `KiJuKo-Backup-2026-09-30.json` (469 KB) und `js/backup-import.js` des Altcodes.
 **Entscheidung:** KiJuKo2.1 bleibt die Offline-Verwaltungssoftware; der Kompass importiert dauerhaft aus ihr, und der Import wird gegenüber dem Altcode erweitert.
 

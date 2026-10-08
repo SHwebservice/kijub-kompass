@@ -8,8 +8,8 @@ import { addTage } from '../treffs/dienstplan';
  */
 
 export type PunktStatus = 'offen' | 'erledigt' | 'nicht_relevant';
-export type Ziel = 'team' | 'plan' | 'hinweise' | 'lebensmittel' | 'teamermappe' | 'quiz' | 'formulare';
-export type Automatik = 'leitung' | 'team' | 'bewerbungen' | 'wochenplan' | 'hinweis' | 'hinweise_gesehen' | 'lebensmittel' | 'termin';
+export type Ziel = 'team' | 'plan' | 'hinweise' | 'lebensmittel' | 'teamermappe' | 'quiz' | 'formulare' | 'material';
+export type Automatik = 'leitung' | 'team' | 'bewerbungen' | 'wochenplan' | 'hinweis' | 'hinweise_gesehen' | 'lebensmittel' | 'termin' | 'materialliste';
 /** Fälligkeit relativ zu Beginn oder Ende der Freizeit oder zum Ferienbeginn (Montag der Ferienwoche 1, seit 0031). */
 export type Bezug = 'start' | 'ende' | 'ferien';
 /** Mit wem ein Termin vereinbart wird: Hinweis für das Team oder Absprache mit der Freizeitenkoordination (seit 0031). */
@@ -61,6 +61,7 @@ export const ZIELE: Record<Ziel, { name: string; label: string; pfad: (freizeitI
   teamermappe: { name: 'Teamermappe', label: 'Zur Teamermappe', pfad: () => '/teamermappe' },
   quiz: { name: 'Quiz', label: 'Zum Quiz', pfad: () => '/quiz' },
   formulare: { name: 'Formulare', label: 'Zu den Formularen', pfad: () => '/formulare' },
+  material: { name: 'Material', label: 'Zum Material', pfad: (f) => `/freizeiten/${f}/material` },
 };
 
 /** Was die App automatisch erkennt (für Hinweise und die Auswahl in der Vorlage). */
@@ -68,11 +69,12 @@ export const AUTOMATIK: Record<Automatik, string> = {
   leitung: 'eine Leitung ist zugeordnet',
   team: 'mindestens eine TeamerIn ist zugeordnet',
   bewerbungen: 'keine Bewerbung ist mehr offen',
-  wochenplan: 'jeder Tag hat einen Eintrag im Wochenplan',
+  wochenplan: 'jeder Tag hat am Vormittag und am Nachmittag einen Eintrag im Wochenplan',
   hinweis: 'mindestens ein Hinweis ist eingetragen',
   hinweise_gesehen: 'alle TeamerInnen haben alle Hinweise gesehen',
   lebensmittel: 'ein Lebensmittel-Eingang am Ort ist erfasst',
   termin: 'der eingetragene Termin hat stattgefunden',
+  materialliste: 'die Materialliste ist an die Freizeitenkoordination abgegeben',
 };
 
 /** Was beim Eintragen eines Termins entsteht. */

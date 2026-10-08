@@ -33,7 +33,7 @@ describe('Standard-Checkliste pflegen (Freizeitenkoordination)', () => {
     const a = within(liste).getByText('Wochenplan steht').closest('li')!;
     expect(a).toHaveTextContent('2 Wochen vor Beginn');
     expect(a).toHaveTextContent('Zum Wochenplan');
-    expect(a).toHaveTextContent('automatisch: jeder Tag hat einen Eintrag im Wochenplan');
+    expect(a).toHaveTextContent('automatisch: jeder Tag hat am Vormittag und am Nachmittag einen Eintrag im Wochenplan');
     expect(within(liste).getByText('Nachbesprechung').closest('li')).toHaveTextContent('2 Wochen nach Ende');
     expect(within(liste).getByText('Alter Punkt').closest('li')).toHaveTextContent('deaktiviert');
   });

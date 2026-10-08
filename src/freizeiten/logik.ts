@@ -63,6 +63,12 @@ export function zeitraumText(start: string, ende: string): string {
 }
 
 export const FERIEN_LABEL: Record<Ferienzeitraum, string> = { ostern: 'Ostern', sommer: 'Sommer', herbst: 'Herbst' };
+
+/** Typ einer Freizeit (Migration 0032). Nur Übernachtungsfreizeiten (Typ 4) haben einen Abend-Abschnitt im Wochenplan. */
+export const FREIZEIT_TYPEN: Record<1 | 2 | 3 | 4, string> = { 1: 'Themenfreizeit', 2: 'Betreuungsfreizeit', 3: 'Großfreizeit', 4: 'Übernachtungsfreizeit' };
+export type FreizeitTyp = keyof typeof FREIZEIT_TYPEN;
+export const UEBERNACHTUNG: FreizeitTyp = 4;
+export const typText = (typ: number | null | undefined) => (typ && typ in FREIZEIT_TYPEN ? `Typ ${typ} · ${FREIZEIT_TYPEN[typ as FreizeitTyp]}` : '');
 export const MAX_FERIENWOCHEN: Record<Ferienzeitraum, number> = { ostern: 2, sommer: 6, herbst: 2 };
 
 export function ferienText(f: Pick<FreizeitKurz, 'ferienzeitraum' | 'ferienwoche'>): string {

@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { ApiFehler } from '../lib/fehler';
-import type { Ferienzeitraum, FreizeitFarbeId } from './logik';
+import type { Ferienzeitraum, FreizeitFarbeId, FreizeitTyp } from './logik';
 import type { AngebotKurz, PlanEintrag, Slot } from './plan';
 import type { Geltung, Notiz, NotizArt } from './notizen';
 import type { Eingang, Verbrauch } from './lebensmittel';
@@ -32,6 +32,8 @@ export interface FreizeitZeile {
   farbe: FreizeitFarbeId | null;
   /** false = für Bewerbungen geschlossen (Migration 0030). */
   bewerbung_offen: boolean;
+  /** 1 Themen-, 2 Betreuungs-, 3 Groß-, 4 Übernachtungsfreizeit; null = noch nicht festgelegt (Migration 0032). */
+  typ: FreizeitTyp | null;
 }
 
 export interface FreizeitDetailDaten extends FreizeitZeile {
@@ -59,6 +61,7 @@ export interface FreizeitFormular {
   /** '' = automatisch */
   farbe: FreizeitFarbeId | '';
   bewerbung_offen: boolean;
+  typ: FreizeitTyp | '';
 }
 
 export interface Ort { id: string; name: string; adresse: string | null; lieferstelle_nr: string | null; freizeiten: number; treffs: number }
@@ -102,9 +105,10 @@ const zeile = (r: Roh): FreizeitZeile => ({
   tags: ((r.freizeit_tags as { tag: string }[] | null) ?? []).map((t) => t.tag).sort(),
   farbe: (r.farbe as FreizeitFarbeId | null | undefined) ?? null,
   bewerbung_offen: r.bewerbung_offen !== false,
+  typ: (r.typ as FreizeitTyp | null | undefined) ?? null,
 });
 
-const LISTE = 'id, name, status, ferienzeitraum, ferienwoche, start_datum, ende_datum, ort_id, max_teilnehmende, alter_von, alter_bis, farbe, bewerbung_offen, orte(name), freizeit_tags(tag)';
+const LISTE = 'id, name, status, ferienzeitraum, ferienwoche, start_datum, ende_datum, ort_id, max_teilnehmende, alter_von, alter_bis, farbe, bewerbung_offen, typ, orte(name), freizeit_tags(tag)';
 
 /* ───── Freizeiten ───── */
 
@@ -139,7 +143,7 @@ export async function speichereFreizeit(id: string | null, f: FreizeitFormular):
     name: f.name.trim(), status: f.status, ferienzeitraum: f.ferienzeitraum || null, ferienwoche: num(f.ferienwoche),
     start_datum: f.start_datum, ende_datum: f.ende_datum, arbeitsbeginn: leer(f.arbeitsbeginn), arbeitsende: leer(f.arbeitsende),
     alter_von: num(f.alter_von), alter_bis: num(f.alter_bis), max_teilnehmende: num(f.max_teilnehmende), ort_id: f.ort_id || null,
-    farbe: f.farbe || null, bewerbung_offen: f.bewerbung_offen,
+    farbe: f.farbe || null, bewerbung_offen: f.bewerbung_offen, typ: f.typ === '' ? null : f.typ,
   };
   let fid = id;
   if (id) {
@@ -288,6 +292,37 @@ export async function zeitraumZuordnen(id: string, freizeitId: string, rolle: 't
 
 export async function zeitraumErledigt(id: string): Promise<void> {
   pruefe(await supabase.from('bewerbungen_zeitraum').update({ status: 'erledigt' }).eq('id', id));
+}
+
+/* ───── Materialliste der Leitung (Migration 0032) ───── */
+
+export interface MaterialPosten { id: string; name: string; menge: string; notiz: string; erstellt_von: string | null; created_at: string }
+export interface MaterialAbgabe { abgegeben_von: string | null; abgegeben_am: string }
+export interface MaterialEingabe { name: string; menge: string; notiz: string }
+
+export async function listeMaterialliste(freizeitId: string): Promise<MaterialPosten[]> {
+  return pruefe(await supabase.from('freizeit_materialliste').select('id, name, menge, notiz, erstellt_von, created_at').eq('freizeit_id', freizeitId).order('created_at')) as MaterialPosten[];
+}
+
+export async function legeMaterialAn(freizeitId: string, e: MaterialEingabe): Promise<void> {
+  pruefe(await supabase.from('freizeit_materialliste').insert({ freizeit_id: freizeitId, name: e.name.trim(), menge: e.menge.trim(), notiz: e.notiz.trim() }));
+}
+
+export async function aendereMaterial(id: string, e: MaterialEingabe): Promise<void> {
+  pruefe(await supabase.from('freizeit_materialliste').update({ name: e.name.trim(), menge: e.menge.trim(), notiz: e.notiz.trim() }).eq('id', id));
+}
+
+export async function loescheMaterial(id: string): Promise<void> {
+  pruefe(await supabase.from('freizeit_materialliste').delete().eq('id', id));
+}
+
+export async function holeMaterialAbgabe(freizeitId: string): Promise<MaterialAbgabe | null> {
+  return pruefe(await supabase.from('materialliste_abgabe').select('abgegeben_von, abgegeben_am').eq('freizeit_id', freizeitId).maybeSingle()) as MaterialAbgabe | null;
+}
+
+/** Gibt die Liste an die Freizeitenkoordination ab (auch erneut nach Änderungen). */
+export async function gibMateriallisteAb(freizeitId: string): Promise<void> {
+  pruefe(await supabase.rpc('fn_materialliste_abgeben', { p_freizeit: freizeitId }));
 }
 
 /* ───── Verpflegung und Material (aus KiJuKo, nur lesbar) ───── */

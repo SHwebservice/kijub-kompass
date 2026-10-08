@@ -6,7 +6,7 @@ import { fehlerText } from '../../lib/fehler';
 import {
   holeNamen, listeEintraege, listeSlots, slotHinzufuegen, slotPositionen, type FreizeitDetailDaten,
 } from '../../freizeiten/api';
-import { formatKurz, heuteIso, tageVonBis, wochentagLang } from '../../freizeiten/logik';
+import { formatKurz, heuteIso, tageVonBis, UEBERNACHTUNG, wochentagLang } from '../../freizeiten/logik';
 import {
   ABEND, darfEintragAendern, darfEintragen, darfSlotsVerwalten, eintragTitel, kannAbendHinzufuegen, naechstePosition,
   sortiereSlots, tauschPositionen, zellen, zellenSchluessel, type PlanEintrag, type Slot,
@@ -52,7 +52,7 @@ export function PlanTab({ freizeit: f, rolle }: { freizeit: FreizeitDetailDaten;
       {(slotsL.fehler || eintraegeL.fehler || fehler) && <Alert ton="error">{slotsL.fehler ?? eintraegeL.fehler ?? fehler}</Alert>}
       {(slotsL.laedt || eintraegeL.laedt) && <Spinner />}
 
-      {verwaltung && kannAbendHinzufuegen(slots) && !slotsL.laedt && (
+      {verwaltung && f.typ === UEBERNACHTUNG && kannAbendHinzufuegen(slots) && !slotsL.laedt && (
         <p><Button klein disabled={arbeitet} onClick={() => void slotAktion(() => slotHinzufuegen(f.id, ABEND, naechstePosition(slots)))}>+ Abend-Slot hinzufügen</Button></p>
       )}
 
