@@ -5,9 +5,13 @@ import { fehlerText } from '../lib/fehler';
 import { bewerbungAblehnen, bewerbungAnnehmen, offeneBewerbungen } from '../freizeiten/api';
 import { sendePush } from '../mitteilungen/senden';
 import { formatDatum, zeitraumText } from '../freizeiten/logik';
-import { Alert, Badge, Button, EmptyState, PageHeader, Spinner } from '../components/ui';
+import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui';
+import { BewerbungenZeitraum, BewerbungsFrist } from './BewerbungenZeitraum';
 
-/** Freizeitenkoordination: offene Bewerbungen annehmen (mit Rolle: TeamerIn oder Leitung) oder ablehnen. */
+/**
+ * Freizeitenkoordination: offene Bewerbungen für Freizeiten annehmen (mit Rolle: TeamerIn oder Leitung) oder ablehnen,
+ * Bewerbungen für Ferienzeiten einer Freizeit zuordnen und die Bewerbungsfrist einstellen.
+ */
 export function Bewerbungen() {
   const liste = useLaden(offeneBewerbungen, 'offene-bewerbungen');
   const [fehler, setFehler] = useState<string | null>(null);
@@ -31,9 +35,12 @@ export function Bewerbungen() {
       <PageHeader titel="Bewerbungen" />
       {(liste.fehler || fehler) && <Alert ton="error">{liste.fehler ?? fehler}</Alert>}
       {meldung && <Alert ton="success">{meldung}</Alert>}
+      <div className="stack">
+      <Card>
+      <h2>Bewerbungen für Freizeiten</h2>
       {liste.laedt && <Spinner />}
       {!liste.laedt && liste.daten?.length === 0 && <EmptyState icon="📭" titel="Keine offenen Bewerbungen" />}
-      <ul className="list">
+      <ul className="list" aria-label="Bewerbungen für Freizeiten">
         {(liste.daten ?? []).map((b) => {
           const name = `${b.person.vorname} ${b.person.nachname}`;
           return (
@@ -61,6 +68,10 @@ export function Bewerbungen() {
           );
         })}
       </ul>
+      </Card>
+      <BewerbungenZeitraum />
+      <BewerbungsFrist />
+      </div>
     </>
   );
 }

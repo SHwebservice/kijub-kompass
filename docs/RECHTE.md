@@ -74,7 +74,9 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Absprachen (Leitung ↔ Koordination) | L E Ä X | L E Ä X | — · **Δ** Altcode: Lesezugriff war technisch offen, nur UI versteckte sie | — | — | — |
 | Absprache bestätigen/kommentieren | alle | E (eig.) Ä/X (eig. Kommentar) | — | — | — | — |
 | Lebensmittel Eingang/Verbrauch (am Ort) | L E Ä X | L E Ä X (Orte der eigenen Freizeit) | — | — | — | — |
-| Bewerbung | L Ä (annehmen/ablehnen) X | — | — | — | — | Bewerbende: E (eig.), X (eig., solange offen), L (eig.) |
+| Bewerbung (seit 0030 nur, solange die Freizeit „Bewerbungen möglich“ hat) | L Ä (annehmen/ablehnen) X | — | — | — | — | Bewerbende: E (eig.), X (eig., solange offen), L (eig.) |
+| Bewerbung für eine Ferienzeit (Migration 0030) | L, zuordnen, als erledigt markieren, X | — | — | — | — | Bewerbende: E (eig., dieses/nächstes Jahr), Ä und X (eig., solange offen), L (eig.) |
+| Bewerbungsfrist (Einstellung) | L Ä (nur Freizeitenkoordination) | L | L | L | L | L |
 
 > Hinweis Wochenplan: Der Altcode erlaubt jedem Teammitglied, alle Einträge zu ändern. Vorschlag für den Neubau:
 > TeamerInnen ändern/löschen **eigene** Einträge; Leitung und Koordination alle. (O-Entscheidung bei Bedarf.)

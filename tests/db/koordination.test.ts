@@ -266,14 +266,15 @@ describe('Vollständigkeit der Umstellung', () => {
        where schemaname = 'public' and (coalesce(qual, '') like '%ist_koord()%' or coalesce(with_check, '') like '%ist_koord()%') order by 1, 2`);
     const tabellen = [...new Set(r.rows.map((x) => x.tablename))];
     // Nur gemeinsam verwaltete Bereiche dürfen „irgendeine Koordination“ behalten
-    expect(tabellen).toEqual(['angebot_bewertungen', 'angebot_kommentare', 'angebot_vorschlaege', 'angebote', 'einstellungen', 'fehlermeldungen', 'inhalte',
+    // Einstellungen (Bewerbungsfrist) gehören seit 0030 der Freizeitenkoordination
+    expect(tabellen).toEqual(['angebot_bewertungen', 'angebot_kommentare', 'angebot_vorschlaege', 'angebote', 'fehlermeldungen', 'inhalte',
       'orte', 'personen', 'quiz_ergebnisse', 'quiz_fragen', 'tags']);
   });
 
   it('die umgestellten Funktionen fragen nicht mehr nach „irgendeiner Koordination“', async () => {
     const r = await q<{ proname: string }>(`
       select proname from pg_proc where pronamespace = 'public'::regnamespace and prosrc like '%ist_koord()%' order by 1`);
-    // Gemeinsame Bereiche (Personen, Katalog, manuelle Mitteilungen) behalten ist_koord()
-    expect(r.rows.map((x) => x.proname)).toEqual(['fn_person_datenuebersicht', 'fn_personen_schutz', 'fn_push_vorbereiten', 'fn_push_ziel', 'fn_vorschlag_ablehnen', 'fn_vorschlag_uebernehmen']);
+    // Gemeinsame Bereiche (Personen, Katalog, manuelle Mitteilungen) behalten ist_koord(); fn_push_vorbereiten heißt seit 0030 intern fn_push_vorbereiten_basis
+    expect(r.rows.map((x) => x.proname)).toEqual(['fn_person_datenuebersicht', 'fn_personen_schutz', 'fn_push_vorbereiten_basis', 'fn_push_ziel', 'fn_vorschlag_ablehnen', 'fn_vorschlag_uebernehmen']);
   });
 });

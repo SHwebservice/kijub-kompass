@@ -53,6 +53,7 @@ beforeEach(() => {
   vi.mocked(fzApi.meineBewerbungen).mockResolvedValue([]);
   vi.mocked(fzApi.holeVorlaufTage).mockResolvedValue(7);
   vi.mocked(fzApi.holeNamen).mockResolvedValue({ ben: 'Ben Baum' });
+  vi.mocked(fzApi.offeneZeitraumBewerbungen).mockResolvedValue([]);
   vi.mocked(fzApi.offeneBewerbungen).mockResolvedValue([{ id: 'b1', notiz: 'Gern', created_at: '2027-06-01T10:00:00Z', person: { vorname: 'Ida', nachname: 'Neu', mail: 'i@x.de', kategorie: 'FSJ' }, freizeit: { id: 'f1', name: 'Sommer 1', start_datum: inTagen(5), ende_datum: inTagen(9) } }] as never);
   vi.mocked(treffApi.listeTreffs).mockResolvedValue([nord]);
   vi.mocked(treffApi.listeMeineDienste).mockResolvedValue([]);

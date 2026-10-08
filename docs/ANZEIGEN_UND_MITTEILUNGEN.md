@@ -40,7 +40,7 @@ Es gibt keine Einstellung je Mitteilungsart und keine Ruhezeiten: Jede Person sc
 | Kommentar im Dienstplan | Team des Treffs | 0015 |
 | Neuer Dienstwunsch | Treffleitung | 0015 |
 | Antwort auf einen Dienstwunsch | die Person | 0015 |
-| Neue Bewerbung | Freizeitenkoordination | 0015, 0018 |
+| Neue Bewerbung (für eine Freizeit oder – seit 0030 – für eine Ferienzeit) | Freizeitenkoordination | 0015, 0018, 0030 |
 | Neuer Katalog-Vorschlag | beide Koordinationen | 0015 |
 | Manuelle Mitteilung | von der Koordination gewählte Gruppe | 0015 |
 | **Tagesprotokoll fehlt** (abends, 15 Minuten bis 3 Stunden nach Ende der Öffnungszeit, einmal je Treff und Tag, nicht an Feiertagen und in Schließzeiten) | **das ganze Team des Treffs** – nicht die Koordination | 0016, 0026 |

@@ -158,7 +158,7 @@ Eine rollenabhängige Startseite statt fünf getrennter Dashboard-Fragmente:
 | O4 | Lebensmittel-Bestand nur **am Ort** (Ort wird für das Modul Pflicht)? Heute gibt es zusätzlich den Sonderfall „Freizeit ohne Ort". | Ja, Pflicht-Ort. Einfacher und fachlich sauberer. |
 | O5 | Sollen **Formular-Entwürfe** und **Quiz-Bestwerte** je Person gespeichert werden (geräteübergreifend) oder weiter nur lokal? | Quiz: ja (leicht). Formulare: Entwürfe ja, aber Anwesenheitslisten mit Kindernamen nie serverseitig. |
 | ~~O6~~ | **Entschieden:** Planer entfällt, Favoriten bleiben. | – |
-| O7 | Soll die **Frist 7 Tage** für Bewerbungen fest bleiben? | Einstellung in der App. |
+| ~~O7~~ | **Umgesetzt (0030):** Die Frist stellt die Freizeitenkoordination unter *Bewerbungen* ein (0 bis 90 Tage). | – |
 | O8 | **Datenschutz:** Gibt es eine Datenschutzfolgenabschätzung/Verarbeitungsverzeichnis beim Träger? Supabase-Auftragsverarbeitung (EU) muss abgeschlossen werden. | Vor Produktivstart klären, nicht blockierend für den Bau. |
 
 ---
@@ -426,3 +426,13 @@ Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und
 - Rechte in der Datenbank: Stand und eigene Punkte lesen und ändern nur die Leitungen der Freizeit und die Freizeitenkoordination; die Standard-Checkliste lesen alle, pflegen nur die Freizeitenkoordination.
 
 **Bewusst so:** TeamerInnen sehen die Checkliste nicht (Aufgaben an TeamerInnen zu verteilen wäre ein späterer Ausbau). Bewerbungen und Zuordnungen entscheidet weiterhin die Freizeitenkoordination; die Punkte dazu sind für die Leitung nur ein Stand, den die App erkennt.
+
+## Stand der Umsetzung: Bewerbungen – Frist, volle Freizeiten, Bewerbung für Ferienzeiten (Phase 15, 2026-10-08)
+
+**Umgesetzt und getestet** (Migration `0030`):
+- **Bewerbungsfrist einstellbar (O7):** Auf der Seite *Bewerbungen* stellt die Freizeitenkoordination ein, bis wie viele Tage vor Beginn man sich bewerben kann (0 bis 90, ganze Tage). Ändern darf das nur die Freizeitenkoordination; die Datenbank prüft den Wert.
+- **Freizeit für Bewerbungen schließen:** Schalter *Bewerbungen möglich* im Formular der Freizeit. Ist er aus, steht die Freizeit in der Liste mit „Voll – keine Bewerbung mehr“ und ohne „Bewerben“, und die Datenbank nimmt keine neuen Bewerbungen an. Bereits eingegangene Bewerbungen bleiben und werden wie bisher entschieden; Zuordnen geht weiterhin.
+- **Bewerbung für eine Ferienzeit:** Unter *Freizeiten → Alle kommenden* bewerben sich Mitarbeitende mit „Für eine Ferienzeit bewerben“ für Ostern, Sommer oder Herbst dieses oder des nächsten Jahres – optional nur für bestimmte Wochen (keine Woche = jede Woche) – mit Nachricht, ohne eine Freizeit zu wählen. Die App zeigt dabei die passenden Freizeiten. Je Ferienzeit und Jahr eine Bewerbung; zurückziehen, solange sie offen ist.
+  Die Freizeitenkoordination erhält eine Mitteilung und sieht unter *Bewerbungen → Bewerbungen für Ferienzeiten* je Bewerbung die **passenden Freizeiten** (gleiches Jahr und Ferienzeit, gewählte Wochen; Freizeiten ohne Woche passen immer; auch volle) und ordnet die Person mit Rolle (TeamerIn oder Leitung) per „Zuordnen“ zu. Die Person bekommt dabei die gewohnte Mitteilung „Bewerbung angenommen“ (es entsteht eine angenommene Bewerbung für diese Freizeit). Die Zeitraum-Bewerbung bleibt offen – z. B. für eine zweite Woche –, bis die Koordination sie als **erledigt** markiert.
+  Offene Zeitraum-Bewerbungen zählen auf der Startseite bei „Bewerbungen“ mit.
+

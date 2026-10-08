@@ -1,14 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { sendePush } from '../mitteilungen/senden';
 import * as api from '../freizeiten/api';
+import * as zuordnungApi from '../zuordnung/api';
 import { Orte } from './Orte';
 import { Bewerbungen } from './Bewerbungen';
 import { renderMitAuth } from '../test-utils';
 
 vi.mock('../freizeiten/api');
-beforeEach(() => { vi.resetAllMocks(); });
+vi.mock('../zuordnung/api');
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(api.offeneZeitraumBewerbungen).mockResolvedValue([]);
+  vi.mocked(api.listeFreizeiten).mockResolvedValue([]);
+  vi.mocked(api.holeVorlaufTage).mockResolvedValue(7);
+  vi.mocked(zuordnungApi.listeFreizeitTeams).mockResolvedValue([]);
+});
 
 const koord = { ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' as const } };
 
@@ -131,5 +139,62 @@ describe('Bewerbungen', () => {
     renderMitAuth(<Bewerbungen />, koord);
     await userEvent.click(await screen.findByRole('button', { name: 'Annehmen' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Dafür fehlt die Berechtigung.');
+  });
+});
+
+describe('Bewerbungen: Ferienzeiten und Frist (0030)', () => {
+  const zeitraum = { id: 'z1', person_id: 'p1', jahr: 2027, ferienzeitraum: 'sommer' as const, wochen: [2], notiz: 'mit Tom', status: 'offen' as const,
+    created_at: '2027-05-01T10:00:00Z', person: { vorname: 'Tina', nachname: 'Teamer', kategorie: 'TeamerIn' } };
+  const fz = (id: string, woche: number, o: Record<string, unknown> = {}) => ({
+    id, name: `Sommer ${woche}`, status: 'geplant' as const, ferienzeitraum: 'sommer' as const, ferienwoche: woche, start_datum: `2027-07-0${woche}`, ende_datum: '2027-07-09',
+    ort_id: null, ort_name: null, max_teilnehmende: null, alter_von: null, alter_bis: null, tags: [], farbe: null, bewerbung_offen: true, ...o,
+  });
+
+  it('zeigt Zeitraum-Bewerbungen mit passenden Freizeiten; Zuordnen mit Rolle schickt „Bewerbung angenommen“', async () => {
+    vi.mocked(api.offeneBewerbungen).mockResolvedValue([]);
+    vi.mocked(api.offeneZeitraumBewerbungen).mockResolvedValue([zeitraum]);
+    vi.mocked(api.listeFreizeiten).mockResolvedValue([fz('f1', 1), fz('f2', 2, { bewerbung_offen: false }), fz('f9', 9)]);
+    vi.mocked(api.zeitraumZuordnen).mockResolvedValue('b-neu');
+    const u = userEvent.setup();
+    renderMitAuth(<Bewerbungen />, koord);
+    const liste = await screen.findByRole('list', { name: 'Passende Freizeiten für Tina Teamer' });
+    expect(screen.getByText('Sommer 2027 · Woche 2')).toBeInTheDocument();
+    expect(within(liste).getAllByRole('listitem')).toHaveLength(1);                                         // nur Woche 2
+    expect(within(liste).getByText('voll')).toBeInTheDocument();                                              // auch volle Freizeiten lassen sich zuordnen
+    await u.selectOptions(within(liste).getByLabelText('Rolle für Tina Teamer in Sommer 2'), 'leitung');
+    await u.click(within(liste).getByRole('button', { name: 'Tina Teamer „Sommer 2“ zuordnen' }));
+    expect(api.zeitraumZuordnen).toHaveBeenCalledWith('z1', 'f2', 'leitung');
+    expect(sendePush).toHaveBeenCalledWith('bewerbung_angenommen', 'b-neu');
+    expect(await screen.findByText(/Tina Teamer ist jetzt Leitung von „Sommer 2“/)).toBeInTheDocument();
+  });
+
+  it('wer schon im Team ist, wird angezeigt statt „Zuordnen“; „Erledigt“ schließt die Bewerbung', async () => {
+    vi.mocked(api.offeneBewerbungen).mockResolvedValue([]);
+    vi.mocked(api.offeneZeitraumBewerbungen).mockResolvedValue([zeitraum]);
+    vi.mocked(api.listeFreizeiten).mockResolvedValue([fz('f2', 2)]);
+    vi.mocked(zuordnungApi.listeFreizeitTeams).mockResolvedValue([{ freizeit_id: 'f2', person_id: 'p1', rolle: 'teamer' }]);
+    vi.mocked(api.zeitraumErledigt).mockResolvedValue(undefined);
+    const u = userEvent.setup();
+    renderMitAuth(<Bewerbungen />, koord);
+    expect(await screen.findByText('ist im Team')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /zuordnen/ })).not.toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'Bewerbung von Tina Teamer als erledigt markieren' }));
+    expect(api.zeitraumErledigt).toHaveBeenCalledWith('z1');
+  });
+
+  it('Bewerbungsfrist: zeigt den Wert, speichert eine gültige Zahl, lehnt ungültige ab', async () => {
+    vi.mocked(api.offeneBewerbungen).mockResolvedValue([]);
+    vi.mocked(api.speichereVorlaufTage).mockResolvedValue(undefined);
+    const u = userEvent.setup();
+    renderMitAuth(<Bewerbungen />, koord);
+    const feld = await screen.findByLabelText('Tage vor Beginn');
+    await waitFor(() => expect(feld).toHaveValue(7));
+    await u.clear(feld); await u.type(feld, '120');
+    await u.click(screen.getByRole('button', { name: 'Speichern' }));
+    expect(screen.getByText('Bitte eine ganze Zahl von 0 bis 90 eingeben.')).toBeInTheDocument();
+    await u.clear(feld); await u.type(feld, '14');
+    await u.click(screen.getByRole('button', { name: 'Speichern' }));
+    expect(api.speichereVorlaufTage).toHaveBeenCalledWith(14);
+    expect(await screen.findByText('Gespeichert.')).toBeInTheDocument();
   });
 });

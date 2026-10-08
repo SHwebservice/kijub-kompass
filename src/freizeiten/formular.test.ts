@@ -40,12 +40,12 @@ describe('formularAusDetail', () => {
   it('übernimmt Werte und macht aus null leere Felder', () => {
     const d = {
       id: 'x', name: 'A', status: 'abgesagt', ferienzeitraum: 'sommer', ferienwoche: 2, start_datum: '2027-07-05', ende_datum: '2027-07-09',
-      ort_id: 'o1', ort_name: 'Au', max_teilnehmende: null, alter_von: 6, alter_bis: null, tags: ['Küche'], farbe: null,
+      ort_id: 'o1', ort_name: 'Au', max_teilnehmende: null, alter_von: 6, alter_bis: null, tags: ['Küche'], farbe: null, bewerbung_offen: false,
       arbeitsbeginn: '07:30', arbeitsende: null, adresse_abw: null, ort_adresse: null, kijuko_entfallen_am: null,
     } satisfies FreizeitDetailDaten;
     expect(formularAusDetail(d)).toEqual({
       name: 'A', status: 'abgesagt', ferienzeitraum: 'sommer', ferienwoche: 2, start_datum: '2027-07-05', ende_datum: '2027-07-09',
-      arbeitsbeginn: '07:30', arbeitsende: '', alter_von: 6, alter_bis: '', max_teilnehmende: '', ort_id: 'o1', tags: ['Küche'], farbe: '',
+      arbeitsbeginn: '07:30', arbeitsende: '', alter_von: 6, alter_bis: '', max_teilnehmende: '', ort_id: 'o1', tags: ['Küche'], farbe: '', bewerbung_offen: false,
     });
     expect(formularAusDetail({ ...d, farbe: 'petrol' }).farbe).toBe('petrol');
   });

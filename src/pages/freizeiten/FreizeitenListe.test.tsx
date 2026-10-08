@@ -26,6 +26,7 @@ beforeEach(() => {
   vi.mocked(api.holeVorlaufTage).mockResolvedValue(7);
   vi.mocked(api.bewerben).mockResolvedValue(undefined);
   vi.mocked(api.bewerbungZurueckziehen).mockResolvedValue(undefined);
+  vi.mocked(api.meineZeitraumBewerbungen).mockResolvedValue([]);
 });
 
 const teamerMitZuordnung = { freizeiten: [{ freizeit_id: 'meine', rolle: 'teamer' as const }, { freizeit_id: 'alt', rolle: 'teamer' as const }] };
@@ -156,5 +157,59 @@ describe('Barrierefreiheit (axe)', () => {
     renderMitAuth(<FreizeitenListe />, teamerMitZuordnung);
     await screen.findByText('Meine Sommerfreizeit');
     expect(await axeVerstoesse(document.body)).toEqual([]);
+  });
+});
+
+describe('Freizeiten-Liste: voll und Bewerbung für eine Ferienzeit (0030)', () => {
+  const jahr = Number(inTagen(0).slice(0, 4));
+
+  it('eine volle Freizeit hat kein „Bewerben“, sondern das Schild „Voll“', async () => {
+    vi.mocked(api.listeFreizeiten).mockResolvedValue(liste.map((f) => (f.id === 'fremd' ? { ...f, bewerbung_offen: false } : f)));
+    renderMitAuth(<FreizeitenListe />, teamerMitZuordnung);
+    await userEvent.click(await screen.findByRole('tab', { name: 'Alle kommenden' }));
+    const eintrag = screen.getByText('Fremde Freizeit').closest('li')!;
+    expect(within(eintrag).getByText('Voll – keine Bewerbung mehr')).toBeInTheDocument();
+    expect(within(eintrag).queryByRole('button', { name: 'Bewerben' })).not.toBeInTheDocument();
+  });
+
+  it('bewirbt sich für Sommer mit Wochen; die Koordination erfährt es; doppelt geht nicht', async () => {
+    vi.mocked(api.zeitraumBewerben).mockResolvedValue('z-neu');
+    vi.mocked(api.meineZeitraumBewerbungen).mockResolvedValueOnce([]).mockResolvedValue([
+      { id: 'z-neu', person_id: 'ich', jahr, ferienzeitraum: 'sommer', wochen: [1, 3], notiz: null, status: 'offen', created_at: '2027-01-01T00:00:00Z' },
+    ]);
+    const u = userEvent.setup();
+    renderMitAuth(<FreizeitenListe />, teamerMitZuordnung);
+    await u.click(await screen.findByRole('tab', { name: 'Alle kommenden' }));
+    await u.click(screen.getByText('Für eine Ferienzeit bewerben'));
+    await u.selectOptions(screen.getByLabelText('Ferienzeit'), 'sommer');
+    await u.click(screen.getByLabelText('Woche 3'));
+    await u.click(screen.getByLabelText('Woche 1'));
+    await u.click(screen.getByRole('button', { name: `Für Sommer ${jahr} · Woche 1, 3 bewerben` }));
+    expect(api.zeitraumBewerben).toHaveBeenCalledWith('ich', jahr, 'sommer', [1, 3], '');
+    expect(sendePush).toHaveBeenCalledWith('bewerbung_zeitraum', 'z-neu');
+    expect(await screen.findByText(/ist eingegangen. Die Koordination ordnet dich einer Freizeit zu/)).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Meine Bewerbungen für Ferienzeiten' })).getByText(`Sommer ${jahr} · Woche 1, 3`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `Für Sommer ${jahr} · jede Woche bewerben` })).toBeDisabled();
+  });
+
+  it('Ostern und Herbst haben nur zwei Wochen; zurückziehen mit Rückfrage', async () => {
+    vi.mocked(api.zeitraumZurueckziehen).mockResolvedValue(undefined);
+    vi.mocked(api.meineZeitraumBewerbungen).mockResolvedValue([
+      { id: 'z1', person_id: 'ich', jahr, ferienzeitraum: 'herbst', wochen: [], notiz: 'egal', status: 'offen', created_at: '2027-01-01T00:00:00Z' },
+    ]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const u = userEvent.setup();
+    renderMitAuth(<FreizeitenListe />, teamerMitZuordnung);
+    await u.click(await screen.findByRole('tab', { name: 'Alle kommenden' }));
+    await u.selectOptions(await screen.findByLabelText('Ferienzeit'), 'ostern');
+    expect(screen.queryByLabelText('Woche 3')).not.toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'Zurückziehen' }));
+    expect(api.zeitraumZurueckziehen).toHaveBeenCalledWith('z1');
+  });
+
+  it('die Freizeitenkoordination sieht den Bereich nicht', async () => {
+    renderMitAuth(<FreizeitenListe />, { ich: { ist_freizeitkoordination: true, kategorie: 'Hauptamtliche*r' } });
+    await screen.findByText('Meine Sommerfreizeit');
+    expect(screen.queryByText('Für eine Ferienzeit bewerben')).not.toBeInTheDocument();
   });
 });

@@ -13,6 +13,8 @@ export interface FreizeitKurz {
   status: 'geplant' | 'abgesagt';
   ferienzeitraum: Ferienzeitraum | null;
   ferienwoche: number | null;
+  /** false = von der Freizeitenkoordination für Bewerbungen geschlossen (z. B. voll), Migration 0030. */
+  bewerbung_offen?: boolean;
 }
 
 const MS_TAG = 86_400_000;
@@ -103,7 +105,26 @@ export function fruehesterBewerbungsstart(heute: string, vorlaufTage: number): s
 }
 
 export const darfBeworbenWerden = (f: FreizeitKurz, heute: string, vorlaufTage: number) =>
-  f.status === 'geplant' && f.start_datum >= fruehesterBewerbungsstart(heute, vorlaufTage);
+  f.status === 'geplant' && f.bewerbung_offen !== false && f.start_datum >= fruehesterBewerbungsstart(heute, vorlaufTage);
+
+/* ───── Bewerbung für eine Ferienzeit (Migration 0030) ───── */
+
+export interface ZeitraumWahl { jahr: number; ferienzeitraum: Ferienzeitraum; wochen: number[] }
+
+/** „Sommer 2027 · Woche 1, 3“ bzw. „Ostern 2027 · jede Woche“ */
+export const zeitraumWahlText = (z: ZeitraumWahl) =>
+  `${FERIEN_LABEL[z.ferienzeitraum]} ${z.jahr} · ${z.wochen.length ? `Woche ${[...z.wochen].sort((a, b) => a - b).join(', ')}` : 'jede Woche'}`;
+
+/** Freizeiten, die zu einer Zeitraum-Bewerbung passen: geplant, gleiches Jahr und Ferienzeit, passende Woche (ohne Woche: alle). */
+export function passendeFreizeiten<T extends FreizeitKurz>(z: ZeitraumWahl, freizeiten: T[]): T[] {
+  return freizeiten
+    .filter((f) => f.status === 'geplant' && f.ferienzeitraum === z.ferienzeitraum && Number(f.start_datum.slice(0, 4)) === z.jahr
+      && (z.wochen.length === 0 || f.ferienwoche === null || z.wochen.includes(f.ferienwoche)))
+    .sort((a, b) => a.start_datum.localeCompare(b.start_datum) || a.name.localeCompare(b.name, 'de'));
+}
+
+/** Für welche Jahre man sich bewerben kann: dieses und nächstes. */
+export const bewerbungsJahre = (heute: string) => [Number(heute.slice(0, 4)), Number(heute.slice(0, 4)) + 1];
 
 /* ───── Lebensmittel ───── */
 

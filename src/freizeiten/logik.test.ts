@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   tageVonBis, tageZwischen, wochentagKurz, wochentagLang, formatDatum, formatKurz, zeitraumText, ferienText, phase,
-  gruppiereNachFerien, darfBeworbenWerden, fruehesterBewerbungsstart, bestand, hochrechnung, sortiereTeam, heuteIso,
+  gruppiereNachFerien, darfBeworbenWerden, passendeFreizeiten, zeitraumWahlText, bewerbungsJahre, fruehesterBewerbungsstart, bestand, hochrechnung, sortiereTeam, heuteIso,
   tageBisStart, freizeitFarbe, automatischeFarbe, FREIZEIT_FARBEN, formatTagLang, formatMonatKurz, type FreizeitKurz,
 } from './logik';
 
@@ -66,6 +66,7 @@ describe('Ferien und Phasen', () => {
     expect(fruehesterBewerbungsstart('2027-06-28', 7)).toBe('2027-07-05');
     expect(darfBeworbenWerden(fz({ id: 'a', start_datum: '2027-07-05' }), '2027-06-28', 7)).toBe(true);
     expect(darfBeworbenWerden(fz({ id: 'a', start_datum: '2027-07-04' }), '2027-06-28', 7)).toBe(false);
+    expect(darfBeworbenWerden(fz({ id: 'a', start_datum: '2027-07-05', bewerbung_offen: false }), '2027-06-28', 7)).toBe(false);     // voll (0030)
     expect(darfBeworbenWerden(fz({ id: 'a', start_datum: '2027-08-01', status: 'abgesagt' }), '2027-06-28', 7)).toBe(false);
   });
   it('freizeitFarbe: stabil aus der ID, aus der festen Palette; eine gewählte Farbe geht vor', () => {
@@ -77,6 +78,25 @@ describe('Ferien und Phasen', () => {
     expect(freizeitFarbe('abc', null)).toBe(freizeitFarbe('abc'));
     // zehn verschiedene IDs verteilen sich auf mehrere Farben
     expect(new Set(Array.from({ length: 10 }, (_, i) => automatischeFarbe(`freizeit-${i}`))).size).toBeGreaterThan(3);
+  });
+});
+
+describe('Bewerbung für eine Ferienzeit', () => {
+  const s = (id: string, woche: number | null, o: Partial<FreizeitKurz> = {}): FreizeitKurz => ({
+    id, name: id, start_datum: '2027-07-0' + (woche ?? 1), ende_datum: '2027-07-09', status: 'geplant', ferienzeitraum: 'sommer', ferienwoche: woche, ...o,
+  });
+  const liste = [s('w2', 2), s('w1', 1), s('ohne', null), s('w3', 3), s('herbst', 1, { ferienzeitraum: 'herbst' }), s('alt', 1, { start_datum: '2026-07-01' }), s('ab', 2, { status: 'abgesagt' })];
+
+  it('passende Freizeiten: Jahr, Ferienzeit, gewählte Wochen (ohne Woche: alle); Freizeit ohne Woche passt immer; abgesagte nie', () => {
+    expect(passendeFreizeiten({ jahr: 2027, ferienzeitraum: 'sommer', wochen: [2, 3] }, liste).map((f) => f.id)).toEqual(['ohne', 'w2', 'w3']);
+    expect(passendeFreizeiten({ jahr: 2027, ferienzeitraum: 'sommer', wochen: [] }, liste).map((f) => f.id)).toEqual(['ohne', 'w1', 'w2', 'w3']);
+    expect(passendeFreizeiten({ jahr: 2027, ferienzeitraum: 'herbst', wochen: [1] }, liste).map((f) => f.id)).toEqual(['herbst']);
+  });
+
+  it('Text und Jahre', () => {
+    expect(zeitraumWahlText({ jahr: 2027, ferienzeitraum: 'sommer', wochen: [3, 1] })).toBe('Sommer 2027 · Woche 1, 3');
+    expect(zeitraumWahlText({ jahr: 2027, ferienzeitraum: 'ostern', wochen: [] })).toBe('Ostern 2027 · jede Woche');
+    expect(bewerbungsJahre('2027-10-08')).toEqual([2027, 2028]);
   });
 });
 

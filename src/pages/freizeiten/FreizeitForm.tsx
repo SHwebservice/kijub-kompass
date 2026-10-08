@@ -73,6 +73,10 @@ function FormInhalt({ id, start }: { id: string | null; start: FreizeitFormular 
             <option value="geplant">Geplant</option>
             <option value="abgesagt">Abgesagt</option>
           </SelectField>
+          <label className="option">
+            <input type="checkbox" checked={f.bewerbung_offen} onChange={(e) => set('bewerbung_offen', e.target.checked)} />
+            <span>Bewerbungen möglich <span className="field__hint">(abschalten, wenn die Freizeit voll besetzt ist – sie steht dann als „voll“ in der Liste)</span></span>
+          </label>
           <div className="row" style={{ alignItems: 'flex-start' }}>
             <div style={{ flex: '1 1 160px' }}>
               <TextField label="Start" type="date" value={f.start_datum} onChange={(e) => set('start_datum', e.target.value)} fehler={fehler.start_datum} required />

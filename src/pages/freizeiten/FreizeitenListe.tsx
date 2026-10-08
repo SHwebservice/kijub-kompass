@@ -13,6 +13,7 @@ import {
 import { rolleInFreizeit } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../../components/ui';
 import { fzStreifen } from '../../components/FreizeitFarbe';
+import { ZeitraumBewerben } from './ZeitraumBewerben';
 
 type Tab = 'meine' | 'alle' | 'vergangen';
 const TAB_LABEL: Record<Tab, string> = { meine: 'Meine', alle: 'Alle kommenden', vergangen: 'Vergangene' };
@@ -101,6 +102,8 @@ export function FreizeitenListe() {
         </Card>
       )}
 
+      {tab === 'alle' && rollen.bewerbend && !rollen.freizeitkoordination && <ZeitraumBewerben freizeiten={alle} />}
+
       {liste.laedt && <Spinner />}
       {!liste.laedt && sichtbar.length === 0 && (
         <EmptyState icon="⛺" titel={tab === 'meine' ? 'Du bist noch keiner Freizeit zugeordnet' : tab === 'vergangen' ? 'Keine vergangenen Freizeiten' : 'Keine kommenden Freizeiten'}>
@@ -133,6 +136,7 @@ export function FreizeitenListe() {
                       {p === 'laufend' && f.status === 'geplant' && <Badge ton="success">Läuft</Badge>}
                       {p === 'kommend' && bis <= 7 && f.status === 'geplant' && <Badge ton="warning">Startet in {bis} {bis === 1 ? 'Tag' : 'Tagen'}</Badge>}
                       {f.status === 'abgesagt' && <Badge ton="danger">Abgesagt</Badge>}
+                      {!f.bewerbung_offen && f.status === 'geplant' && p === 'kommend' && !istMein && <Badge>Voll – keine Bewerbung mehr</Badge>}
                       {bewerbungsStatus === 'offen' && <Badge ton="warning">Beworben</Badge>}
                       {bewerbungsStatus === 'abgelehnt' && <Badge ton="danger">Bewerbung abgelehnt</Badge>}
                     </div>

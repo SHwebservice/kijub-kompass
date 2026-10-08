@@ -30,6 +30,8 @@ export interface FreizeitZeile {
   tags: string[];
   /** Gewählte Farbe (Migration 0026); null = automatisch aus der ID. */
   farbe: FreizeitFarbeId | null;
+  /** false = für Bewerbungen geschlossen (Migration 0030). */
+  bewerbung_offen: boolean;
 }
 
 export interface FreizeitDetailDaten extends FreizeitZeile {
@@ -56,6 +58,7 @@ export interface FreizeitFormular {
   tags: string[];
   /** '' = automatisch */
   farbe: FreizeitFarbeId | '';
+  bewerbung_offen: boolean;
 }
 
 export interface Ort { id: string; name: string; adresse: string | null; lieferstelle_nr: string | null; freizeiten: number; treffs: number }
@@ -98,9 +101,10 @@ const zeile = (r: Roh): FreizeitZeile => ({
   alter_von: (r.alter_von as number | null) ?? null, alter_bis: (r.alter_bis as number | null) ?? null,
   tags: ((r.freizeit_tags as { tag: string }[] | null) ?? []).map((t) => t.tag).sort(),
   farbe: (r.farbe as FreizeitFarbeId | null | undefined) ?? null,
+  bewerbung_offen: r.bewerbung_offen !== false,
 });
 
-const LISTE = 'id, name, status, ferienzeitraum, ferienwoche, start_datum, ende_datum, ort_id, max_teilnehmende, alter_von, alter_bis, farbe, orte(name), freizeit_tags(tag)';
+const LISTE = 'id, name, status, ferienzeitraum, ferienwoche, start_datum, ende_datum, ort_id, max_teilnehmende, alter_von, alter_bis, farbe, bewerbung_offen, orte(name), freizeit_tags(tag)';
 
 /* ───── Freizeiten ───── */
 
@@ -135,7 +139,7 @@ export async function speichereFreizeit(id: string | null, f: FreizeitFormular):
     name: f.name.trim(), status: f.status, ferienzeitraum: f.ferienzeitraum || null, ferienwoche: num(f.ferienwoche),
     start_datum: f.start_datum, ende_datum: f.ende_datum, arbeitsbeginn: leer(f.arbeitsbeginn), arbeitsende: leer(f.arbeitsende),
     alter_von: num(f.alter_von), alter_bis: num(f.alter_bis), max_teilnehmende: num(f.max_teilnehmende), ort_id: f.ort_id || null,
-    farbe: f.farbe || null,
+    farbe: f.farbe || null, bewerbung_offen: f.bewerbung_offen,
   };
   let fid = id;
   if (id) {
@@ -236,6 +240,54 @@ export async function bewerbungAnnehmen(id: string, rolle: 'teamer' | 'leitung' 
 
 export async function bewerbungAblehnen(id: string): Promise<void> {
   pruefe(await supabase.rpc('fn_bewerbung_ablehnen', { p_id: id }));
+}
+
+/** Bewerbungsfrist in Tagen vor Beginn (0 bis 90); ändert nur die Freizeitenkoordination. */
+export async function speichereVorlaufTage(tage: number): Promise<void> {
+  pruefe(await supabase.from('einstellungen').update({ wert: tage }).eq('schluessel', 'bewerbung_vorlauf_tage'));
+}
+
+/* ───── Bewerbung für eine Ferienzeit (Migration 0030) ───── */
+
+export interface ZeitraumBewerbung {
+  id: string;
+  person_id: string;
+  jahr: number;
+  ferienzeitraum: Ferienzeitraum;
+  wochen: number[];
+  notiz: string | null;
+  status: 'offen' | 'erledigt';
+  created_at: string;
+}
+export interface OffeneZeitraumBewerbung extends ZeitraumBewerbung { person: { vorname: string; nachname: string; kategorie: string } }
+
+const ZEITRAUM = 'id, person_id, jahr, ferienzeitraum, wochen, notiz, status, created_at';
+
+export async function meineZeitraumBewerbungen(personId: string): Promise<ZeitraumBewerbung[]> {
+  return pruefe(await supabase.from('bewerbungen_zeitraum').select(ZEITRAUM).eq('person_id', personId).order('jahr').order('ferienzeitraum')) as ZeitraumBewerbung[];
+}
+
+/** Legt die Bewerbung an; Ergebnis: ihre ID (für die Mitteilung an die Freizeitenkoordination). */
+export async function zeitraumBewerben(personId: string, jahr: number, ferienzeitraum: Ferienzeitraum, wochen: number[], notiz: string): Promise<string> {
+  return (pruefe(await supabase.from('bewerbungen_zeitraum').insert({ person_id: personId, jahr, ferienzeitraum, wochen, notiz: leer(notiz) }).select('id').single()) as { id: string }).id;
+}
+
+export async function zeitraumZurueckziehen(id: string): Promise<void> {
+  pruefe(await supabase.from('bewerbungen_zeitraum').delete().eq('id', id));
+}
+
+export async function offeneZeitraumBewerbungen(): Promise<OffeneZeitraumBewerbung[]> {
+  return pruefe(await supabase.from('bewerbungen_zeitraum').select(`${ZEITRAUM}, person:personen!person_id(vorname, nachname, kategorie)`)
+    .eq('status', 'offen').order('jahr').order('ferienzeitraum').order('created_at')) as unknown as OffeneZeitraumBewerbung[];
+}
+
+/** Ordnet die Person einer Freizeit zu; Ergebnis: ID der dabei angenommenen Bewerbung (für „Bewerbung angenommen“). */
+export async function zeitraumZuordnen(id: string, freizeitId: string, rolle: 'teamer' | 'leitung'): Promise<string> {
+  return pruefe(await supabase.rpc('fn_zeitraum_zuordnen', { p_zeitraum: id, p_freizeit: freizeitId, p_rolle: rolle })) as string;
+}
+
+export async function zeitraumErledigt(id: string): Promise<void> {
+  pruefe(await supabase.from('bewerbungen_zeitraum').update({ status: 'erledigt' }).eq('id', id));
 }
 
 /* ───── Verpflegung und Material (aus KiJuKo, nur lesbar) ───── */

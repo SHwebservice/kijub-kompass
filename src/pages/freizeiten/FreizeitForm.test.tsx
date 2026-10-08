@@ -57,6 +57,18 @@ describe('Neue Freizeit', () => {
     expect(await screen.findByTestId('andere-seite')).toBeInTheDocument();
   });
 
+  it('„Bewerbungen möglich“ ist vorgewählt und lässt sich abschalten (0030)', async () => {
+    await neu();
+    const schalter = screen.getByRole('checkbox', { name: /Bewerbungen möglich/ });
+    expect(schalter).toBeChecked();
+    await userEvent.click(schalter);
+    await userEvent.type(screen.getByLabelText('Name'), 'Voll');
+    await userEvent.type(screen.getByLabelText('Start'), '2027-10-11');
+    await userEvent.type(screen.getByLabelText('Ende'), '2027-10-15');
+    await userEvent.click(screen.getByRole('button', { name: 'Freizeit anlegen' }));
+    expect(vi.mocked(api.speichereFreizeit).mock.calls[0]![1].bewerbung_offen).toBe(false);
+  });
+
   it('Farbe: „Automatisch“ ist vorgewählt, eine Farbe der Palette lässt sich wählen (Migration 0026)', async () => {
     await neu();
     const farbe = screen.getByRole('group', { name: 'Farbe' });
