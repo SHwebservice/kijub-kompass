@@ -49,6 +49,7 @@ Es gibt keine Einstellung je Mitteilungsart und keine Ruhezeiten: Jede Person sc
 | **Lebensmittel knapp oder leer** (nach einer Verbrauchsbuchung; je Artikel und Stand einmal in 24 Stunden) | Freizeitenkoordination, die nachkauft (nicht die buchende Person selbst) | 0017, 0018 |
 | **Checkliste: heute fällig** (nachmittags, einmal je Freizeit und Tag; nur offene, nicht automatisch erfüllte Punkte) | Leitungen der Freizeit | 0029 |
 | **Materialliste abgegeben** | Freizeitenkoordination | 0032 |
+| **Neues Teamprotokoll** (Treff) | Team des Treffs, ohne die verfassende Person | 0035 |
 
 **Bewusst ohne Mitteilung:** Tagesprotokoll geschrieben oder mit Vorkommnis; Bewerbung abgelehnt; Änderungen am Wochenplan; neue Notizen; Nachweis freigegeben.
 

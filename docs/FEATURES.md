@@ -459,3 +459,13 @@ Die Festlegung steht in `docs/ANZEIGEN_UND_MITTEILUNGEN.md`. **Neu umgesetzt und
 ## Katalog aus dem alten Kompass übernommen (2026-10-08)
 
 Die 77 Programmpunkte des alten KiJuB Kompass wurden einmalig übernommen: direkt aus der alten Firebase-Datenbank gelesen (die PDF-Exporte des alten Kompass sind Bilder ohne Text) und über den JSON-Import eingespielt. Danach wurde die Seite *Katalog importieren* (Route, Menüeintrag, Kachel, Knopf in der Katalog-Liste, Massenimport) entfernt. Erhalten bleibt das Vorbefüllen eines einzelnen Programmpunkts aus einem Word-Plan.
+
+## Stand der Umsetzung: Teamprotokolle der Treffs (Phase 18, 2026-10-09)
+
+**Umgesetzt und getestet** (Migration `0035`):
+- **Neuer Reiter „Teamprotokolle“** in jedem Treff, neben dem Tagesprotokoll: Protokolle zum Nachlesen für alle im Treff – **Teambesprechung**, **Information** (z. B. etwas, das nicht alle erreicht hat) oder **Sonstiges**, mit Datum, Titel, Inhalt und optional den Anwesenden (aus dem Team des Treffs).
+- **Anlegen, ändern, löschen** dürfen Treffleitung und Treffkoordination; **lesen** das ganze Team des Treffs und die Treffkoordination (Regeln in der Datenbank).
+- **Mitteilung** an das ganze Team (ohne die verfassende Person), sobald ein neues Protokoll gespeichert ist; Ändern löst keine neue Mitteilung aus.
+- **Gelesen:** Wer ein Protokoll öffnet, gilt als „gelesen“. In der Liste sind ungelesene markiert; die Treffleitung sieht je Protokoll „von allen gelesen“ bzw. „n noch nicht gelesen“ und beim Öffnen die Namen.
+- **Startseite:** Karte „Teamprotokoll ungelesen“ bzw. „n Teamprotokolle ungelesen“ je eigenem Treff (Protokolle der letzten 60 Tage) mit Link zum Reiter.
+

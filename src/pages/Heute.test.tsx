@@ -13,12 +13,14 @@ import { freizeit, inTagen, treff } from '../test-daten';
 import { formatKurz } from '../freizeiten/logik';
 import type { OffeneNotiz } from '../heute/logik';
 import * as checklisteApi from '../checkliste/api';
+import * as teamprotokollApi from '../teamprotokolle/api';
 
 vi.mock('../freizeiten/api');
 vi.mock('../treffs/api');
 vi.mock('../heute/api');
 vi.mock('../mitteilungen/geraet');
 vi.mock('../checkliste/api');
+vi.mock('../teamprotokolle/api');
 
 let stand: HeuteDaten;
 
@@ -39,6 +41,7 @@ const koord: Szene = { ich: { ist_koordination: true, kategorie: 'Hauptamtliche*
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(checklisteApi.ladeCheckliste).mockResolvedValue([]);
+  vi.mocked(teamprotokollApi.listeNeueTeamprotokolle).mockResolvedValue([]);
   window.localStorage.clear();
   vi.mocked(fzApi.listeFreizeiten).mockResolvedValue([laeuft, bald, fern]);
   vi.mocked(fzApi.meineBewerbungen).mockResolvedValue([]);

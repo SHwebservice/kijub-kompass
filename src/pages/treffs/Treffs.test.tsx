@@ -81,7 +81,7 @@ describe('Treff-Detail: Reiter je Rolle', () => {
   it('BetreuerIn: Übersicht, Dienstplan, Stundennachweis, Absprachen, Team', async () => {
     zeigeDetail(betreuerin);
     await screen.findByRole('heading', { name: 'Treff Nord' });
-    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Absprachen', 'Team']);
+    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Absprachen', 'Teamprotokolle', 'Team']);
     expect(screen.queryByRole('link', { name: 'Bearbeiten' })).not.toBeInTheDocument();
   });
 
@@ -94,7 +94,7 @@ describe('Treff-Detail: Reiter je Rolle', () => {
   it('Treffleitung sieht zusätzlich „Abwesenheit & Feiertage“', async () => {
     zeigeDetail(leitung);
     await screen.findByRole('heading', { name: 'Treff Nord' });
-    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Absprachen', 'Team', 'Abwesenheit & Feiertage']);
+    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Absprachen', 'Teamprotokolle', 'Team', 'Abwesenheit & Feiertage']);
   });
 
   it('Koordination sieht „Bearbeiten“', async () => {

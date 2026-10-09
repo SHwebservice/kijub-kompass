@@ -13,6 +13,8 @@ import { baueFeed } from '../heute/feed';
 import { aktuelleFreizeiten, gruppiereOffene, knappeJeOrt, laeuftHeute, nichtGeseheneImTeam, offeneFuerMich, ohneLeitung, planNachFreizeit, wuenscheJeTreff } from '../heute/logik';
 import { listeMeineDienste, listeTreffs } from '../treffs/api';
 import { ladeCheckliste } from '../checkliste/api';
+import { listeNeueTeamprotokolle } from '../teamprotokolle/api';
+import { ungeleseneJeTreff } from '../teamprotokolle/logik';
 import { standJeFreizeit } from '../checkliste/logik';
 import { protokollFaellig } from '../tagesprotokoll/logik';
 import { addTage, dienstZeit } from '../treffs/dienstplan';
@@ -72,6 +74,8 @@ export function Heute() {
   const eigeneLeitung = alle.filter((f) => rollen?.leitungFreizeiten.includes(f.id) && f.status === 'geplant' && phase(f, heute) !== 'vergangen');
   const checklisteIds = [...new Set([...eigeneLeitung.map((f) => f.id), ...(fk ? aktuelle.map((f) => f.id) : [])])].sort();
   const checkliste = useLaden(async () => (bereit ? ladeCheckliste(checklisteIds) : []), `heute-checkliste-${bereit}-${checklisteIds.join(',')}`);
+  // Ungelesene Teamprotokolle der eigenen Treffs (die letzten 60 Tage)
+  const teamprotokolle = useLaden(async () => (meineTreffIds.length ? listeNeueTeamprotokolle(meineTreffIds, addTage(heute, -60)) : []), `heute-teamprotokolle-${meineTreffIds.join(',')}`);
   if (!ich || !rollen) return null;
   const vorbereitung = standJeFreizeit(checkliste.daten ?? [], heute);
 
@@ -106,6 +110,8 @@ export function Heute() {
     knapp: istLeitung ? knappJeOrt.map((o) => ({ ort: o, freizeitId: freizeitAmOrt(o.ort_id)?.id ?? null, name: d?.orte[o.ort_id] ?? freizeitAmOrt(o.ort_id)?.name ?? 'Ort' })) : [],
     nichtGesehen: istLeitung ? nichtGeseheneImTeam(d?.notizen ?? [], d?.team ?? [], leitungFreizeiten.map((f) => f.id), heute) : [],
     wuensche: wuenscheJe.map((w) => ({ treff: w, name: d?.treffNamen[w.treff_id] ?? 'Treff' })),
+    teamprotokolle: Object.entries(ungeleseneJeTreff(teamprotokolle.daten ?? [], ich.id))
+      .map(([treffId, anzahl]) => ({ treffId, anzahl, name: (treffs.daten ?? []).find((t) => t.id === treffId)?.name ?? 'Treff' })),
     vorbereitung: eigeneLeitung.filter((f) => vorbereitung[f.id]).map((f) => ({ id: f.id, name: f.name, ueberfaellig: vorbereitung[f.id]!.ueberfaellig, bald: vorbereitung[f.id]!.bald })),
     diensteHeute: (dienste.daten ?? []).filter((x) => x.datum === heute),
     freizeitenHeute: laufendHeute.map((f) => ({ id: f.id, name: f.name, ort_name: f.ort_name ?? null, punkte: planHeute.get(f.id) ?? [] })),

@@ -96,6 +96,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Treff-Stammdaten, Öffnungszeiten | L E Ä X | — | — | L (Treff) | L (Treff) | — · **Δ** Altcode: öffentlich lesbar |
 | Wochenprogramm (Tag → Programm) | alle | — | — | L E Ä X | L E Ä X | — |
 | Absprachen | L E Ä X | — | — | L E Ä X | L, bestätigen | — |
+| Teamprotokolle (Teambesprechung, Information, Sonstiges; Migration 0035) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L, „gelesen“ (eigener Treff) | — |
 | Protokoll-Vorlagen je Wochentag (Migration 0028) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L (eigener Treff) | — |
 | Tagesprotokoll (Anzahl m/w/d, Verlauf, Vorkommnisse) | L E Ä (alle) · X | — | — | L E Ä (alle im Treff) · X (Treffleitung) | L E Ä (alle im Treff) | — · **neu**, nur Zahlen, keine Namen von Kindern |
 | Notizen und Listen (To-do, Einkauf, Fragen) | L E Ä X | — | — | L E Ä X | L E Ä X (alle im Treff) | — · **neu** |

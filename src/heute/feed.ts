@@ -52,6 +52,8 @@ export interface FeedEingabe {
   wuensche: { treff: TreffWuensche; name: string }[];
   /** Checkliste der Vorbereitung je eigener Freizeit als Leitung: überfällige und bald fällige Punkte (Migration 0029). */
   vorbereitung?: { id: string; name: string; ueberfaellig: number; bald: number }[];
+  /** Ungelesene Teamprotokolle je eigenem Treff (Migration 0035). */
+  teamprotokolle?: { treffId: string; name: string; anzahl: number }[];
   diensteHeute: MeinDienst[];
   freizeitenHeute: { id: string; name: string; ort_name: string | null; punkte: PlanPunkt[] }[];
   neu: Neuigkeit[];
@@ -88,6 +90,14 @@ export function baueFeed(e: FeedEingabe): FeedEintrag[] {
     });
   }
 
+  for (const t of e.teamprotokolle ?? []) {
+    if (t.anzahl <= 0) continue;
+    liste.push({
+      id: `teamprotokoll-${t.treffId}`, gruppe: 'erledigen', icon: '🗂️', ton: 'warnung',
+      titel: t.anzahl === 1 ? 'Teamprotokoll ungelesen' : `${t.anzahl} Teamprotokolle ungelesen`, text: t.name,
+      link: `/treffs/${t.treffId}/teamprotokolle`, aktion: 'Lesen', zahl: t.anzahl,
+    });
+  }
   for (const v of e.vorbereitung ?? []) {
     if (v.ueberfaellig + v.bald === 0) continue;
     const bald = v.bald > 0 ? `${personenText(v.bald, 'Punkt', 'Punkte')} in den nächsten 7 Tagen` : '';

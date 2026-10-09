@@ -24,6 +24,7 @@ import { heuteIso } from './freizeiten/logik';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import * as checklisteApi from './checkliste/api';
+import * as teamprotokollApi from './teamprotokolle/api';
 
 vi.mock('./zuordnung/api');
 vi.mock('./freizeiten/api');
@@ -33,6 +34,7 @@ vi.mock('./tagesprotokoll/api');
 vi.mock('./fehlermeldungen/api');
 vi.mock('./mitteilungen/geraet');
 vi.mock('./checkliste/api');
+vi.mock('./teamprotokolle/api');
 
 const heute = heuteIso();
 const koord: Szene = { ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } };
@@ -45,6 +47,7 @@ const person = (id: string, vorname: string, nachname: string, o: Partial<zApi.P
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(checklisteApi.ladeCheckliste).mockResolvedValue([]);
+  vi.mocked(teamprotokollApi.listeNeueTeamprotokolle).mockResolvedValue([]);
   window.localStorage.clear();
   vi.mocked(zApi.listePersonenVoll).mockResolvedValue([person('a', 'Anna', 'Adler', { ist_freizeitkoordination: true }), person('b', 'Ben', 'Baum', { kategorie: 'TZK' }), person('c', 'Carla', 'Cord', { aktiv: false })]);
   vi.mocked(zApi.listeFreizeitTeams).mockResolvedValue([{ freizeit_id: 'f1', person_id: 'a', rolle: 'leitung' }]);

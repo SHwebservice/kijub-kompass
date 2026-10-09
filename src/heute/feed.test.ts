@@ -18,6 +18,12 @@ describe('baueFeed', () => {
     expect(f.map((x) => x.gruppe)).toEqual(['erledigen', 'heute', 'neu']);
   });
 
+  it('Teamprotokolle: Karte je Treff mit ungelesenen, Link zum Reiter', () => {
+    const f = baueFeed({ ...leer, teamprotokolle: [{ treffId: 't1', name: 'Treff Nord', anzahl: 2 }, { treffId: 't2', name: 'Süd', anzahl: 0 }] });
+    expect(f).toHaveLength(1);
+    expect(f[0]).toMatchObject({ titel: '2 Teamprotokolle ungelesen', text: 'Treff Nord', link: '/treffs/t1/teamprotokolle', aktion: 'Lesen', zahl: 2, ton: 'warnung' });
+  });
+
   it('Vorbereitung: überfällige Punkte warnen, bald fällige ruhig; nichts fällig, keine Karte', () => {
     const f = baueFeed({ ...leer, vorbereitung: [
       { id: 'f1', name: 'Zeltlager', ueberfaellig: 2, bald: 1 },
