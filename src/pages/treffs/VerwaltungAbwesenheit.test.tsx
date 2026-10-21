@@ -106,31 +106,7 @@ describe('Abwesenheit & Feiertage', () => {
     expect(api.loescheFeiertag).toHaveBeenCalledWith('b');
   });
 
-  it('Schließzeit eintragen: Zeitraum und Grund; „bis“ wird mit „von“ vorbelegt', async () => {
-    vi.mocked(api.speichereSchliesszeit).mockResolvedValue(undefined);
-    await zeige(leitung);
-    await userEvent.type(screen.getByLabelText('Geschlossen von'), morgen);
-    expect(screen.getByLabelText('Geschlossen bis')).toHaveValue(morgen);
-    await userEvent.type(screen.getByLabelText('Grund (optional)'), 'Sommerpause');
-    await userEvent.click(screen.getByRole('button', { name: 'Schließzeit eintragen' }));
-    expect(api.speichereSchliesszeit).toHaveBeenCalledWith('t1', morgen, morgen, 'Sommerpause');
-  });
-
-  it('Schließzeit: Ende vor Beginn wird abgelehnt; vorhandene lassen sich löschen', async () => {
-    vi.mocked(api.loescheSchliesszeit).mockResolvedValue(undefined);
-    vi.mocked(api.listeSchliesszeiten).mockResolvedValue([{ id: 's1', treff_id: 't1', von: '2030-07-01', bis: '2030-07-21', grund: 'Sommerpause' }]);
-    await zeige(leitung);
-    expect(await screen.findByText('Sommerpause')).toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText('Geschlossen von'), addTage(heute, 5));
-    await userEvent.clear(screen.getByLabelText('Geschlossen bis'));
-    await userEvent.type(screen.getByLabelText('Geschlossen bis'), addTage(heute, 2));
-    await userEvent.click(screen.getByRole('button', { name: 'Schließzeit eintragen' }));
-    expect(screen.getByText('Das Ende darf nicht vor dem Beginn liegen.')).toBeInTheDocument();
-    expect(api.speichereSchliesszeit).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: /^Schließzeit .* löschen$/ }));
-    expect(api.loescheSchliesszeit).toHaveBeenCalledWith('s1');
-  });
-
+it('Schließzeiten stehen nicht mehr hier, sondern im Dienstplan (Hinweis mit Link)', async () => {    await zeige(leitung);    expect(screen.queryByLabelText('Geschlossen von')).not.toBeInTheDocument();    expect(screen.getByRole('link', { name: 'Dienstplan' })).toHaveAttribute('href', '/treffs/t1/dienstplan?ansicht=monat');  });
   it('verlangt Datum und Bezeichnung für Feiertage', async () => {
     await zeige(leitung);
     await userEvent.click(screen.getByRole('button', { name: 'Feiertag eintragen' }));

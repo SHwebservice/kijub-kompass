@@ -35,6 +35,8 @@ interface Props {
   veroeffentlicht: readonly string[];
   /** Sonderdienst bearbeiten (Dienst) oder an diesem Tag anlegen (null); schließt das Tagesfenster. */
   sonderdienst: (dienst: Dienst | null) => void;
+  /** Schließzeit ab diesem Tag eintragen (Treffleitung, Koordination); schließt das Tagesfenster. */
+  schliesszeit?: () => void;
   /** Nach einer Änderung an Diensten oder Wünschen. */
   geaendert: () => void;
   /** Nach einer Änderung an „kann nicht“. */
@@ -47,7 +49,7 @@ interface Props {
  * Öffnungszeit, Feiertag oder Schließzeit, Absprachen, Abwesende, Eingeteilte und Sonderdienste. Treffleitung und Koordination teilen hier ein,
  * beantworten Wünsche und legen Sonderdienste an; BetreuerInnen wünschen den Dienst oder sagen, dass sie nicht können.
  */
-export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiertag, absprachen, ichId, heute, veroeffentlicht, sonderdienst, geaendert, verhinderungGeaendert, schliessen }: Props) {
+export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiertag, absprachen, ichId, heute, veroeffentlicht, sonderdienst, schliesszeit, geaendert, verhinderungGeaendert, schliessen }: Props) {
   const verwaltung = darfTreffVerwalten(rolle);
   const gespeichert = k.regulaer?.personen ?? [];
   // null = unverändert (folgt dem gespeicherten Stand, z. B. nach einem bestätigten Wunsch)
@@ -196,6 +198,7 @@ export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiert
 
       <div className="row">
         {verwaltung && <Button klein onClick={() => sonderdienst(null)}>+ Sonderdienst an diesem Tag</Button>}
+        {verwaltung && schliesszeit && !k.geschlossen && <Button klein variante="ghost" onClick={schliesszeit}>Treff an diesem Tag schließen …</Button>}
       </div>
     </Sheet>
   );

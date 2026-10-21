@@ -24,10 +24,12 @@ import { MatrixLeiste } from './MatrixLeiste';
 import { MeinPlan } from './MeinPlan';
 import { PlanStatus } from './PlanStatus';
 import { TagSheet } from './TagSheet';
+import { SchliesszeitenSheet } from './SchliesszeitenSheet';
+import { MonatsplanDruck } from './MonatsplanDruck';
 import { useLetzterBesuchDienste } from '../dienste/gesehen';
 
 type Ansicht = 'woche' | 'monat';
-type Ziel = { art: 'tag'; datum: string } | { art: 'sonder'; dienst: Dienst | null; datum: string };
+type Ziel = { art: 'tag'; datum: string } | { art: 'sonder'; dienst: Dienst | null; datum: string } | { art: 'schliess'; datum?: string };
 
 const datumZeit = (iso: string) => `${formatDatum(iso.slice(0, 10))} ${iso.slice(11, 16)}`;
 const istDatum = (d: string | null): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -160,6 +162,11 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
         <PlanStatus treffId={t.id} monate={monateDer(karten.map((k) => k.datum))} veroeffentlicht={fest} verwaltung={verwaltung} heute={heute} geaendert={() => veroeffentlicht.neuLaden()} />
       )}
 
+      {ansicht === 'monat' && !laedt && !editierend && karten.length > 0 && (
+        <MonatsplanDruck treff={t} monat={monat} mitglieder={mitglieder} dienste={dienste.daten ?? []} abwesenheiten={abwesenheiten.daten ?? []}
+          feiertage={feiertage.daten ?? []} schliesszeiten={schliesszeiten.daten ?? []} vorlaeufig={monat >= monatErster(heute) && !fest.includes(monat)} />
+      )}
+
       {verwaltung && !laedt && !editierend && offeneWuensche(karten).length > 0 && (
         <Alert ton="info">
           {offeneWuensche(karten).length === 1 ? 'Ein offener Dienstwunsch' : `${offeneWuensche(karten).length} offene Dienstwünsche`} {zeitraumText} – in der Tabelle mit „?“ markiert. Antippen zum Beantworten.
@@ -187,7 +194,8 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
             <MatrixLeiste treffId={t.id} ansicht={ansicht} monat={monat} karten={karten} team={mitglieder} oeffnungszeiten={t.oeffnungszeiten}
               abwesenheiten={abw} feiertage={feiertage.daten ?? []} veroeffentlicht={fest} mindestbesetzung={mindest} mindestbesetzungGeaendert={setMindest}
               bearbeiten={editierend} setBearbeiten={setBearbeiten} entwurf={entwurf} setEntwurf={setEntwurf}
-              neuerSonderdienst={() => setZiel({ art: 'sonder', dienst: null, datum: tage.includes(heute) ? heute : von })} geaendert={neuLaden} />
+              neuerSonderdienst={() => setZiel({ art: 'sonder', dienst: null, datum: tage.includes(heute) ? heute : von })}
+              schliesszeitenOeffnen={() => setZiel({ art: 'schliess' })} geaendert={neuLaden} />
           ) : undefined} />
       )}
 
@@ -221,12 +229,15 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
       {tagKarte && (
         <TagSheet treffId={t.id} rolle={rolle} karte={tagKarte} team={mitglieder} abwesenheiten={abw} feiertag={feiertagAm(tagKarte.datum, feiertage.daten ?? [], t.id)}
           absprachen={(absprachen.daten ?? []).filter((n) => n.datum === tagKarte.datum)} ichId={ich.id} heute={heute} veroeffentlicht={fest}
-          sonderdienst={(d) => setZiel({ art: 'sonder', dienst: d, datum: tagKarte.datum })} geaendert={neuLaden}
+          sonderdienst={(d) => setZiel({ art: 'sonder', dienst: d, datum: tagKarte.datum })} schliesszeit={() => setZiel({ art: 'schliess', datum: tagKarte.datum })} geaendert={neuLaden}
           verhinderungGeaendert={() => verhinderungen.neuLaden()} schliessen={schliessen} />
       )}
       {ziel?.art === 'sonder' && (
         <SonderdienstSheet treffId={t.id} dienst={ziel.dienst} startDatum={ziel.datum} team={mitglieder} abwesenheiten={abw}
           veroeffentlicht={fest} schliessen={schliessen} geaendert={neuLaden} />
+      )}
+      {ziel?.art === 'schliess' && (
+        <SchliesszeitenSheet treffId={t.id} startDatum={ziel.datum} schliessen={schliessen} geaendert={() => { schliesszeiten.neuLaden(); dienste.neuLaden(); }} />
       )}
     </div>
   );

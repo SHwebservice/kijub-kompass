@@ -473,3 +473,51 @@ describe('Barrierefreiheit (axe)', () => {
     expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });
+
+describe('Dienstplan: Schließzeiten direkt eintragen', () => {
+  it('„Schließzeiten …“ über der Tabelle: eintragen („bis“ mit „von“ vorbelegt), Dienstplan wird neu geladen', async () => {
+    vi.mocked(api.speichereSchliesszeit).mockResolvedValue(undefined);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(screen.getByRole('button', { name: 'Schließzeiten …' }));
+    const fenster = await screen.findByRole('dialog', { name: 'Schließzeiten' });
+    await userEvent.type(within(fenster).getByLabelText('Geschlossen von'), mi);
+    expect(within(fenster).getByLabelText('Geschlossen bis')).toHaveValue(mi);
+    await userEvent.type(within(fenster).getByLabelText('Grund (optional)'), 'Fortbildung');
+    const aufrufe = vi.mocked(api.listeSchliesszeiten).mock.calls.length;
+    await userEvent.click(within(fenster).getByRole('button', { name: 'Schließzeit eintragen' }));
+    expect(api.speichereSchliesszeit).toHaveBeenCalledWith('t1', mi, mi, 'Fortbildung');
+    await vi.waitFor(() => expect(vi.mocked(api.listeSchliesszeiten).mock.calls.length).toBeGreaterThan(aufrufe));
+  });
+
+  it('Ende vor Beginn wird abgelehnt; vorhandene lassen sich nach Rückfrage löschen', async () => {
+    vi.mocked(api.loescheSchliesszeit).mockResolvedValue(undefined);
+    vi.mocked(api.listeSchliesszeiten).mockResolvedValue([{ id: 's1', treff_id: 't1', von: '2030-07-01', bis: '2030-07-21', grund: 'Sommerpause' }]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(screen.getByRole('button', { name: 'Schließzeiten …' }));
+    const fenster = await screen.findByRole('dialog', { name: 'Schließzeiten' });
+    expect(await within(fenster).findByText('Sommerpause')).toBeInTheDocument();
+    await userEvent.type(within(fenster).getByLabelText('Geschlossen von'), sa);
+    await userEvent.clear(within(fenster).getByLabelText('Geschlossen bis'));
+    await userEvent.type(within(fenster).getByLabelText('Geschlossen bis'), mo);
+    await userEvent.click(within(fenster).getByRole('button', { name: 'Schließzeit eintragen' }));
+    expect(within(fenster).getByText('Das Ende darf nicht vor dem Beginn liegen.')).toBeInTheDocument();
+    expect(api.speichereSchliesszeit).not.toHaveBeenCalled();
+    await userEvent.click(within(fenster).getByRole('button', { name: /^Schließzeit .* löschen$/ }));
+    expect(api.loescheSchliesszeit).toHaveBeenCalledWith('s1');
+  });
+
+  it('aus dem Tagesfenster: „Treff an diesem Tag schließen“ belegt den Tag vor', async () => {
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(within(await tag(mi)).getByRole('button', { name: 'Treff an diesem Tag schließen …' }));
+    const fenster = await screen.findByRole('dialog', { name: 'Schließzeiten' });
+    expect(within(fenster).getByLabelText('Geschlossen von')).toHaveValue(mi);
+    expect(within(fenster).getByLabelText('Geschlossen bis')).toHaveValue(mi);
+  });
+
+  it('BetreuerInnen sehen keine Schließzeiten-Knöpfe', async () => {
+    await zeige(betreuerin);
+    expect(screen.queryByRole('button', { name: 'Schließzeiten …' })).not.toBeInTheDocument();
+    expect(within(await tag(mi)).queryByRole('button', { name: /Treff an diesem Tag schließen/ })).not.toBeInTheDocument();
+  });
+});

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
+import * as pdf from '../../treffs/dienstplanPdf';
 import { DienstplanTab } from './DienstplanTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
@@ -9,6 +10,7 @@ import { addTage, monatErster, monatTage, monatText, monatVersatz, montagVon, wo
 import { formatKurz, heuteIso } from '../../freizeiten/logik';
 
 vi.mock('../../treffs/api');
+vi.mock('../../treffs/dienstplanPdf', async (orig) => ({ ...(await orig<typeof import('../../treffs/dienstplanPdf')>()), speichereMonatsplanPdf: vi.fn(), druckeMonatsplanPdf: vi.fn() }));
 
 /** Dienstplan: Woche und Monat in einem Reiter – umschaltbar, mit gemeinsamem Zeitraum; Zuteilen auch in der Monatsansicht. */
 const heute = heuteIso();
@@ -153,5 +155,23 @@ describe('Dienstplan: Zuteilen in der Monatsansicht', () => {
     await userEvent.click(await tagKnopf(montag));
     expect(within(await screen.findByRole('dialog')).queryByRole('button', { name: 'Zuteilung speichern' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Sonderdienst/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('Dienstplan: Monatsplan als PDF und zum Drucken', () => {
+  it('nur in der Monatsansicht; speichert mit Treff und Monat im Dateinamen, Drucken öffnet den Druck', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: montag, personen: ['ben'] })]);
+    zeige(betreuerin);
+    await screen.findByText(wochenText(montagVon(heute)));
+    expect(screen.queryByRole('button', { name: 'Als PDF speichern' })).not.toBeInTheDocument();
+    await userEvent.click(knopf('Monat'));
+    await userEvent.click(knopf('Nächster Monat'));
+    await userEvent.click(await screen.findByRole('button', { name: 'Als PDF speichern' }));
+    expect(pdf.speichereMonatsplanPdf).toHaveBeenCalledWith(expect.objectContaining({ titel: expect.stringContaining(`Treff Nord – ${monatText(naechsterMonat)}`) }),
+      `Dienstplan_Treff_Nord_${naechsterMonat.slice(0, 7)}.pdf`);
+    const plan = vi.mocked(pdf.speichereMonatsplanPdf).mock.calls[0]![0];
+    expect(plan.zeilen.find((z) => z.datum === montag)!.zellen).toEqual(['', '', 'X']);       // Lea, Anna, Ben
+    await userEvent.click(screen.getByRole('button', { name: 'Drucken' }));
+    expect(pdf.druckeMonatsplanPdf).toHaveBeenCalled();
   });
 });
