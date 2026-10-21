@@ -97,7 +97,7 @@ export function ZuordnungSheet({ person, freizeiten, treffs, z, akzeptiert, uebe
           const rolle = z.treffRolle(t.id, person.id);
           return (
             <li key={t.id} className="list__item">
-              <div className="list__main"><Link className="list__title" to={`/treffs/${t.id}/team`} onClick={schliessen}>{t.name}</Link></div>
+              <div className="list__main"><Link className="list__title" to={`/treffs/${t.id}/bearbeiten`} onClick={schliessen}>{t.name}</Link></div>
               <RollenAuswahl label={t.name} wert={rolle} optionen={TREFF_ROLLEN} disabled={gesperrtFuer(rolle, erlaubt)} aendere={(r) => aendereTreff(person, t, r)} />
             </li>
           );

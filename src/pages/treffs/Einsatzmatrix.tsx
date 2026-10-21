@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { baueEinsatz } from '../../treffs/einsatz';
 import { bearbeitbar, eingeteilt, konfliktAm, setze, stundenVon, umschalten, zeileFuellen, type Entwurf } from '../../treffs/entwurf';
-import { stundenText, type Abwesenheit, type Feiertag, type Tageskarte } from '../../treffs/dienstplan';
+import { ABWESENHEIT_TEXT, stundenText, type Abwesenheit, type Feiertag, type Tageskarte } from '../../treffs/dienstplan';
+import { formatKurz, wochentagLang } from '../../freizeiten/logik';
 import type { TreffTeamMitglied } from '../../treffs/api';
 import { Card } from '../../components/ui';
 
@@ -15,29 +16,46 @@ export interface MatrixBearbeiten {
 interface Props {
   karten: Tageskarte[];
   mitglieder: TreffTeamMitglied[];
+  /** Urlaub, krank und „kann nicht“ (siehe `mitVerhinderungen`). */
   abwesenheiten: Abwesenheit[];
   feiertage: Feiertag[];
   treffId: string;
-  /** Die angemeldete Person (ihre Zeile ist hervorgehoben). */
+  /** Die angemeldete Person (ihre Zeile steht oben und ist hervorgehoben). */
   ichId: string;
   heute: string;
   /** Offene Dienstwünsche anzeigen (Treffleitung und Koordination). */
   mitWuenschen: boolean;
   /** Beschriftung für Hilfsmittel, z. B. „Woche“ oder „Monat“. */
   zeitraum: string;
+  /** Ab wie vielen Personen ein Öffnungstag ausreichend besetzt ist. */
+  mindestbesetzung?: number;
+  /** Letzter Besuch: neuere Einteilungen in der eigenen Zeile sind markiert. */
+  letzterBesuch?: string | null;
+  /** Spalte mit den Stunden je Person (Treffleitung und Koordination); `mitHoechst` vergleicht mit den Höchststunden im Monat. */
+  stunden?: { mitHoechst: boolean };
+  /** Nur die eigene Zeile zeigen. */
+  nurIch?: boolean;
   bearbeiten?: MatrixBearbeiten;
+  /** Klick auf einen Tag in der Kopfzeile öffnet das Tagesfenster. */
+  tagOeffnen?: (datum: string) => void;
+  /** Welche Zellen außerhalb des Bearbeitens anklickbar sind (sie öffnen dann das Tagesfenster). */
+  zelleKlickbar?: (datum: string, personId: string) => boolean;
   /** Zusätzlicher Inhalt unter der Überschrift (z. B. Knöpfe zum Bearbeiten). */
   kopf?: ReactNode;
 }
 
-const ABWESEND = { urlaub: { zeichen: 'U', text: 'Urlaub' }, krank: { zeichen: 'K', text: 'krank' } } as const;
+const ZEICHEN: Record<Abwesenheit['typ'], string> = { urlaub: 'U', krank: 'K', verhindert: '✕' };
 
 /**
- * „Wer arbeitet wann“: Personen mal Tage. ● Dienst, ★ Sonderdienst, U Urlaub, K krank, ? Wunsch; darunter die Besetzung je Tag.
+ * „Wer arbeitet wann“: Personen mal Tage. ● Dienst, ★ Sonderdienst, U Urlaub, K krank, ✕ kann nicht, ? Wunsch; darunter die Besetzung je Tag.
+ * Die eigene Zeile steht oben. Ein Klick auf einen Tag öffnet das Tagesfenster (Zuteilen, Wünsche, Sonderdienste, eigener Wunsch).
  * Im Bearbeiten-Modus sind die Zellen der Öffnungstage Schalter: Klick teilt ein oder nimmt heraus, mit der Maus lässt sich über
- * mehrere Tage ziehen, der Knopf am Namen füllt oder leert die ganze Zeile. Rechts stehen die Stunden nach dem Entwurf.
+ * mehrere Tage ziehen, der Knopf am Namen füllt oder leert die ganze Zeile.
  */
-export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, treffId, ichId, heute, mitWuenschen, zeitraum, bearbeiten, kopf }: Props) {
+export function Einsatzmatrix({
+  karten, mitglieder, abwesenheiten, feiertage, treffId, ichId, heute, mitWuenschen, zeitraum, mindestbesetzung = 1, letzterBesuch = null,
+  stunden, nurIch = false, bearbeiten, tagOeffnen, zelleKlickbar, kopf,
+}: Props) {
   const [hinweis, setHinweis] = useState<string | null>(null);
   const ziehen = useRef<{ wert: boolean } | null>(null);
   const klickIgnorieren = useRef(false);
@@ -50,14 +68,20 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
   }, []);
 
   if (karten.length === 0 || mitglieder.length === 0) return null;
-  const { spalten, zeilen } = baueEinsatz(karten, mitglieder, abwesenheiten, feiertage, treffId, heute, mitWuenschen);
+  const { spalten, zeilen: alleZeilen } = baueEinsatz(karten, mitglieder, abwesenheiten, feiertage, treffId, heute, { mitWuenschen, mindestbesetzung, ichId, letzterBesuch });
+  const zeilen = nurIch && alleZeilen.some((z) => z.person_id === ichId) ? alleZeilen.filter((z) => z.person_id === ichId) : alleZeilen;
   const unbesetzt = spalten.filter((s) => s.unbesetzt).length;
+  const unterbesetzt = spalten.filter((s) => s.unterbesetzt).length;
   const maxStunden = Object.fromEntries(mitglieder.map((m) => [m.person_id, m.tzk_max_stunden]));
+  const regeltage = Object.fromEntries(mitglieder.map((m) => [m.person_id, m.tzk_regeltage]));
   const b = bearbeiten;
+  const mitStunden = !!stunden || !!b;
+  const verhindertDa = zeilen.some((z) => z.zellen.some((c) => c.abwesend === 'verhindert'));
+  const neuDa = zeilen.some((z) => z.zellen.some((c) => c.neu));
 
   const zelleSetzen = (datum: string, person: string, wert: boolean, einzeln: boolean) => {
     if (!b) return;
-    // Beim Ziehen werden Tage mit Urlaub oder Krankheit übersprungen; einzeln angeklickt entscheidet die Treffleitung selbst. Feiertage und Schließzeiten sind gar nicht bearbeitbar.
+    // Beim Ziehen werden Tage mit Urlaub, Krankheit oder „kann nicht“ übersprungen; einzeln angeklickt entscheidet die Treffleitung selbst.
     if (!einzeln && wert && konfliktAm(datum, person, abwesenheiten, feiertage, treffId)) return;
     b.aendern((e) => setze(b.gespeichert, e, datum, person, wert));
   };
@@ -73,7 +97,7 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
     const { entwurf, ausgelassen } = zeileFuellen(b.gespeichert, b.entwurf, person, abwesenheiten, feiertage, treffId);
     b.aendern(() => entwurf);
     setHinweis(ausgelassen > 0
-      ? `${name}: ${ausgelassen === 1 ? 'ein Tag' : `${ausgelassen} Tage`} mit Urlaub oder Krankheit ausgelassen – zum Einteilen einzeln anklicken.`
+      ? `${name}: ${ausgelassen === 1 ? 'ein Tag' : `${ausgelassen} Tage`} mit Urlaub, Krankheit oder „kann nicht“ ausgelassen – zum Einteilen einzeln anklicken.`
       : null);
   };
 
@@ -82,6 +106,11 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
       <h2>Wer arbeitet wann</h2>
       {kopf}
       {unbesetzt > 0 && <p className="einsatz__warnung">{unbesetzt === 1 ? 'Ein Öffnungstag ist' : `${unbesetzt} Öffnungstage sind`} noch nicht besetzt (rot markiert).</p>}
+      {unterbesetzt > 0 && (
+        <p className="einsatz__knapp-hinweis">
+          {unterbesetzt === 1 ? 'Ein Öffnungstag hat' : `${unterbesetzt} Öffnungstage haben`} weniger als {mindestbesetzung} Personen (orange markiert).
+        </p>
+      )}
       {b && hinweis && <p className="field__hint" role="status">{hinweis}</p>}
       <div className={`einsatz-wrap${b ? ' einsatz-wrap--bearbeiten' : ''}`} role="region" aria-label={`Einsatzplan ${zeitraum}`} tabIndex={0}
         onPointerMove={b ? (ev) => zieheUeber(ev.clientX, ev.clientY) : undefined}>
@@ -90,27 +119,39 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
           <thead>
             <tr>
               <th scope="col" className="einsatz__person">Person</th>
-              {spalten.map((s) => (
-                <th key={s.datum} scope="col" title={s.geschlossen ?? s.feiertag ?? undefined}
-                  className={`einsatz__tag${s.heute ? ' einsatz__tag--heute' : ''}${s.unbesetzt ? ' einsatz__tag--leer' : ''}${s.feiertag ? ' einsatz__tag--feiertag' : ''}${s.geschlossen || s.feiertag ? ' einsatz__tag--zu' : ''}`}>
-                  <span aria-hidden="true">{s.wochentag}</span>
-                  <span aria-hidden="true" className="einsatz__zahl">{s.tag}</span>
-                  <span className="sr-only">{`${s.wochentag} ${s.tag}.${s.heute ? ' (heute)' : ''}${s.feiertag ? `, Feiertag: ${s.feiertag}` : ''}${s.geschlossen ? `, ${s.geschlossen}` : ''}`}</span>
-                </th>
-              ))}
+              {spalten.map((s) => {
+                const zusatz = `${s.heute ? ' (heute)' : ''}${s.feiertag ? `, Feiertag: ${s.feiertag}` : ''}${s.geschlossen ? `, ${s.geschlossen}` : ''}${s.unbesetzt ? ', noch nicht besetzt' : ''}${s.unterbesetzt ? ', unterbesetzt' : ''}`;
+                const inhalt = (
+                  <>
+                    <span aria-hidden="true">{s.wochentag}</span>
+                    <span aria-hidden="true" className="einsatz__zahl">{s.tag}</span>
+                  </>
+                );
+                return (
+                  <th key={s.datum} scope="col" title={s.geschlossen ?? s.feiertag ?? undefined}
+                    className={`einsatz__tag${s.heute ? ' einsatz__tag--heute' : ''}${s.unbesetzt ? ' einsatz__tag--leer' : ''}${s.unterbesetzt ? ' einsatz__tag--knapp' : ''}${s.feiertag ? ' einsatz__tag--feiertag' : ''}${s.geschlossen || s.feiertag ? ' einsatz__tag--zu' : ''}`}>
+                    {tagOeffnen ? (
+                      <button type="button" className="einsatz__tagknopf" onClick={() => tagOeffnen(s.datum)} aria-label={`${formatKurz(s.datum)} öffnen${zusatz}`}>{inhalt}</button>
+                    ) : (
+                      <>{inhalt}<span className="sr-only">{`${s.wochentag} ${s.tag}.${zusatz}`}</span></>
+                    )}
+                  </th>
+                );
+              })}
               <th scope="col" className="einsatz__summe">Tage</th>
-              {b && <th scope="col" className="einsatz__summe">Std.</th>}
+              {mitStunden && <th scope="col" className="einsatz__summe">Std.</th>}
             </tr>
           </thead>
           <tbody>
             {zeilen.map((z) => {
-              const stunden = b ? stundenVon(karten, z.person_id) : 0;
-              const vorher = b ? stundenVon(b.gespeichert, z.person_id) : 0;
-              const max = maxStunden[z.person_id] ?? null;
-              const zuViel = b && max !== null && stunden > max;
+              const std = stundenVon(karten, z.person_id);
+              const vorher = b ? stundenVon(b.gespeichert, z.person_id) : std;
+              const max = stunden?.mitHoechst || b ? maxStunden[z.person_id] ?? null : null;
+              const zuViel = max !== null && std > max;
+              const ich = z.person_id === ichId;
               return (
-                <tr key={z.person_id} className={z.person_id === ichId ? 'einsatz__ich' : undefined}>
-                  <th scope="row" className="einsatz__person">
+                <tr key={z.person_id} className={ich ? 'einsatz__ich' : undefined}>
+                  <th scope="row" className="einsatz__person" title={regeltage[z.person_id] ? `Regeltage: ${regeltage[z.person_id]}` : undefined}>
                     {b ? (
                       <button type="button" className="einsatz__zeilenknopf" onClick={() => fuelleZeile(z.person_id, z.name)}
                         title="Ganze Zeile einteilen oder leeren" aria-label={`${z.name}: an allen Öffnungstagen einteilen oder herausnehmen`}>
@@ -118,6 +159,7 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
                       </button>
                     ) : z.name}
                     {z.leitung && <span className="einsatz__rolle"> (Leitung)</span>}
+                    {ich && <span className="einsatz__rolle"> · du</span>}
                   </th>
                   {z.zellen.map((c, i) => {
                     const s = spalten[i]!;
@@ -126,11 +168,25 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
                       <>
                         {c.dienst && <><span className="einsatz__dienst" aria-hidden="true">●</span><span className="sr-only">eingeteilt</span></>}
                         {c.sonder.length > 0 && <><span className="einsatz__sonder" aria-hidden="true">★</span><span className="sr-only">Sonderdienst: {c.sonder.join(', ')}</span></>}
-                        {c.abwesend && <><span className="einsatz__abwesend" aria-hidden="true">{ABWESEND[c.abwesend].zeichen}</span><span className="sr-only">abwesend: {ABWESEND[c.abwesend].text}</span></>}
+                        {c.abwesend && <><span className="einsatz__abwesend" aria-hidden="true">{ZEICHEN[c.abwesend]}</span><span className="sr-only">{c.abwesend === 'verhindert' ? 'kann nicht' : `abwesend: ${ABWESENHEIT_TEXT[c.abwesend]}`}</span></>}
                         {c.wunsch && <><span className="einsatz__wunsch" aria-hidden="true">?</span><span className="sr-only">wünscht den Dienst</span></>}
+                        {c.neu && <><span className="einsatz__neu" aria-hidden="true" /><span className="sr-only">neu</span></>}
                       </>
                     );
-                    if (!b || !bearbeitbar(karte)) return <td key={s.datum} className={`${s.heute ? 'einsatz__zelle--heute' : ''}${s.geschlossen || s.feiertag ? ' einsatz__zelle--zu' : ''}`.trim() || undefined}>{inhalt}</td>;
+                    const grund = `${s.heute ? 'einsatz__zelle--heute' : ''}${s.geschlossen || s.feiertag ? ' einsatz__zelle--zu' : ''}`.trim();
+                    if (!b || !bearbeitbar(karte)) {
+                      if (!b && tagOeffnen && zelleKlickbar?.(s.datum, z.person_id)) {
+                        return (
+                          <td key={s.datum} className={`einsatz__schalterzelle ${grund}`.trim()}>
+                            <button type="button" className="einsatz__schalter" onClick={() => tagOeffnen(s.datum)}
+                              aria-label={`${ich ? 'Mein Tag' : z.name}: ${wochentagLang(s.datum)}, ${formatKurz(s.datum)}${c.wunsch ? ' – Wunsch beantworten' : ''}`}>
+                              {inhalt}
+                            </button>
+                          </td>
+                        );
+                      }
+                      return <td key={s.datum} className={grund || undefined}>{inhalt}</td>;
+                    }
 
                     const vorherDrin = eingeteilt(b.gespeichert, new Map(), s.datum, z.person_id);
                     const neu = c.dienst && !vorherDrin;
@@ -160,10 +216,11 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
                     );
                   })}
                   <td className="einsatz__summe">{z.tage}</td>
-                  {b && (
+                  {mitStunden && (
                     <td className={`einsatz__summe${zuViel ? ' einsatz__zuviel' : ''}`} title={max !== null ? `höchstens ${stundenText(max)} im Monat` : undefined}>
-                      {stundenText(stunden)}
-                      {stunden !== vorher && <span className="einsatz__delta"> ({stunden > vorher ? '+' : '−'}{stundenText(Math.abs(Math.round((stunden - vorher) * 100) / 100))})</span>}
+                      {stundenText(std)}
+                      {max !== null && <span className="einsatz__max"> / {stundenText(max)}</span>}
+                      {b && std !== vorher && <span className="einsatz__delta"> ({std > vorher ? '+' : '−'}{stundenText(Math.abs(Math.round((std - vorher) * 100) / 100))})</span>}
                       {zuViel && <span className="sr-only"> – mehr als die höchstens {stundenText(max!)}</span>}
                     </td>
                   )}
@@ -174,9 +231,9 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
           <tfoot>
             <tr>
               <th scope="row" className="einsatz__person">Besetzung</th>
-              {spalten.map((s) => <td key={s.datum} className={s.unbesetzt ? 'einsatz__leer' : undefined}>{s.besetzung}</td>)}
+              {spalten.map((s) => <td key={s.datum} className={s.unbesetzt ? 'einsatz__leer' : s.unterbesetzt ? 'einsatz__knapp' : undefined}>{s.besetzung}</td>)}
               <td className="einsatz__summe" />
-              {b && <td className="einsatz__summe" />}
+              {mitStunden && <td className="einsatz__summe" />}
             </tr>
           </tfoot>
         </table>
@@ -186,9 +243,12 @@ export function Einsatzmatrix({ karten, mitglieder, abwesenheiten, feiertage, tr
         <li><span className="einsatz__sonder" aria-hidden="true">★</span> Sonderdienst</li>
         <li><span className="einsatz__abwesend" aria-hidden="true">U</span> Urlaub</li>
         <li><span className="einsatz__abwesend" aria-hidden="true">K</span> krank</li>
+        {verhindertDa && <li><span className="einsatz__abwesend" aria-hidden="true">✕</span> kann nicht</li>}
         {mitWuenschen && <li><span className="einsatz__wunsch" aria-hidden="true">?</span> Wunsch offen</li>}
+        {neuDa && <li><span className="einsatz__neu" aria-hidden="true" /> neu seit deinem letzten Besuch</li>}
         {b && <li><span className="einsatz__legende-neu" aria-hidden="true">●</span> neu im Entwurf</li>}
         {b && <li><span className="einsatz__weg" aria-hidden="true">○</span> wird herausgenommen</li>}
+        {tagOeffnen && !b && <li>Tag antippen: Einzelheiten{mitWuenschen ? ', zuteilen und Wünsche beantworten' : ''}</li>}
       </ul>
     </Card>
   );

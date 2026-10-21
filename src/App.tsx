@@ -14,6 +14,7 @@ import { Datenschutz } from './pages/recht/Datenschutz';
 
 /** Seiten werden erst geladen, wenn man sie öffnet – der Start bleibt schlank. */
 const Mehr = lazy(() => import('./pages/Mehr').then((m) => ({ default: m.Mehr })));
+const MeineDienste = lazy(() => import('./pages/dienste/MeineDienste').then((m) => ({ default: m.MeineDienste })));
 const Personen = lazy(() => import('./pages/Personen').then((m) => ({ default: m.Personen })));
 const KijukoImportSeite = lazy(() => import('./pages/KijukoImport').then((m) => ({ default: m.KijukoImportSeite })));
 const ChecklisteVorlage = lazy(() => import('./pages/ChecklisteVorlage').then((m) => ({ default: m.ChecklisteVorlage })));
@@ -100,6 +101,7 @@ function Geschuetzt() {
         <Route path="treffmappe" element={rollen?.darfTreffmappe ? <MappeSeite schluessel="treffmappe" titel="Treffmappe" mitSchlagworten={false}
           untertitel="Regeln, Abläufe und Antworten für die Arbeit in den Treffs." /> : <Navigate to="/" replace />} />
         <Route path="mehr" element={<Mehr />} />
+        <Route path="dienste" element={<MeineDienste />} />
         <Route path="mitteilungen" element={rollen?.koordination ? <MitteilungSenden /> : <Navigate to="/" replace />} />
         <Route path="personen" element={rollen?.koordination ? <Personen /> : <Navigate to="/" replace />} />
         <Route path="fehler" element={rollen?.koordination ? <Fehlermeldungen /> : <Navigate to="/" replace />} />

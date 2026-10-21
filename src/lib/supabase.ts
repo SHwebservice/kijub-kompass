@@ -11,3 +11,6 @@ export const supabase: SupabaseClient = createClient(
   key ?? 'nicht-konfiguriert',
   { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } },
 );
+
+/** Adresse des Supabase-Projekts (z. B. für Links auf Edge Functions wie den Kalender). */
+export const supabaseUrl = (url ?? 'http://localhost:54321').replace(/\/+$/, '');

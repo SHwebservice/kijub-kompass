@@ -28,7 +28,7 @@ describe('Einsatzmatrix', () => {
     zeige([]);
     const tabelle = screen.getByRole('table');
     expect(within(tabelle).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('Mo 1.'), expect.stringContaining('Mi 3.'), expect.stringContaining('Mo 8.')]));
-    expect(within(tabelle).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['Lea Leitner (Leitung)', 'Anna Adler', 'Ben Baum', 'Besetzung']);
+    expect(within(tabelle).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['Anna Adler · du', 'Lea Leitner (Leitung)', 'Ben Baum', 'Besetzung']);      // die eigene Zeile steht oben
   });
 
   it('macht Einsätze, Sonderdienste und Abwesenheit auch für Hilfsmittel lesbar', () => {
@@ -71,6 +71,38 @@ describe('Einsatzmatrix', () => {
     zeige([d]);
     expect(screen.queryByText('wünscht den Dienst')).not.toBeInTheDocument();
     expect(screen.queryByText('Wunsch offen')).not.toBeInTheDocument();
+  });
+
+  it('unterbesetzte Tage (unter der Mindestbesetzung) sind orange und werden gemeldet', () => {
+    const karten = tageskarten(tage, oeffnung, [dienst({ id: 'a', datum: '2027-03-03', personen: ['ich'] }), dienst({ id: 'b', datum: '2027-03-08', personen: ['ich', 'ben'] })]);
+    render(<Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={[]} feiertage={[]} treffId="t1" ichId="ich" heute="2027-03-02" mitWuenschen={false} zeitraum="Monat" mindestbesetzung={2} />);
+    expect(screen.getByText('Ein Öffnungstag hat weniger als 2 Personen (orange markiert).')).toBeInTheDocument();
+    expect(within(zeile('Besetzung')).getAllByRole('cell')[1]).toHaveClass('einsatz__knapp');
+  });
+
+  it('„kann nicht“ erscheint mit ✕ und in der Zeichenerklärung', () => {
+    const karten = tageskarten(tage, oeffnung, []);
+    render(<Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={[{ id: 'v', person_id: 'ben', datum: '2027-03-03', typ: 'verhindert', notiz: null }]}
+      feiertage={[]} treffId="t1" ichId="ich" heute="2027-03-02" mitWuenschen zeitraum="Monat" />);
+    expect(within(zeile('Ben Baum')).getByText('kann nicht')).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Zeichenerklärung' })).getByText(/kann nicht/)).toBeInTheDocument();
+  });
+
+  it('Stunden mit Höchststunden: rot, wenn darüber', () => {
+    const team = mitglieder.map((m) => (m.person_id === 'ben' ? { ...m, tzk_max_stunden: 5 } : m));
+    const karten = tageskarten(tage, oeffnung, [dienst({ id: 'a', datum: '2027-03-01', personen: ['ben'] }), dienst({ id: 'b', datum: '2027-03-03', von: '14:00', bis: '18:00', personen: ['ben'] })]);
+    render(<Einsatzmatrix karten={karten} mitglieder={team} abwesenheiten={[]} feiertage={[]} treffId="t1" ichId="ich" heute="2027-03-02" mitWuenschen zeitraum="Monat" stunden={{ mitHoechst: true }} />);
+    const zelle = within(zeile('Ben Baum')).getAllByRole('cell').at(-1)!;
+    expect(zelle).toHaveTextContent('8 h / 5 h');
+    expect(zelle).toHaveClass('einsatz__zuviel');
+  });
+
+  it('Kopfzeile: Tage sind Knöpfe, wenn ein Tagesfenster geöffnet werden kann', () => {
+    const geoeffnet: string[] = [];
+    render(<Einsatzmatrix karten={tageskarten(tage, oeffnung, [])} mitglieder={mitglieder} abwesenheiten={[]} feiertage={[]} treffId="t1" ichId="ich" heute="2027-03-02"
+      mitWuenschen={false} zeitraum="Monat" tagOeffnen={(d) => geoeffnet.push(d)} />);
+    screen.getByRole('button', { name: /^Mi 03\.03\. öffnen/ }).click();
+    expect(geoeffnet).toEqual(['2027-03-03']);
   });
 
   it('zeigt nichts ohne Tage oder ohne Team', () => {

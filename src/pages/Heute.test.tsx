@@ -218,7 +218,7 @@ describe('Heute: Treffs', () => {
     stand.notizen = [notiz({ id: 'a', art: 'absprache', freizeit_id: null, treff_id: 't1', quelle: 'Kindertreff' })];
     zeige(tzk);
     const liste = await screen.findByRole('list', { name: 'Zu erledigen' });
-    expect(within(liste).getByRole('link', { name: '1 Absprache zum Bestätigen' })).toHaveAttribute('href', '/treffs/t1/absprachen');
+    expect(within(liste).getByRole('link', { name: '1 Absprache zum Bestätigen' })).toHaveAttribute('href', '/treffs/t1/notizen?art=absprache');
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ notizFreizeiten: [], notizTreffs: ['t1'] }));
   });
 

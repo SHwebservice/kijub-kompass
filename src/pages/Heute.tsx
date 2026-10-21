@@ -17,7 +17,8 @@ import { listeNeueTeamprotokolle } from '../teamprotokolle/api';
 import { ungeleseneJeTreff } from '../teamprotokolle/logik';
 import { standJeFreizeit } from '../checkliste/logik';
 import { protokollFaellig } from '../tagesprotokoll/logik';
-import { addTage, dienstZeit } from '../treffs/dienstplan';
+import { addTage, dienstZeit, istNeu } from '../treffs/dienstplan';
+import { useLetzterBesuchDienste } from './dienste/gesehen';
 import { Bewerben } from './heute/Bewerben';
 import { Bento } from './heute/Bento';
 import { Feed } from './heute/Feed';
@@ -43,6 +44,7 @@ export function Heute() {
 
   const freizeiten = useLaden(listeFreizeiten, 'heute-freizeiten');
   const dienste = useLaden(async () => (hatTreffs && ich ? listeMeineDienste(ich.id, heute, addTage(heute, DIENSTE_TAGE)) : []), `heute-dienste-${hatTreffs}-${heute}`);
+  const letzterBesuchDienste = useLetzterBesuchDienste(hatTreffs ? ich?.id : undefined, false);      // nur anzeigen; gemerkt wird in „Meine Dienste“ und im Dienstplan
   const treffs = useLaden(async () => (hatTreffs || tk ? listeTreffs() : []), `heute-treffs-${hatTreffs}-${tk}`);
 
   // Die Freizeiten und Treffs, für die die Startseite Hinweise und Absprachen einsammelt
@@ -199,12 +201,13 @@ export function Heute() {
               {kommendeDienste.map((d) => (
                 <li key={d.id} className="list__item">
                   <div className="list__main">
-                    <Link className="list__title" to={`/treffs/${d.treff_id}/dienstplan`}>{formatKurz(d.datum)}{dienstZeit(d) ? ` · ${dienstZeit(d)} Uhr` : ''}</Link>
-                    <div className="list__meta"><span>{d.treff_name}</span>{d.ist_sonder && <Badge ton="warning">Sonderdienst: {d.bezeichnung}</Badge>}</div>
+                    <Link className="list__title" to={`/treffs/${d.treff_id}/dienstplan?datum=${d.datum}`}>{formatKurz(d.datum)}{dienstZeit(d) ? ` · ${dienstZeit(d)} Uhr` : ''}</Link>
+                    <div className="list__meta"><span>{d.treff_name}</span>{d.ist_sonder && <Badge ton="warning">Sonderdienst: {d.bezeichnung}</Badge>}{istNeu(d.eingeteilt_am, letzterBesuchDienste) && <Badge ton="accent">neu</Badge>}</div>
                   </div>
                 </li>
               ))}
             </ul>
+            <p><Link to="/dienste">Alle meine Dienste und Kalender-Abo →</Link></p>
           </Card>
         )}
 

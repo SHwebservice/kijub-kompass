@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { neueDb } from './harness';
 
 const TABELLEN = [
-  'dienst_wuensche', 'dienst_zuteilungen', 'dienste', 'dienstplan_kommentare', 'feiertage', 'freizeit_slots', 'freizeit_team',
+  'dienst_wuensche', 'dienst_zuteilungen', 'dienste', 'dienstplan_kommentare', 'dienstplan_monate', 'feiertage', 'freizeit_slots', 'freizeit_team',
   'lebensmittel_eingang', 'lebensmittel_verbrauch', 'notiz_bestaetigungen', 'notiz_kommentare', 'notizen', 'plan_eintraege',
   'treff_aufgaben', 'treff_plan_eintraege', 'treff_protokolle', 'treff_schliesszeiten', 'treff_team', 'treff_teamprotokoll_gelesen', 'treff_teamprotokolle',
 ];

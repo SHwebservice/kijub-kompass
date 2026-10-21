@@ -10,6 +10,8 @@ import { treff, treffMitglied } from '../../test-daten';
 import { heuteIso } from '../../freizeiten/logik';
 import { addTage } from '../../treffs/dienstplan';
 import type { Aufgabe } from '../../tagesprotokoll/logik';
+import type { Notiz } from '../../freizeiten/notizen';
+import { sendePush } from '../../mitteilungen/senden';
 
 vi.mock('../../treffs/api');
 vi.mock('../../freizeiten/api');
@@ -29,7 +31,8 @@ const team = [
 ];
 
 const tzk: Szene = { ich: { id: 'ich', kategorie: 'TZK' }, treffs: [{ treff_id: 't1', rolle: 'betreuerin' }] };
-const zeige = () => renderMitAuth(<NotizenTab treff={nord} />, tzk);
+const leitung: Szene = { ich: { id: 'lea', kategorie: 'Hauptamtliche*r' }, treffs: [{ treff_id: 't1', rolle: 'treffleitung' }] };
+const zeige = (szene: Szene = tzk) => renderMitAuth(<NotizenTab treff={nord} rolle={szene === leitung ? 'treffleitung' : 'betreuerin'} />, szene);
 const offene = async () => within(await screen.findByRole('list', { name: 'Offene Notizen' }));
 
 beforeEach(() => {
@@ -37,6 +40,7 @@ beforeEach(() => {
   vi.mocked(api.listeAufgaben).mockResolvedValue([]);
   for (const f of [api.legeAufgabeAn, api.aendereAufgabe, api.setzeErledigt, api.loescheAufgabe] as const) vi.mocked(f as (...a: never[]) => Promise<void>).mockResolvedValue(undefined);
   vi.mocked(treffApi.holeTreffTeam).mockResolvedValue(team);
+  vi.mocked(treffApi.listeTreffAbsprachen).mockResolvedValue([]);
   vi.mocked(fzApi.holeNamen).mockResolvedValue({ ben: 'Ben Baum', lea: 'Lea Leitner', ich: 'Anna Adler' });
 });
 
@@ -198,5 +202,84 @@ describe('Notizen: anlegen, erledigen, ändern, löschen', () => {
     zeige();
     await u.click(await screen.findByRole('checkbox', { name: 'Flyer drucken – erledigt' }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+});
+
+describe('Notizen: Art „Absprache“', () => {
+  const absprache = (o: Partial<Notiz> & { id: string }): Notiz => ({
+    art: 'absprache', geltung: 'gesamt', datum: null, text: 'Text', erstellt_von: 'lea', created_at: `${heute}T10:30:00Z`, bestaetigungen: [], kommentare: [], ...o,
+  });
+
+  beforeEach(() => {
+    vi.mocked(treffApi.listeTreffAbsprachen).mockResolvedValue([
+      absprache({ id: 'a1', text: 'Schlüssel bitte zurückgeben', datum: addTage(heute, 2), geltung: 'tag', bestaetigungen: [{ person_id: 'lea', at: '' }] }),
+      absprache({ id: 'a2', text: 'Alte Absprache', datum: addTage(heute, -3), geltung: 'tag' }),
+    ]);
+    for (const fn of [fzApi.bestaetige, fzApi.bestaetigungZurueck, fzApi.aendereNotiz, fzApi.loescheNotiz] as const) {
+      vi.mocked(fn as (...a: never[]) => Promise<void>).mockResolvedValue(undefined);
+    }
+  });
+
+  it('BetreuerIn sieht geltende Absprachen und bestätigt, kann aber keine anlegen', async () => {
+    const u = userEvent.setup();
+    zeige();
+    const l = within(await screen.findByRole('list', { name: 'Absprachen' }));
+    expect(l.getByText('Schlüssel bitte zurückgeben')).toBeInTheDocument();
+    expect(l.queryByText('Alte Absprache')).not.toBeInTheDocument();        // vergangene stehen nur im Filter „Absprachen“
+    expect(await l.findByText('Bestätigt von Lea Leitner')).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Absprache' })).not.toBeInTheDocument();
+    expect(l.queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument();
+    await u.click(l.getByRole('button', { name: /Bestätigen/ }));
+    expect(fzApi.bestaetige).toHaveBeenCalledWith('a1', 'ich');
+  });
+
+  it('Filter „Absprachen“ zeigt nur Absprachen, vergangene eingeklappt', async () => {
+    vi.mocked(api.listeAufgaben).mockResolvedValue([aufgabe({ id: '1' })]);
+    const u = userEvent.setup();
+    zeige();
+    await u.click(await screen.findByRole('button', { name: /Absprachen \(1\)/ }));
+    expect(screen.queryByRole('list', { name: 'Offene Notizen' })).not.toBeInTheDocument();
+    expect(screen.getByText('Vergangene Absprachen (1)')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Absprachen' })).toHaveTextContent('Schlüssel bitte zurückgeben');
+  });
+
+  it('Treffleitung legt eine Absprache für einen Tag an; das Team bekommt eine Mitteilung', async () => {
+    vi.mocked(treffApi.legeTreffAbspracheAn).mockResolvedValue('n-treff');
+    const u = userEvent.setup();
+    zeige(leitung);
+    await screen.findByRole('list', { name: 'Absprachen' });
+    await u.selectOptions(screen.getByLabelText('Art'), 'absprache');
+    await u.type(screen.getByLabelText('Absprache'), 'Elterncafé am Freitag');
+    await u.type(screen.getByLabelText('Gilt für einen bestimmten Tag (optional)'), '2027-07-09');
+    await u.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    expect(treffApi.legeTreffAbspracheAn).toHaveBeenCalledWith('t1', { geltung: 'tag', datum: '2027-07-09', text: 'Elterncafé am Freitag' });
+    expect(sendePush).toHaveBeenCalledWith('absprache_treff', 'n-treff');
+    expect(api.legeAufgabeAn).not.toHaveBeenCalled();
+  });
+
+  it('ohne Tag gilt die Absprache immer; ohne Text wird nichts gespeichert', async () => {
+    vi.mocked(treffApi.legeTreffAbspracheAn).mockResolvedValue('n2');
+    const u = userEvent.setup();
+    zeige(leitung);
+    await screen.findByRole('list', { name: 'Absprachen' });
+    await u.selectOptions(screen.getByLabelText('Art'), 'absprache');
+    await u.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    expect(screen.getByText('Bitte einen Text eingeben.')).toBeInTheDocument();
+    await u.type(screen.getByLabelText('Absprache'), 'Kein Handy im Treff');
+    await u.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    expect(treffApi.legeTreffAbspracheAn).toHaveBeenCalledWith('t1', { geltung: 'gesamt', datum: null, text: 'Kein Handy im Treff' });
+  });
+
+  it('Treffleitung ändert den Tag und löscht nach Rückfrage', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const u = userEvent.setup();
+    zeige(leitung);
+    const l = within(await screen.findByRole('list', { name: 'Absprachen' }));
+    await u.click(l.getByRole('button', { name: 'Bearbeiten' }));
+    await u.clear(l.getByLabelText('Gilt für einen bestimmten Tag (optional)'));
+    await u.click(l.getByRole('button', { name: 'Änderung speichern' }));
+    expect(fzApi.aendereNotiz).toHaveBeenCalledWith('a1', { geltung: 'gesamt', datum: null, text: 'Schlüssel bitte zurückgeben' });
+    await u.click(await l.findByRole('button', { name: 'Löschen' }));
+    expect(fzApi.loescheNotiz).toHaveBeenCalledWith('a1');
   });
 });

@@ -1,51 +1,69 @@
 import { useState } from 'react';
 import { fehlerText } from '../../lib/fehler';
 import { sendePush } from '../../mitteilungen/senden';
-import { listeDienste, wendeDienstplanAn } from '../../treffs/api';
-import { aenderungen, LEERER_ENTWURF, vormonatUebernehmen, wochenDerKarten, wocheKopieren, type Entwurf, type ZeileErgebnis } from '../../treffs/entwurf';
-import { kalenderwoche, monatTage, monatText, monatVersatz, type Abwesenheit, type Feiertag, type Tageskarte } from '../../treffs/dienstplan';
+import { listeDienste, setzeMindestbesetzung, wendeDienstplanAn, type TreffTeamMitglied } from '../../treffs/api';
+import { aenderungen, LEERER_ENTWURF, vormonatUebernehmen, wochenDerKarten, wocheKopieren, type Entwurf, type MusterErgebnis, type ZeileErgebnis } from '../../treffs/entwurf';
+import { kalenderwoche, mitteilungFuer, monatTage, monatText, monatVersatz, type Abwesenheit, type Feiertag, type Tageskarte } from '../../treffs/dienstplan';
+import type { Oeffnungszeit } from '../../treffs/logik';
 import { Alert, Button } from '../../components/ui';
+import { MusterSheet } from './MusterSheet';
 import { WuenscheBestaetigen } from './WuenscheBestaetigen';
 
 interface Props {
   treffId: string;
-  /** Erster Tag des Monats. */
+  ansicht: 'woche' | 'monat';
+  /** Erster Tag des Monats (Monatsansicht). */
   monat: string;
-  /** Gespeicherter Stand des Monats. */
+  /** Gespeicherter Stand des Zeitraums. */
   karten: Tageskarte[];
-  /** Person-IDs des Treff-Teams. */
-  team: string[];
+  team: TreffTeamMitglied[];
+  oeffnungszeiten: Oeffnungszeit[];
+  /** Urlaub, krank und „kann nicht“. */
   abwesenheiten: Abwesenheit[];
   feiertage: Feiertag[];
+  veroeffentlicht: readonly string[];
+  mindestbesetzung: number;
+  mindestbesetzungGeaendert: (n: number) => void;
   bearbeiten: boolean;
   setBearbeiten: (an: boolean) => void;
   entwurf: Entwurf;
   setEntwurf: (e: Entwurf) => void;
-  /** Nach dem Speichern: Dienste und Statistik neu laden. */
+  neuerSonderdienst: () => void;
+  /** Nach dem Speichern: Dienste neu laden. */
   geaendert: () => void;
 }
 
 const anzahl = (n: number, einzahl: string, mehrzahl: string) => `${n} ${n === 1 ? einzahl : mehrzahl}`;
+const KONFLIKT = 'mit Urlaub, Krankheit oder „kann nicht“';
 
 /**
- * Knöpfe über der Einsatz-Matrix: Bearbeiten an/aus, Vormonat übernehmen, Woche kopieren, Zahl der Änderungen, Speichern in einem Schritt
- * und Verwerfen. Außerhalb des Bearbeitens: offene Wünsche gesammelt bestätigen.
+ * Werkzeuge der Treffleitung über der Einsatz-Matrix. Außerhalb des Bearbeitens: in der Tabelle einteilen (Monat), Sonderdienst,
+ * offene Wünsche gesammelt bestätigen, Mindestbesetzung. Beim Bearbeiten (Monat): Wochentags-Muster, Vormonat übernehmen, Woche kopieren,
+ * Zahl der Änderungen, Speichern in einem Schritt und Verwerfen – alle Werkzeuge füllen denselben Entwurf.
  */
-export function MatrixLeiste({ treffId, monat, karten, team, abwesenheiten, feiertage, bearbeiten, setBearbeiten, entwurf, setEntwurf, geaendert }: Props) {
+export function MatrixLeiste(p: Props) {
+  const { treffId, ansicht, monat, karten, team, abwesenheiten, feiertage, veroeffentlicht, bearbeiten, setBearbeiten, entwurf, setEntwurf, geaendert } = p;
   const [fehler, setFehler] = useState<string | null>(null);
   const [erfolg, setErfolg] = useState<string | null>(null);
   const [hinweis, setHinweis] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
+  const [musterOffen, setMusterOffen] = useState(false);
   const wochen = wochenDerKarten(karten);
   const [quelle, setQuelle] = useState('');
   const quellWoche = wochen.includes(quelle) ? quelle : (wochen[0] ?? '');
   const { zuteilen, entfernen } = aenderungen(entwurf);
   const offen = entwurf.size > 0;
+  const teamIds = team.map((m) => m.person_id);
 
   const melde = (r: ZeileErgebnis, was: string) => {
     const neu = aenderungen(r.entwurf).zuteilen.length - zuteilen.length;
     setEntwurf(r.entwurf);
-    setHinweis(`${was}: ${neu > 0 ? anzahl(neu, 'Einteilung', 'Einteilungen') + ' dazu' : 'nichts Neues'}${r.ausgelassen > 0 ? `, ${anzahl(r.ausgelassen, 'Tag', 'Tage')} mit Urlaub oder Krankheit ausgelassen` : ''}.`);
+    setHinweis(`${was}: ${neu > 0 ? anzahl(neu, 'Einteilung', 'Einteilungen') + ' dazu' : 'nichts Neues'}${r.ausgelassen > 0 ? `, ${anzahl(r.ausgelassen, 'Tag', 'Tage')} ${KONFLIKT} ausgelassen` : ''}.`);
+  };
+
+  const musterUebernehmen = (r: MusterErgebnis) => {
+    setEntwurf(r.entwurf);
+    setHinweis(`Wochentags-Muster: ${r.dazu > 0 ? anzahl(r.dazu, 'Einteilung', 'Einteilungen') + ' dazu' : 'nichts Neues'}${r.entfernt > 0 ? `, ${r.entfernt} herausgenommen` : ''}${r.ausgelassen > 0 ? `, ${anzahl(r.ausgelassen, 'Einteilung', 'Einteilungen')} ${KONFLIKT} ausgelassen` : ''}.`);
   };
 
   async function vormonat() {
@@ -54,7 +72,7 @@ export function MatrixLeiste({ treffId, monat, karten, team, abwesenheiten, feie
       const vor = monatVersatz(monat, -1);
       const tage = monatTage(vor);
       const dienste = await listeDienste(treffId, vor, tage[tage.length - 1]!);
-      melde(vormonatUebernehmen(karten, entwurf, vor, dienste, team, abwesenheiten, feiertage, treffId), `${monatText(vor)} übernommen`);
+      melde(vormonatUebernehmen(karten, entwurf, vor, dienste, teamIds, abwesenheiten, feiertage, treffId), `${monatText(vor)} übernommen`);
     } catch (e) { setFehler(fehlerText(e, 'Der Vormonat konnte nicht geladen werden.')); } finally { setArbeitet(false); }
   }
 
@@ -69,8 +87,8 @@ export function MatrixLeiste({ treffId, monat, karten, team, abwesenheiten, feie
     try {
       const r = await wendeDienstplanAn(treffId, monat, zuteilen, entfernen);
       setErfolg(`${anzahl(r.zugeteilt, 'Einteilung', 'Einteilungen')} gespeichert${r.entfernt > 0 ? `, ${anzahl(r.entfernt, 'Einteilung', 'Einteilungen')} entfernt` : ''}.`);
-      const betroffene = [...new Set([...zuteilen, ...entfernen].map((p) => p.person))];
-      if (betroffene.length) sendePush('dienstplan', treffId, { personen: betroffene });
+      const empfaenger = mitteilungFuer([...zuteilen, ...entfernen], veroeffentlicht);
+      if (empfaenger.length) sendePush('dienstplan', treffId, { personen: empfaenger });
       setEntwurf(LEERER_ENTWURF);
       setBearbeiten(false);
       geaendert();
@@ -82,12 +100,30 @@ export function MatrixLeiste({ treffId, monat, karten, team, abwesenheiten, feie
     setEntwurf(LEERER_ENTWURF); setFehler(null); setHinweis(null); setBearbeiten(false);
   }
 
+  async function mindestAendern(n: number) {
+    setFehler(null);
+    try { await setzeMindestbesetzung(treffId, n); p.mindestbesetzungGeaendert(n); } catch (e) { setFehler(fehlerText(e, 'Die Mindestbesetzung konnte nicht gespeichert werden.')); }
+  }
+
   if (!bearbeiten) {
     return (
       <div className="einsatz__leiste">
         {erfolg && <Alert ton="success">{erfolg}</Alert>}
-        <p><Button klein onClick={() => { setErfolg(null); setBearbeiten(true); }}>In der Tabelle einteilen</Button></p>
-        <WuenscheBestaetigen treffId={treffId} karten={karten} abwesenheiten={abwesenheiten} feiertage={feiertage} zeitraum="im Monat" geaendert={geaendert} />
+        {fehler && <Alert ton="error">{fehler}</Alert>}
+        <div className="row">
+          {ansicht === 'monat' && <Button klein variante="primary" onClick={() => { setErfolg(null); setBearbeiten(true); }}>In der Tabelle einteilen</Button>}
+          <Button klein onClick={p.neuerSonderdienst}>+ Sonderdienst</Button>
+          <span className="row einsatz__mindest">
+            <label htmlFor={`mindest-${treffId}`}>Mindestens</label>
+            <select id={`mindest-${treffId}`} className="input" style={{ width: 'auto' }} value={p.mindestbesetzung} onChange={(e) => void mindestAendern(Number(e.target.value))}>
+              {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <span>{p.mindestbesetzung === 1 ? 'Person' : 'Personen'} je Öffnungstag</span>
+          </span>
+        </div>
+        {ansicht === 'woche' && <p className="field__hint">Einen ganzen Monat planst du in der Ansicht „Monat“ mit „In der Tabelle einteilen“. Hier: Tag antippen zum Zuteilen.</p>}
+        <WuenscheBestaetigen treffId={treffId} karten={karten} abwesenheiten={abwesenheiten} feiertage={feiertage}
+          zeitraum={ansicht === 'woche' ? 'in dieser Woche' : 'im Monat'} geaendert={geaendert} />
       </div>
     );
   }
@@ -96,10 +132,11 @@ export function MatrixLeiste({ treffId, monat, karten, team, abwesenheiten, feie
     <div className="einsatz__leiste">
       <p className="field__hint">
         Klicke Zellen an, um einzuteilen oder herauszunehmen; mit der Maus kannst du über mehrere Tage ziehen. Ein Klick auf den Namen füllt
-        oder leert die ganze Zeile. Erst „Speichern“ übernimmt alles.
+        oder leert die ganze Zeile. Die Werkzeuge darunter füllen denselben Entwurf. Erst „Speichern“ übernimmt alles.
       </p>
       {fehler && <Alert ton="error">{fehler}</Alert>}
       <div className="row">
+        <Button klein onClick={() => setMusterOffen(true)}>Wochentags-Muster …</Button>
         <Button klein disabled={arbeitet} onClick={() => void vormonat()}>{monatText(monatVersatz(monat, -1))} übernehmen</Button>
         {wochen.length > 1 && (
           <span className="row" style={{ gap: 'var(--space-2)' }}>
@@ -124,6 +161,10 @@ export function MatrixLeiste({ treffId, monat, karten, team, abwesenheiten, feie
         {offen && <Button klein onClick={() => { setEntwurf(LEERER_ENTWURF); setHinweis(null); }}>Änderungen verwerfen</Button>}
         <Button klein onClick={beenden}>Fertig</Button>
       </div>
+      {musterOffen && (
+        <MusterSheet treffId={treffId} monat={monat} karten={karten} entwurf={entwurf} team={team} oeffnungszeiten={p.oeffnungszeiten}
+          abwesenheiten={abwesenheiten} feiertage={feiertage} uebernehmen={musterUebernehmen} schliessen={() => setMusterOffen(false)} />
+      )}
     </div>
   );
 }

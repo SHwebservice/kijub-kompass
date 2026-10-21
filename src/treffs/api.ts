@@ -2,11 +2,11 @@ import { supabase } from '../lib/supabase';
 import { ApiFehler } from '../lib/fehler';
 import type { Notiz } from '../freizeiten/notizen';
 import type { NotizWerte } from '../freizeiten/api';
-import type { Abwesenheit, Dienst, Feiertag, Schliesszeit, SonderEingabe, StatistikZeile, Muster, WunschStatus } from './dienstplan';
+import type { Abwesenheit, Dienst, Feiertag, Schliesszeit, SonderEingabe, StatistikZeile, Muster, Verhinderung, WunschStatus } from './dienstplan';
 import { musterAlsJson } from './dienstplan';
-import type { Paar } from './monatsplan';
+import type { Paar } from './entwurf';
 import type { Nachweis, NachweisStatus, NachweisZeile } from './nachweis';
-import { oeffnungszeitenAusTagen, sortiereOeffnungszeiten, type Oeffnungszeit, type TageEingabe, type TreffMitglied, type WochenprogrammEintrag } from './logik';
+import { oeffnungszeitenAusTagen, sortiereOeffnungszeiten, type Oeffnungszeit, type TageEingabe, type TreffMitglied } from './logik';
 
 /** Dünne Schicht über Supabase für die Treffs. Rechte entscheidet die Datenbank (RLS), nicht diese Datei. */
 
@@ -29,7 +29,11 @@ export interface TreffZeile {
 
 export interface TreffDetailDaten extends TreffZeile {
   adresse_abw: string | null;
+  /** Ab wie vielen Personen ein Öffnungstag ausreichend besetzt ist (Migration 0036). */
+  mindestbesetzung: number;
   ort_adresse: string | null;
+  /** Festes, jede Woche wiederkehrendes Programm als Freitext (Migration 0038). */
+  wochenprogramm: string | null;
 }
 
 export interface TreffFormular { name: string; ort_id: string; adresse_abw: string; tage: TageEingabe }
@@ -65,12 +69,15 @@ export async function listeTreffs(): Promise<TreffZeile[]> {
 }
 
 export async function holeTreff(id: string): Promise<TreffDetailDaten | null> {
-  const r = pruefe(await supabase.from('treffs').select(`${LISTE}, adresse_abw`).eq('id', id).maybeSingle()) as Roh | null;
+  const r = pruefe(await supabase.from('treffs').select(`${LISTE}, adresse_abw, mindestbesetzung, wochenprogramm`).eq('id', id).maybeSingle()) as Roh | null;
   if (!r) return null;
   const ort = r.ort_id
     ? pruefe(await supabase.from('orte').select('adresse').eq('id', r.ort_id as string).maybeSingle()) as { adresse: string | null } | null
     : null;
-  return { ...zeile(r), adresse_abw: (r.adresse_abw as string | null) ?? null, ort_adresse: ort?.adresse ?? null };
+  return {
+    ...zeile(r), adresse_abw: (r.adresse_abw as string | null) ?? null, mindestbesetzung: Number(r.mindestbesetzung ?? 1), ort_adresse: ort?.adresse ?? null,
+    wochenprogramm: (r.wochenprogramm as string | null) ?? null,
+  };
 }
 
 /** Legt an (id = null) oder ändert einen Treff samt Öffnungszeiten; gibt die ID zurück. */
@@ -116,21 +123,8 @@ export async function treffTeamEntfernen(treffId: string, personId: string): Pro
 
 /* ───── Wochenprogramm ───── */
 
-export async function holeWochenprogramm(treffId: string): Promise<WochenprogrammEintrag[]> {
-  const r = pruefe(await supabase.from('treff_plan_eintraege')
-    .select('wochentag, angebot_id, freitext, notiz, angebote(name)').eq('treff_id', treffId).order('wochentag')) as unknown as
-    (Omit<WochenprogrammEintrag, 'angebot_name'> & { angebote: { name: string } | null })[];
-  return r.map(({ angebote, ...e }) => ({ ...e, angebot_name: angebote?.name ?? null }));
-}
-
-export interface ProgrammWerte { angebot_id: string | null; freitext: string | null; notiz: string | null }
-
-export async function speichereProgrammpunkt(treffId: string, wochentag: number, w: ProgrammWerte): Promise<void> {
-  pruefe(await supabase.from('treff_plan_eintraege').upsert({ treff_id: treffId, wochentag, ...w }));
-}
-
-export async function loescheProgrammpunkt(treffId: string, wochentag: number): Promise<void> {
-  pruefe(await supabase.from('treff_plan_eintraege').delete().eq('treff_id', treffId).eq('wochentag', wochentag));
+export async function setzeWochenprogramm(treffId: string, text: string): Promise<void> {
+  pruefe(await supabase.rpc('fn_wochenprogramm_setzen', { p_treff: treffId, p_text: text }));
 }
 
 /* ───── Absprachen (Bestätigen, Bearbeiten und Löschen laufen über die Funktionen der Freizeiten) ───── */
@@ -153,13 +147,49 @@ export async function legeTreffAbspracheAn(treffId: string, w: NotizWerte): Prom
 
 export async function listeDienste(treffId: string, von: string, bis: string): Promise<Dienst[]> {
   const r = pruefe(await supabase.from('dienste')
-    .select('id, datum, von, bis, ist_sonder, bezeichnung, dienst_zuteilungen(person_id), dienst_wuensche(person_id, status)')
+    .select('id, datum, von, bis, ist_sonder, bezeichnung, dienst_zuteilungen(person_id, created_at), dienst_wuensche(person_id, status)')
     .eq('treff_id', treffId).gte('datum', von).lte('datum', bis).order('datum')) as unknown as
-    (Omit<Dienst, 'personen' | 'wuensche'> & { dienst_zuteilungen: { person_id: string }[]; dienst_wuensche: { person_id: string; status: WunschStatus }[] })[];
+    (Omit<Dienst, 'personen' | 'wuensche'> & { dienst_zuteilungen: { person_id: string; created_at: string | null }[]; dienst_wuensche: { person_id: string; status: WunschStatus }[] })[];
   return r.map(({ dienst_zuteilungen, dienst_wuensche, ...d }) => ({
     ...d, von: d.von?.slice(0, 5) ?? null, bis: d.bis?.slice(0, 5) ?? null,
     personen: (dienst_zuteilungen ?? []).map((z) => z.person_id), wuensche: dienst_wuensche ?? [],
+    seit: Object.fromEntries((dienst_zuteilungen ?? []).filter((z) => z.created_at).map((z) => [z.person_id, z.created_at!])),
   }));
+}
+
+/* ───── Veröffentlichen, „kann nicht“, Mindestbesetzung (Migration 0036) ───── */
+
+/** Die veröffentlichten Monate (jeweils der Erste) der Treffs im Zeitraum. */
+export async function listeVeroeffentlicht(treffIds: string[], von: string, bis: string): Promise<{ treff_id: string; monat: string }[]> {
+  if (treffIds.length === 0) return [];
+  return pruefe(await supabase.from('dienstplan_monate').select('treff_id, monat')
+    .in('treff_id', treffIds).gte('monat', `${von.slice(0, 7)}-01`).lte('monat', bis)) as { treff_id: string; monat: string }[];
+}
+
+export async function veroeffentliche(treffId: string, monat: string): Promise<void> {
+  pruefe(await supabase.from('dienstplan_monate').insert({ treff_id: treffId, monat }));
+}
+
+export async function nimmVeroeffentlichungZurueck(treffId: string, monat: string): Promise<void> {
+  pruefe(await supabase.from('dienstplan_monate').delete().eq('treff_id', treffId).eq('monat', monat));
+}
+
+/** „Kann nicht“ im Zeitraum: die eigenen; Treffleitung und Treffkoordination sehen die des ganzen Treffs. */
+export async function listeVerhinderungen(treffId: string, von: string, bis: string): Promise<Verhinderung[]> {
+  return pruefe(await supabase.from('dienst_verhinderungen').select('treff_id, person_id, datum')
+    .eq('treff_id', treffId).gte('datum', von).lte('datum', bis).order('datum')) as Verhinderung[];
+}
+
+export async function trageVerhinderungEin(treffId: string, personId: string, datum: string): Promise<void> {
+  pruefe(await supabase.from('dienst_verhinderungen').insert({ treff_id: treffId, person_id: personId, datum }));
+}
+
+export async function nimmVerhinderungZurueck(treffId: string, personId: string, datum: string): Promise<void> {
+  pruefe(await supabase.from('dienst_verhinderungen').delete().eq('treff_id', treffId).eq('person_id', personId).eq('datum', datum));
+}
+
+export async function setzeMindestbesetzung(treffId: string, anzahl: number): Promise<void> {
+  pruefe(await supabase.rpc('fn_mindestbesetzung_setzen', { p_treff: treffId, p_anzahl: anzahl }));
 }
 
 export async function listeFeiertage(treffId: string, von: string, bis: string): Promise<Feiertag[]> {
@@ -345,15 +375,74 @@ export interface MeinDienst {
   bezeichnung: string | null;
   treff_id: string;
   treff_name: string;
+  /** Seit wann die Person eingeteilt ist (Migration 0036; ältere Einteilungen: null). */
+  eingeteilt_am?: string | null;
 }
 
 export async function listeMeineDienste(personId: string, von: string, bis: string): Promise<MeinDienst[]> {
   const r = pruefe(await supabase.from('dienst_zuteilungen')
-    .select('dienste!inner(id, datum, von, bis, ist_sonder, bezeichnung, treff_id, treffs(name))')
+    .select('created_at, dienste!inner(id, datum, von, bis, ist_sonder, bezeichnung, treff_id, treffs(name))')
     .eq('person_id', personId).gte('dienste.datum', von).lte('dienste.datum', bis)) as unknown as
-    { dienste: Omit<MeinDienst, 'treff_name'> & { treffs: { name: string } | null } }[];
-  return r.map(({ dienste: { treffs, ...d } }) => ({ ...d, von: d.von?.slice(0, 5) ?? null, bis: d.bis?.slice(0, 5) ?? null, treff_name: treffs?.name ?? '' }))
-    .sort((a, b) => a.datum.localeCompare(b.datum) || (a.von ?? '').localeCompare(b.von ?? ''));
+    { created_at: string | null; dienste: Omit<MeinDienst, 'treff_name'> & { treffs: { name: string } | null } }[];
+  return r.map(({ created_at, dienste: { treffs, ...d } }) => ({
+    ...d, von: d.von?.slice(0, 5) ?? null, bis: d.bis?.slice(0, 5) ?? null, treff_name: treffs?.name ?? '', eingeteilt_am: created_at ?? null,
+  })).sort((a, b) => a.datum.localeCompare(b.datum) || (a.von ?? '').localeCompare(b.von ?? ''));
+}
+
+export interface MeinWunsch {
+  dienst_id: string;
+  datum: string;
+  von: string | null;
+  bis: string | null;
+  treff_id: string;
+  treff_name: string;
+  status: WunschStatus;
+}
+
+/** Eigene Dienstwünsche ab dem Tag (offene und abgelehnte; bestätigte sind Dienste). */
+export async function listeMeineWuensche(personId: string, ab: string): Promise<MeinWunsch[]> {
+  const r = pruefe(await supabase.from('dienst_wuensche')
+    .select('status, dienste!inner(id, datum, von, bis, treff_id, treffs(name))')
+    .eq('person_id', personId).neq('status', 'bestaetigt').gte('dienste.datum', ab)) as unknown as
+    { status: WunschStatus; dienste: { id: string; datum: string; von: string | null; bis: string | null; treff_id: string; treffs: { name: string } | null } }[];
+  return r.map(({ status, dienste: d }) => ({
+    dienst_id: d.id, datum: d.datum, von: d.von?.slice(0, 5) ?? null, bis: d.bis?.slice(0, 5) ?? null, treff_id: d.treff_id, treff_name: d.treffs?.name ?? '', status,
+  })).sort((a, b) => a.datum.localeCompare(b.datum));
+}
+
+/* ───── „Neu seit deinem letzten Besuch“ bei den eigenen Diensten (gelesen_stand, Bereich „dienste“) ───── */
+
+const BEREICH_DIENSTE = 'dienste';
+
+/** Wann die Person zuletzt ihre Dienste angesehen hat (null = noch nie). */
+export async function holeDiensteGesehen(personId: string): Promise<string | null> {
+  const r = pruefe(await supabase.from('gelesen_stand').select('bis').eq('person_id', personId).eq('bereich', BEREICH_DIENSTE).maybeSingle()) as { bis: string } | null;
+  return r?.bis ?? null;
+}
+
+export async function merkeDiensteGesehen(personId: string): Promise<void> {
+  pruefe(await supabase.from('gelesen_stand').upsert({ person_id: personId, bereich: BEREICH_DIENSTE, bis: new Date().toISOString() }));
+}
+
+/* ───── Kalender (Migration 0036, Edge Function „kalender“) ───── */
+
+/** Die eigenen Dienste als iCalendar-Text (zum Herunterladen). */
+export async function meineDiensteIcs(): Promise<string> {
+  return pruefe(await supabase.rpc('fn_meine_dienste_ics')) as string;
+}
+
+/** Erzeugt einen neuen Abo-Schlüssel (ein alter wird ungültig) und gibt ihn zurück – er ist nur jetzt zu sehen. */
+export async function kalenderLinkErneuern(): Promise<string> {
+  return pruefe(await supabase.rpc('fn_kalender_link_erneuern')) as string;
+}
+
+export async function kalenderLinkEntfernen(): Promise<void> {
+  pruefe(await supabase.rpc('fn_kalender_link_entfernen'));
+}
+
+/** Seit wann es einen Abo-Link gibt (null = keiner). */
+export async function kalenderLinkSeit(): Promise<string | null> {
+  return (pruefe(await supabase.rpc('fn_kalender_link_seit')) as string | null) ?? null;
 }
 
 /** Wie oft ist die Person ab dem Tag noch im Dienstplan des Treffs eingeteilt? (Für die Warnung beim Entfernen aus dem Treff.) */

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
 import * as fzApi from '../../freizeiten/api';
 import * as zuordnungApi from '../../zuordnung/api';
-import { sendePush } from '../../mitteilungen/senden';
+import * as aufgabenApi from '../../tagesprotokoll/api';
 import { TreffeListe } from './TreffeListe';
 import { TreffDetail } from './TreffDetail';
 import { TreffForm } from './TreffForm';
@@ -15,10 +15,12 @@ import type { Notiz } from '../../freizeiten/notizen';
 vi.mock('../../treffs/api');
 vi.mock('../../freizeiten/api');
 vi.mock('../../zuordnung/api');
+vi.mock('../../tagesprotokoll/api');
 
 const nord = treff({
   id: 't1', name: 'Treff Nord', ort_id: 'o1', ort_name: 'Jugendhaus', ort_adresse: 'Hauptstr. 1, Frankenthal',
   oeffnungszeiten: [{ wochentag: 2, von: '15:00', bis: '19:00' }, { wochentag: 4, von: '14:00', bis: '18:30' }],
+  wochenprogramm: 'Dienstag: Spielenachmittag\nDonnerstag: Kochen',
 });
 
 const leitung: Szene = { ich: { kategorie: 'Hauptamtliche*r' }, treffs: [{ treff_id: 't1', rolle: 'treffleitung' }] };
@@ -27,6 +29,7 @@ const koord: Szene = { ich: { ist_koordination: true, kategorie: 'Hauptamtliche*
 
 const tabNamen = () => screen.getAllByRole('link').filter((l) => l.classList.contains('tabs__tab')).map((l) => l.textContent);
 const zeigeDetail = (szene: Szene, pfad = '/treffs/t1') => renderMitAuth(<TreffDetail />, { ...szene, pfad, route: '/treffs/:id/*' });
+const zeigeTeam = () => renderMitAuth(<TreffForm />, { ...koord, pfad: '/treffs/t1/bearbeiten', route: '/treffs/:id/bearbeiten' });
 
 const absprache = (o: Partial<Notiz> & { id: string }): Notiz => ({
   art: 'absprache', geltung: 'gesamt', datum: null, text: 'Text', erstellt_von: 'lea', created_at: '2027-06-01T10:30:00Z', bestaetigungen: [], kommentare: [], ...o,
@@ -36,14 +39,12 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.listeTreffs).mockResolvedValue([nord, treff({ id: 't2', name: 'Treff Süd' })]);
   vi.mocked(api.holeTreff).mockResolvedValue(nord);
-  vi.mocked(api.holeWochenprogramm).mockResolvedValue([
-    { wochentag: 2, angebot_id: null, angebot_name: null, freitext: 'Spielenachmittag', notiz: 'Brettspiele' },
-  ]);
   vi.mocked(api.holeTreffTeam).mockResolvedValue([
     treffMitglied({ person_id: 'b', vorname: 'Ben', nachname: 'Baum' }),
     treffMitglied({ person_id: 'l', vorname: 'Lea', nachname: 'Leitner', rolle: 'treffleitung', kategorie: 'Hauptamtliche*r', mail: 'lea@kijub.example' }),
   ]);
   vi.mocked(api.listeTreffAbsprachen).mockResolvedValue([]);
+  vi.mocked(aufgabenApi.listeAufgaben).mockResolvedValue([]);
   vi.mocked(fzApi.listePersonen).mockResolvedValue([]);
   vi.mocked(fzApi.holeNamen).mockResolvedValue({});
   vi.mocked(fzApi.listeAngebote).mockResolvedValue([]);
@@ -78,10 +79,10 @@ describe('Treffs: Liste', () => {
 });
 
 describe('Treff-Detail: Reiter je Rolle', () => {
-  it('BetreuerIn: Übersicht, Dienstplan, Stundennachweis, Absprachen, Team', async () => {
+  it('BetreuerIn: Übersicht, Dienstplan, Stundennachweis, Teamprotokolle', async () => {
     zeigeDetail(betreuerin);
     await screen.findByRole('heading', { name: 'Treff Nord' });
-    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Absprachen', 'Teamprotokolle', 'Team']);
+    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Teamprotokolle']);
     expect(screen.queryByRole('link', { name: 'Bearbeiten' })).not.toBeInTheDocument();
   });
 
@@ -94,7 +95,7 @@ describe('Treff-Detail: Reiter je Rolle', () => {
   it('Treffleitung sieht zusätzlich „Abwesenheit & Feiertage“', async () => {
     zeigeDetail(leitung);
     await screen.findByRole('heading', { name: 'Treff Nord' });
-    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Absprachen', 'Teamprotokolle', 'Team', 'Abwesenheit & Feiertage']);
+    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Teamprotokolle', 'Abwesenheit & Feiertage']);
   });
 
   it('Koordination sieht „Bearbeiten“', async () => {
@@ -114,63 +115,42 @@ describe('Treff-Übersicht', () => {
     zeigeDetail(betreuerin);
     expect(await screen.findByText('Hauptstr. 1, Frankenthal')).toBeInTheDocument();
     expect(screen.getAllByText('15:00–19:00 Uhr').length).toBeGreaterThan(0);
-    expect(await screen.findByText('Spielenachmittag')).toBeInTheDocument();
-    expect(screen.getByText('Brettspiele')).toBeInTheDocument();
-    expect(screen.getByText('Noch kein Programm')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Ändern' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Wochenprogramm' })).toBeInTheDocument();
+    expect(screen.getByText(/Dienstag: Spielenachmittag\s+Donnerstag: Kochen/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Bearbeiten' })).not.toBeInTheDocument();
   });
 
-  it('Treffleitung trägt einen Freitext für einen Öffnungstag ein', async () => {
-    vi.mocked(api.speichereProgrammpunkt).mockResolvedValue(undefined);
+  it('Treffleitung bearbeitet das Wochenprogramm als Freitext', async () => {
+    vi.mocked(api.setzeWochenprogramm).mockResolvedValue(undefined);
     zeigeDetail(leitung);
-    await screen.findByText('Spielenachmittag');
-    await userEvent.click(screen.getByRole('button', { name: 'Eintragen' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Wochenprogramm · Donnerstag' });
-    await userEvent.click(within(dialog).getByRole('tab', { name: 'Freitext' }));
-    await userEvent.type(within(dialog).getByLabelText('Was steht an?'), 'Kochen');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Eintragen' }));
-    expect(api.speichereProgrammpunkt).toHaveBeenCalledWith('t1', 4, { angebot_id: null, freitext: 'Kochen', notiz: null });
-  });
-
-  it('Notiz ändern behält den Programmpunkt, Entfernen fragt nach', async () => {
-    vi.mocked(api.speichereProgrammpunkt).mockResolvedValue(undefined);
-    vi.mocked(api.loescheProgrammpunkt).mockResolvedValue(undefined);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    zeigeDetail(leitung);
-    await screen.findByText('Spielenachmittag');
-    await userEvent.click(screen.getByRole('button', { name: 'Ändern' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Wochenprogramm · Dienstag' });
-    const feld = within(dialog).getByLabelText('Notiz');
+    await userEvent.click(await screen.findByRole('button', { name: 'Bearbeiten' }));
+    const feld = screen.getByLabelText('Festes Programm, das sich jede Woche wiederholt');
     await userEvent.clear(feld);
-    await userEvent.type(feld, 'Mit Snacks');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Notiz speichern' }));
-    expect(api.speichereProgrammpunkt).toHaveBeenCalledWith('t1', 2, { angebot_id: null, freitext: 'Spielenachmittag', notiz: 'Mit Snacks' });
+    await userEvent.type(feld, 'Jeden Dienstag Kicker-Turnier');
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    expect(api.setzeWochenprogramm).toHaveBeenCalledWith('t1', 'Jeden Dienstag Kicker-Turnier');
+    expect(await screen.findByText('Jeden Dienstag Kicker-Turnier')).toBeInTheDocument();
   });
 
-  it('Programmpunkt entfernen', async () => {
-    vi.mocked(api.loescheProgrammpunkt).mockResolvedValue(undefined);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('ohne Wochenprogramm: Hinweis, Koordination kann eintragen', async () => {
+    vi.mocked(api.holeTreff).mockResolvedValue({ ...nord, wochenprogramm: null });
     zeigeDetail(koord);
-    await screen.findByText('Spielenachmittag');
-    await userEvent.click(screen.getByRole('button', { name: 'Ändern' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Entfernen' }));
-    expect(api.loescheProgrammpunkt).toHaveBeenCalledWith('t1', 2);
+    expect(await screen.findByText('Noch kein Wochenprogramm eingetragen.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Eintragen' })).toBeInTheDocument();
   });
 });
 
-describe('Treff-Team', () => {
-  it('Treffleitung steht oben und sieht Kontaktdaten, kann aber nichts verwalten', async () => {
+describe('Treff-Team (unter „Treff bearbeiten“)', () => {
+  it('kein Team-Reiter mehr: der alte Link führt die Treffleitung zur Übersicht', async () => {
     zeigeDetail(leitung, '/treffs/t1/team');
-    const eintraege = await screen.findAllByRole('listitem');
-    expect(eintraege[0]).toHaveTextContent('Lea Leitner');
-    expect(screen.getByRole('link', { name: 'lea@kijub.example' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Entfernen' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Person zuordnen')).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Wochenprogramm' })).toBeInTheDocument();
   });
 
-  it('BetreuerIn bekommt den Hinweis zu Kontaktdaten', async () => {
-    zeigeDetail(betreuerin, '/treffs/t1/team');
-    expect(await screen.findByText(/Kontaktdaten der anderen sehen nur/)).toBeInTheDocument();
+  it('zeigt das Team mit Kontaktdaten', async () => {
+    zeigeTeam();
+    expect(await screen.findByRole('heading', { name: 'Team' })).toBeInTheDocument();
+    expect(await screen.findByText('Lea Leitner')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'lea@kijub.example' })).toBeInTheDocument();
   });
 
   it('Koordination ordnet nur zulässige Kategorien zu', async () => {
@@ -181,7 +161,7 @@ describe('Treff-Team', () => {
       { id: 'b', vorname: 'Ben', nachname: 'Baum', kategorie: 'TZK', aktiv: true },
     ]);
     vi.mocked(zuordnungApi.treffTeamHinzufuegenViele).mockResolvedValue(undefined);
-    zeigeDetail(koord, '/treffs/t1/team');
+    zeigeTeam();
     await screen.findByRole('checkbox', { name: /Fia Fsj/ });
     expect(screen.queryByRole('checkbox', { name: /Tim Teamer/ })).not.toBeInTheDocument();       // Kategorie darf nicht in einen Treff
     expect(screen.queryByRole('checkbox', { name: /Inaktiv/ })).not.toBeInTheDocument();
@@ -196,7 +176,7 @@ describe('Treff-Team', () => {
     vi.mocked(api.treffTeamRolleAendern).mockResolvedValue(undefined);
     vi.mocked(api.treffTeamEntfernen).mockResolvedValue(undefined);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    zeigeDetail(koord, '/treffs/t1/team');
+    zeigeTeam();
     await userEvent.selectOptions(await screen.findByLabelText('Rolle von Ben Baum'), 'treffleitung');
     expect(api.treffTeamRolleAendern).toHaveBeenCalledWith('t1', 'b', 'treffleitung');
     await userEvent.click(screen.getAllByRole('button', { name: 'Entfernen' })[1]!);
@@ -204,52 +184,13 @@ describe('Treff-Team', () => {
   });
 });
 
-describe('Treff-Absprachen', () => {
-  beforeEach(() => {
-    vi.mocked(api.listeTreffAbsprachen).mockResolvedValue([
-      absprache({ id: 'a1', text: 'Schlüssel bitte zurückgeben', datum: '2027-07-06', geltung: 'tag', bestaetigungen: [{ person_id: 'lea', at: '' }] }),
-    ]);
-    vi.mocked(fzApi.holeNamen).mockResolvedValue({ lea: 'Lea Leitner' });
-    for (const fn of [fzApi.bestaetige, fzApi.bestaetigungZurueck, fzApi.aendereNotiz, fzApi.loescheNotiz, api.legeTreffAbspracheAn] as const) {
-      vi.mocked(fn as (...a: never[]) => Promise<void>).mockResolvedValue(undefined);
-    }
-  });
-
-  it('BetreuerIn bestätigt, schreibt aber nicht', async () => {
+describe('Treff-Absprachen (Art im Reiter Notizen)', () => {
+  it('alte Links auf /absprachen führen zu den Notizen, gefiltert auf Absprachen', async () => {
+    vi.mocked(api.listeTreffAbsprachen).mockResolvedValue([absprache({ id: 'a1', text: 'Schlüssel bitte zurückgeben' })]);
     zeigeDetail(betreuerin, '/treffs/t1/absprachen');
     expect(await screen.findByText('Schlüssel bitte zurückgeben')).toBeInTheDocument();
-    expect(screen.getByText('Für 06.07.2027')).toBeInTheDocument();
-    expect(await screen.findByText('Bestätigt von Lea Leitner')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Neue Absprache')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /Bestätigen/ }));
-    expect(fzApi.bestaetige).toHaveBeenCalledWith('a1', 'ich');
-  });
-
-  it('Treffleitung legt eine Absprache an, optional mit Datum', async () => {
-    zeigeDetail(leitung, '/treffs/t1/absprachen');
-    await screen.findByText('Schlüssel bitte zurückgeben');
-    await userEvent.type(screen.getByLabelText('Neue Absprache'), 'Elterncafé am Freitag');
-    await userEvent.type(screen.getByLabelText('Gilt für einen bestimmten Tag (optional)'), '2027-07-09');
-    vi.mocked(api.legeTreffAbspracheAn).mockResolvedValue('n-treff');
-    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
-    expect(api.legeTreffAbspracheAn).toHaveBeenCalledWith('t1', { geltung: 'tag', datum: '2027-07-09', text: 'Elterncafé am Freitag' });
-    expect(sendePush).toHaveBeenCalledWith('absprache_treff', 'n-treff');
-  });
-
-  it('verlangt einen Text', async () => {
-    zeigeDetail(leitung, '/treffs/t1/absprachen');
-    await screen.findByText('Schlüssel bitte zurückgeben');
-    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
-    expect(screen.getByText('Bitte einen Text eingeben.')).toBeInTheDocument();
-    expect(api.legeTreffAbspracheAn).not.toHaveBeenCalled();
-  });
-
-  it('Treffleitung löscht nach Rückfrage', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    zeigeDetail(leitung, '/treffs/t1/absprachen');
-    await userEvent.click(await screen.findByRole('button', { name: 'Löschen' }));
-    expect(fzApi.loescheNotiz).toHaveBeenCalledWith('a1');
+    expect(screen.getByRole('link', { name: 'Notizen' })).toHaveClass('active');
+    expect(screen.getByRole('button', { name: /Absprachen \(1\)/ })).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
@@ -311,7 +252,7 @@ describe('Treff-Team: Entfernen mit Warnung vor künftigen Diensten', () => {
     vi.mocked(api.zaehleZukuenftigeDienste).mockResolvedValue(3);
     vi.mocked(api.treffTeamEntfernen).mockResolvedValue(undefined);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
-    zeigeDetail(koord, '/treffs/t1/team');
+    zeigeTeam();
     const knopf = (await screen.findAllByRole('button', { name: 'Entfernen' }))[1]!;
     await userEvent.click(knopf);
     expect(confirm.mock.calls[0]![0]).toMatch(/noch in 3 künftigen Diensten eingeteilt/);
@@ -326,7 +267,7 @@ describe('Treff-Team: Entfernen mit Warnung vor künftigen Diensten', () => {
     vi.mocked(api.zaehleZukuenftigeDienste).mockResolvedValue(0);
     vi.mocked(api.treffTeamEntfernen).mockResolvedValue(undefined);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    zeigeDetail(koord, '/treffs/t1/team');
+    zeigeTeam();
     await userEvent.click((await screen.findAllByRole('button', { name: 'Entfernen' }))[1]!);
     expect(confirm.mock.calls[0]![0]).toBe('Ben Baum aus dem Team von „Treff Nord“ entfernen?');
     confirm.mockRestore();
@@ -336,7 +277,7 @@ describe('Treff-Team: Entfernen mit Warnung vor künftigen Diensten', () => {
     vi.mocked(api.zaehleZukuenftigeDienste).mockRejectedValue(new Error('x'));
     vi.mocked(api.treffTeamEntfernen).mockResolvedValue(undefined);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    zeigeDetail(koord, '/treffs/t1/team');
+    zeigeTeam();
     await userEvent.click((await screen.findAllByRole('button', { name: 'Entfernen' }))[1]!);
     expect(confirm).toHaveBeenCalled();
     expect(api.treffTeamEntfernen).toHaveBeenCalled();

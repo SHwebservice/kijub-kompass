@@ -18,6 +18,8 @@ export interface Dienst {
   /** Eingeteilte Personen (Person-IDs). */
   personen: string[];
   wuensche: { person_id: string; status: WunschStatus }[];
+  /** Seit wann eine Person eingeteilt ist (Migration 0036; ältere Einteilungen ohne Zeitpunkt fehlen). */
+  seit?: Record<string, string>;
 }
 
 export interface Feiertag { id: string; treff_id: string | null; datum: string; bezeichnung: string }
@@ -34,7 +36,21 @@ export function geschlosseneZeiten(schliesszeiten: Schliesszeit[], feiertage: Fe
     .map((f): Schliesszeit => ({ id: `feiertag-${f.id}`, treff_id: treffId, von: f.datum, bis: f.datum, grund: f.bezeichnung, feiertag: true }));
   return [...schliesszeiten, ...aus];
 }
-export interface Abwesenheit { id: string; person_id: string; datum: string; typ: 'urlaub' | 'krank'; notiz: string | null }
+export interface Abwesenheit { id: string; person_id: string; datum: string; typ: 'urlaub' | 'krank' | 'verhindert'; notiz: string | null }
+
+/** „Kann nicht“: Die Person hat einen Tag ihres Treffs als verhindert markiert (Migration 0036). */
+export interface Verhinderung { treff_id: string; person_id: string; datum: string }
+
+/**
+ * Abwesenheiten (Urlaub, krank – trägt die Treffleitung ein) und „kann nicht“ (trägt die Person selbst ein) in einer Liste.
+ * Für die Planung sind beides Konflikte: Beim Füllen, Ziehen und Übernehmen wird dort nicht eingeteilt.
+ */
+export const mitVerhinderungen = (abwesenheiten: Abwesenheit[], verhinderungen: Verhinderung[]): Abwesenheit[] => [
+  ...abwesenheiten,
+  ...verhinderungen.map((v): Abwesenheit => ({ id: `verhindert-${v.person_id}-${v.datum}`, person_id: v.person_id, datum: v.datum, typ: 'verhindert', notiz: null })),
+];
+
+export const ABWESENHEIT_TEXT: Record<Abwesenheit['typ'], string> = { urlaub: 'Urlaub', krank: 'krank', verhindert: 'kann nicht' };
 
 /* ───── Kalender ───── */
 
@@ -84,6 +100,25 @@ export function monatVersatz(monat: string, n: number): string {
 const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 export const monatText = (monat: string) => `${MONATE[+monat.slice(5, 7) - 1]} ${monat.slice(0, 4)}`;
 
+/** Die Monate (jeweils der Erste), die die Tage berühren – z. B. zwei für eine Woche über den Monatswechsel. */
+export const monateDer = (tage: string[]) => [...new Set(tage.map(monatErster))].sort();
+
+/* ───── Veröffentlichen (Migration 0036) ───── */
+
+/** Ist der Monat des Tages veröffentlicht? `veroeffentlicht` enthält die ersten Tage der veröffentlichten Monate. */
+export const istVeroeffentlicht = (datum: string, veroeffentlicht: readonly string[]) => veroeffentlicht.includes(monatErster(datum));
+
+/**
+ * Wer über eine Änderung eine Mitteilung bekommt: nur, wenn der Monat des Tages veröffentlicht ist. Solange die Leitung plant,
+ * gehen keine Mitteilungen raus; beim Veröffentlichen bekommt das Team eine einzige.
+ */
+export function mitteilungFuer(aenderungen: { datum: string; person: string }[], veroeffentlicht: readonly string[]): string[] {
+  return [...new Set(aenderungen.filter((a) => istVeroeffentlicht(a.datum, veroeffentlicht)).map((a) => a.person))];
+}
+
+/** Tage der Woche bzw. des Monats: Ansicht „woche“ ab Montag, „monat“ alle Tage des Monats. */
+export const tageDerAnsicht = (ansicht: 'woche' | 'monat', fokus: string) => (ansicht === 'woche' ? wochenTage(montagVon(fokus)) : monatTage(fokus));
+
 /* ───── Tageskarten der Woche ───── */
 
 export interface Tageskarte {
@@ -121,6 +156,24 @@ export function dienstZeit(d: Pick<Dienst, 'von' | 'bis'>): string {
 }
 
 export const dienstStunden = (d: Pick<Dienst, 'von' | 'bis'>) => (d.von && d.bis ? stunden(d.von, d.bis) : 0);
+
+/* ───── Eigene Dienste ───── */
+
+/** Seit dem letzten Besuch neu eingeteilt? Ohne letzten Besuch (erster Besuch) oder ohne Zeitpunkt der Einteilung gilt nichts als neu. */
+export const istNeu = (eingeteiltAm: string | null | undefined, letzterBesuch: string | null) =>
+  !!eingeteiltAm && !!letzterBesuch && eingeteiltAm > letzterBesuch;
+
+export interface MeinDiensttag { datum: string; dienst: Dienst; neu: boolean }
+
+/** Die Dienste der Person in den Karten (regulär und Sonderdienste), nach Datum und Zeit. */
+export function meineDiensttage(karten: Tageskarte[], ichId: string, letzterBesuch: string | null = null): MeinDiensttag[] {
+  return karten.flatMap((k) => [k.regulaer, ...k.sonder]
+    .filter((d): d is Dienst => !!d && d.personen.includes(ichId))
+    .map((dienst) => ({ datum: k.datum, dienst, neu: istNeu(dienst.seit?.[ichId], letzterBesuch) })));
+}
+
+/** Summe der Stunden der Dienste. */
+export const stundenSumme = (dienste: Pick<Dienst, 'von' | 'bis'>[]) => Math.round(dienste.reduce((n, d) => n + dienstStunden(d), 0) * 100) / 100;
 
 /* ───── Wünsche ───── */
 

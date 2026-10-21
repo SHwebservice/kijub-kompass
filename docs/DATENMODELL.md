@@ -227,7 +227,7 @@ create table treff_oeffnungszeiten (
   von time not null, bis time not null check (bis > von),
   primary key (treff_id, wochentag)
 );
-create table treff_plan_eintraege (                            -- wiederkehrendes Wochenprogramm
+create table treff_plan_eintraege (                            -- früheres Wochenprogramm je Tag; seit 0038 ersetzt durch treffs.wochenprogramm (Freitext)
   treff_id uuid references treffs(id) on delete cascade,
   wochentag smallint check (wochentag between 1 and 7),
   angebot_id uuid references angebote(id) on delete set null,
@@ -267,6 +267,28 @@ create table dienstplan_kommentare (
   woche_start date not null,                     -- Montag der ISO-Woche
   person_id uuid not null references personen(id),
   text text not null,
+  created_at timestamptz not null default now()
+);
+-- Seit 0036: veröffentlichte Monate (fehlt die Zeile, ist der Monat „in Planung“), „kann nicht“ je Person und Tag,
+-- Mindestbesetzung je Treff (treffs.mindestbesetzung, Standard 1), Zeitpunkt der Einteilung (dienst_zuteilungen.created_at)
+-- und persönliche Kalender-Abos (nur der Hash des Schlüssels; Abruf über die Edge Function „kalender“).
+create table dienstplan_monate (
+  treff_id uuid references treffs(id) on delete cascade,
+  monat date check (extract(day from monat) = 1),
+  veroeffentlicht_von uuid references personen(id) on delete set null,
+  veroeffentlicht_am timestamptz not null default now(),
+  primary key (treff_id, monat)
+);
+create table dienst_verhinderungen (
+  treff_id uuid references treffs(id) on delete cascade,
+  person_id uuid references personen(id) on delete cascade,
+  datum date not null,
+  created_at timestamptz not null default now(),
+  primary key (treff_id, person_id, datum)
+);
+create table kalender_abos (
+  person_id uuid primary key references personen(id) on delete cascade,
+  token_hash text not null unique,                 -- sha256 des Schlüssels im Abo-Link
   created_at timestamptz not null default now()
 );
 

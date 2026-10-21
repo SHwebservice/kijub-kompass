@@ -1,5 +1,7 @@
-import { abwesendeAm, addTage, dienstStunden, feiertagAm, isoWochentag, monatTage, montagVon, type Abwesenheit, type Dienst, type Feiertag, type Tageskarte } from './dienstplan';
-import type { Paar } from './monatsplan';
+import { ABWESENHEIT_TEXT, abwesendeAm, addTage, dienstStunden, feiertagAm, isoWochentag, monatTage, montagVon, type Abwesenheit, type Dienst, type Feiertag, type Tageskarte } from './dienstplan';
+
+/** Eine Einteilung: Person an einem Tag (für fn_dienstplan_anwenden). */
+export interface Paar { datum: string; person: string }
 
 /**
  * Entwurf für die bearbeitbare Einsatz-Matrix: Die Treffleitung klickt Zellen (Person × Öffnungstag) an oder aus, füllt ganze Zeilen
@@ -40,10 +42,10 @@ export function setze(karten: Tageskarte[], e: Entwurf, datum: string, person: s
 export const umschalten = (karten: Tageskarte[], e: Entwurf, datum: string, person: string) =>
   setze(karten, e, datum, person, !eingeteilt(karten, e, datum, person));
 
-/** Urlaub, Krankheit oder Feiertag: Beim Füllen und Ziehen wird hier nicht eingeteilt – nur, wenn man die Zelle einzeln anklickt. */
+/** Urlaub, Krankheit, „kann nicht“ oder Feiertag: Beim Füllen und Ziehen wird hier nicht eingeteilt – nur, wenn man die Zelle einzeln anklickt. */
 export function konfliktAm(datum: string, person: string, abwesenheiten: Abwesenheit[], feiertage: Feiertag[], treffId: string): string | null {
   const weg = abwesendeAm(datum, abwesenheiten).find((a) => a.person_id === person);
-  if (weg) return weg.typ === 'urlaub' ? 'Urlaub' : 'krank';
+  if (weg) return ABWESENHEIT_TEXT[weg.typ];
   const f = feiertagAm(datum, feiertage, treffId);
   return f ? `Feiertag: ${f.bezeichnung}` : null;
 }
@@ -155,4 +157,41 @@ export function aenderungen(e: Entwurf): { zuteilen: Paar[]; entfernen: Paar[] }
 export function stundenVon(karten: Tageskarte[], person: string): number {
   const h = karten.flatMap((k) => [k.regulaer, ...k.sonder]).filter((d) => d?.personen.includes(person)).reduce((n, d) => n + dienstStunden(d!), 0);
   return Math.round(h * 100) / 100;
+}
+
+/** Person → Wochentage (1 = Montag … 7 = Sonntag), an denen sie im Monat arbeitet. */
+export type PersonMuster = Record<string, number[]>;
+export type Modus = 'hinzufuegen' | 'ersetzen';
+
+export interface MusterErgebnis extends ZeileErgebnis {
+  /** Neue Einteilungen im Entwurf. */
+  dazu: number;
+  /** Im Modus „ersetzen“: Einteilungen, die herausgenommen werden. */
+  entfernt: number;
+}
+
+/**
+ * Wochentags-Muster in den Entwurf: Jede Person kommt an allen Öffnungstagen ihrer Wochentage dazu. Tage mit Urlaub, Krankheit oder
+ * „kann nicht“ werden ausgelassen und gezählt (einzeln anklicken teilt trotzdem ein); Feiertage und Schließzeiten sind nicht bearbeitbar.
+ * Im Modus „ersetzen“ fallen an den Tagen, die das Muster betrifft, alle anderen Personen heraus.
+ */
+export function musterAnwenden(
+  karten: Tageskarte[], e: Entwurf, muster: PersonMuster, modus: Modus, abw: Abwesenheit[], feiertage: Feiertag[], treffId: string,
+): MusterErgebnis {
+  let entwurf = e; let ausgelassen = 0; let dazu = 0; let entfernt = 0;
+  for (const k of karten.filter(bearbeitbar)) {
+    const wt = isoWochentag(k.datum);
+    const gewollt = Object.entries(muster).filter(([, tage]) => tage.includes(wt)).map(([person]) => person);
+    if (gewollt.length === 0) continue;
+    for (const person of gewollt) {
+      if (eingeteilt(karten, entwurf, k.datum, person)) continue;
+      if (konfliktAm(k.datum, person, abw, feiertage, treffId)) { ausgelassen += 1; continue; }
+      entwurf = setze(karten, entwurf, k.datum, person, true); dazu += 1;
+    }
+    if (modus === 'ersetzen') {
+      const jetzt = mitEntwurf(karten, entwurf).find((x) => x.datum === k.datum)?.regulaer?.personen ?? [];
+      for (const person of jetzt.filter((p) => !gewollt.includes(p))) { entwurf = setze(karten, entwurf, k.datum, person, false); entfernt += 1; }
+    }
+  }
+  return { entwurf, ausgelassen, dazu, entfernt };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   aenderungen, eingeteilt, konfliktAm, LEERER_ENTWURF, mitEntwurf, offeneWunschListe, setze, stundenVon, umschalten, vormonatUebernehmen, wochenDerKarten,
-  wocheKopieren, zeileFuellen,
+  musterAnwenden, wocheKopieren, zeileFuellen,
 } from './entwurf';
 import { tageskarten, type Abwesenheit, type Dienst, type Feiertag } from './dienstplan';
 
@@ -124,5 +124,32 @@ describe('Entwurf der Einsatz-Matrix', () => {
     expect(stundenVon(karten, 'anna')).toBe(6);                                                    // 4 h + 2 h Ausflug
     const e = setze(karten, LEERER_ENTWURF, '2027-03-03', 'anna', true);
     expect(stundenVon(mitEntwurf(karten, e), 'anna')).toBe(9.5);
+  });
+});
+
+describe('Wochentags-Muster in den Entwurf', () => {
+  it('teilt an allen Öffnungstagen der Wochentage ein; Vorhandenes bleibt, Urlaub und „kann nicht“ werden ausgelassen', () => {
+    const abw: Abwesenheit[] = [...urlaub, { id: 'v', person_id: 'carla', datum: '2027-03-03', typ: 'verhindert', notiz: null }];
+    const r = musterAnwenden(karten, LEERER_ENTWURF, { anna: [1], ben: [1], carla: [3] }, 'hinzufuegen', abw, feiertage, 't1');
+    // Mo 1.: Anna schon da, Ben neu · Mo 8.: Anna neu, Ben Urlaub · Mi 3.: Carla kann nicht · Mi 10.: Feiertag
+    expect(aenderungen(r.entwurf).zuteilen).toEqual([{ datum: '2027-03-01', person: 'ben' }, { datum: '2027-03-08', person: 'anna' }]);
+    expect([r.dazu, r.ausgelassen, r.entfernt]).toEqual([2, 3, 0]);
+  });
+
+  it('„ersetzen“ nimmt an den betroffenen Tagen alle anderen heraus, andere Tage bleiben', () => {
+    const r = musterAnwenden(karten, LEERER_ENTWURF, { ben: [1] }, 'ersetzen', [], feiertage, 't1');
+    expect(aenderungen(r.entwurf)).toEqual({
+      zuteilen: [{ datum: '2027-03-01', person: 'ben' }, { datum: '2027-03-08', person: 'ben' }],
+      entfernen: [{ datum: '2027-03-01', person: 'anna' }],
+    });
+    expect(r.entfernt).toBe(1);
+  });
+
+  it('ohne Wochentage passiert nichts', () => {
+    expect(musterAnwenden(karten, LEERER_ENTWURF, { anna: [] }, 'ersetzen', [], [], 't1').entwurf.size).toBe(0);
+  });
+
+  it('„kann nicht“ ist ein Konflikt mit eigenem Text', () => {
+    expect(konfliktAm('2027-03-03', 'carla', [{ id: 'v', person_id: 'carla', datum: '2027-03-03', typ: 'verhindert', notiz: null }], [], 't1')).toBe('kann nicht');
   });
 });

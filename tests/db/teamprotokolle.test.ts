@@ -82,3 +82,114 @@ describe('Mitteilung', () => {
     expect(await als(db, betr, () => fehler(() => q(`select fn_push_vorbereiten('teamprotokoll', $1)`, [id])))).toMatch(/nicht zulässig/);
   });
 });
+
+/** Migration 0037: Abschnitte, Entwurf, gemeldete Änderungen, neue Teammitglieder. */
+type Zeile = { abschnitte: { titel: string; text: string }[]; text: string; gemeldet_von: string | null; gemeldet_am: string | null; entwurf: boolean };
+const zeile = async (id: string) => (await q<Zeile>(`select abschnitte, text, gemeldet_von, gemeldet_am, entwurf from treff_teamprotokolle where id = $1`, [id])).rows[0]!;
+const gegliedert = async (wer: Person, entwurf: boolean, titel = 'Gegliedert') =>
+  (await als(db, wer, () => q<{ id: string }>(
+    `insert into treff_teamprotokolle (treff_id, titel, datum, abschnitte, naechstes_datum, naechstes_zeit, aufgaben, entwurf)
+     values ($1, $2, '2027-04-01', $3::jsonb, '2027-04-15', '18:30', ' Flyer drucken ', $4) returning id`,
+    [treff, titel, JSON.stringify([{ titel: ' Termine ', text: 'Sommerfest am 3.7.' }, { titel: '', text: '' }, { titel: 'Kasse', text: '- Kassenbuch prüfen' }]), entwurf]))).rows[0]!.id;
+
+describe('Gliederung (0037)', () => {
+  it('Abschnitte werden bereinigt, der reine Text entsteht aus allem', async () => {
+    const z = await zeile(await gegliedert(tl, false));
+    expect(z.abschnitte).toEqual([{ titel: 'Termine', text: 'Sommerfest am 3.7.' }, { titel: 'Kasse', text: '- Kassenbuch prüfen' }]);
+    expect(z.text).toBe('Termine\nSommerfest am 3.7.\n\nKasse\n- Kassenbuch prüfen\n\nNächstes Treffen: 15.04.2027 um 18:30 Uhr\n\nAufgaben und Ziele:\nFlyer drucken');
+  });
+
+  it('wer nur Text schreibt, bekommt einen Abschnitt ohne Überschrift; ohne Inhalt nur als Entwurf', async () => {
+    const id = await lege(tl, 'Nur Text');
+    expect((await zeile(id)).abschnitte).toEqual([{ titel: '', text: 'Neue Öffnungszeiten ab April.' }]);
+    expect(await als(db, tl, () => fehler(() => q(`insert into treff_teamprotokolle (treff_id, titel) values ($1, 'Leer')`, [treff])))).toMatch(/braucht einen Inhalt/);
+    await als(db, tl, () => q(`insert into treff_teamprotokolle (treff_id, titel, entwurf) values ($1, 'Leerer Entwurf', true)`, [treff]));
+    expect(await als(db, tl, () => fehler(() => q(`insert into treff_teamprotokolle (treff_id, titel, abschnitte) values ($1, 'x', '[{"titel": 5, "text": "a"}]')`, [treff])))).toMatch(/Überschrift/);
+  });
+});
+
+describe('Entwurf (0037)', () => {
+  it('sieht nur die Leitung; erst beim Veröffentlichen gilt er als gemeldet und darf die Mitteilung raus', async () => {
+    const id = await gegliedert(tl, true, 'Entwurf Mai');
+    expect(await zeile(id)).toMatchObject({ entwurf: true, gemeldet_am: null });
+    expect((await als(db, betr, () => q(`select 1 from treff_teamprotokolle where id = $1`, [id]))).rows).toHaveLength(0);
+    expect((await als(db, tk, () => q(`select 1 from treff_teamprotokolle where id = $1`, [id]))).rows).toHaveLength(1);
+    expect(await als(db, betr, () => fehler(() => q(`insert into treff_teamprotokoll_gelesen (protokoll_id, person_id) values ($1, $2)`, [id, betr.id])))).toMatch(/row-level security/i);
+    expect(await als(db, tl, () => fehler(() => q(`select fn_push_vorbereiten('teamprotokoll', $1)`, [id])))).toMatch(/nicht zulässig/);
+    await als(db, tk, () => q(`update treff_teamprotokolle set entwurf = false where id = $1`, [id]));
+    expect(await zeile(id)).toMatchObject({ entwurf: false, gemeldet_von: tk.id });
+    const p = (await als(db, tk, () => q<{ p: { titel: string } }>(`select fn_push_vorbereiten('teamprotokoll', $1) as p`, [id]))).rows[0]!.p;
+    expect(p.titel).toBe('Neues Teamprotokoll · Kindertreff');
+    expect(await als(db, tl, () => fehler(() => q(`select fn_push_vorbereiten('teamprotokoll', $1)`, [id])))).toMatch(/nicht zulässig/);   // gemeldet hat die Koordination
+    expect(await als(db, tl, () => fehler(() => q(`update treff_teamprotokolle set entwurf = true where id = $1`, [id])))).toMatch(/nicht wieder zum Entwurf/);
+  });
+});
+
+describe('Änderung melden (0037)', () => {
+  it('setzt den Gelesen-Stand zurück und erlaubt die Mitteilung „geändert“; gemeldet_am lässt sich nicht direkt setzen', async () => {
+    const id = await gegliedert(tl, false, 'Zum Ändern');
+    await als(db, betr, () => q(`insert into treff_teamprotokoll_gelesen (protokoll_id, person_id) values ($1, $2)`, [id, betr.id]));
+    const vorher = (await zeile(id)).gemeldet_am;
+    await als(db, tk, () => q(`update treff_teamprotokolle set gemeldet_am = now() + interval '1 day', gemeldet_von = $2 where id = $1`, [id, tk.id]));
+    expect(await zeile(id)).toMatchObject({ gemeldet_am: vorher, gemeldet_von: tl.id });
+    expect(await als(db, betr, () => fehler(() => q(`select fn_teamprotokoll_aenderung_melden($1)`, [id])))).toMatch(/Keine Berechtigung/);
+    await als(db, tk, () => q(`select fn_teamprotokoll_aenderung_melden($1)`, [id]));
+    expect((await zeile(id)).gemeldet_von).toBe(tk.id);
+    expect((await q(`select 1 from treff_teamprotokoll_gelesen where protokoll_id = $1`, [id])).rows).toHaveLength(0);
+    const p = (await als(db, tk, () => q<{ p: { titel: string; text: string } }>(`select fn_push_vorbereiten('teamprotokoll_geaendert', $1) as p`, [id]))).rows[0]!.p;
+    expect(p).toMatchObject({ titel: 'Teamprotokoll geändert · Kindertreff', text: 'Zum Ändern (01.04.2027) – bitte noch einmal lesen.' });
+  });
+
+  it('andere Mitteilungen laufen weiter über die bisherige Funktion', async () => {
+    expect(await als(db, tl, () => fehler(() => q(`select fn_push_vorbereiten('materialliste', $1)`, [treff])))).toMatch(/nicht zulässig/);
+  });
+});
+
+describe('Neu im Team (0037)', () => {
+  it('bisherige Protokolle gelten als „vor Eintritt“, Entwürfe nicht; nach einer gemeldeten Änderung zählt es wieder', async () => {
+    const entwurf = await gegliedert(tl, true, 'Noch Entwurf');
+    const neu = await person(db, 'Nina', { kategorie: 'TZK' });
+    await q(`insert into treff_team (treff_id, person_id, rolle) values ($1, $2, 'betreuerin')`, [treff, neu.id]);
+    const r = (await q<{ protokoll_id: string; vor_eintritt: boolean }>(`select protokoll_id, vor_eintritt from treff_teamprotokoll_gelesen where person_id = $1`, [neu.id])).rows;
+    const veroeffentlicht = (await q(`select 1 from treff_teamprotokolle where treff_id = $1 and not entwurf`, [treff])).rows.length;
+    expect(r).toHaveLength(veroeffentlicht);
+    expect(r.every((x) => x.vor_eintritt)).toBe(true);
+    expect(r.some((x) => x.protokoll_id === entwurf)).toBe(false);
+    await als(db, tl, () => q(`select fn_teamprotokoll_aenderung_melden($1)`, [r[0]!.protokoll_id]));
+    expect((await q(`select 1 from treff_teamprotokoll_gelesen where person_id = $1 and protokoll_id = $2`, [neu.id, r[0]!.protokoll_id])).rows).toHaveLength(0);
+  });
+});
+
+describe('Migration 0037 wiederholbar', () => {
+  it('läuft ein zweites Mal ohne Fehler; Inhalte, Gelesen-Stand und Mitteilungen bleiben', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const id = await gegliedert(tl, false, 'Vor dem zweiten Lauf');
+    await als(db, betr, () => q(`insert into treff_teamprotokoll_gelesen (protokoll_id, person_id) values ($1, $2)`, [id, betr.id]));
+    const vorher = await zeile(id);
+    await db.exec(readFileSync(join(__dirname, '../../supabase/migrations/0037_teamprotokolle_format.sql'), 'utf8'));
+    expect(await zeile(id)).toEqual(vorher);
+    expect((await q(`select 1 from treff_teamprotokoll_gelesen where protokoll_id = $1 and person_id = $2`, [id, betr.id])).rows).toHaveLength(1);
+    expect((await q(`select count(*)::int as n from pg_proc where proname like 'fn_push_vorbereiten%'`)).rows[0]).toEqual({ n: 3 });   // basis, vor_0037, Hülle
+    const p = (await als(db, tl, () => q<{ p: { titel: string } }>(`select fn_push_vorbereiten('teamprotokoll', $1) as p`, [id]))).rows[0]!.p;
+    expect(p.titel).toBe('Neues Teamprotokoll · Kindertreff');
+  });
+
+  it('überschreibt eine spätere Migration fn_push_vorbereiten, stellt ein erneuter Lauf die Hülle wieder her – deren Zweige bleiben', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    // so wie 0036, wenn es erst nach 0037 eingespielt wird: die Hülle ist weg
+    await db.exec(`create or replace function fn_push_vorbereiten(p_art text, p_ref uuid default null, p_extra jsonb default '{}') returns jsonb
+      language plpgsql security definer set search_path = public, pg_temp as $x$
+      begin
+        if p_art = 'spaeter' then return jsonb_build_object('titel', 'aus der späteren Migration'); end if;
+        return fn_push_vorbereiten_basis(p_art, p_ref, p_extra);
+      end $x$;`);
+    const id = await gegliedert(tl, false, 'Nach Überschreiben');
+    await db.exec(readFileSync(join(__dirname, '../../supabase/migrations/0037_teamprotokolle_format.sql'), 'utf8'));
+    const tp = (await als(db, tl, () => q<{ p: { titel: string } }>(`select fn_push_vorbereiten('teamprotokoll', $1) as p`, [id]))).rows[0]!.p;
+    expect(tp.titel).toBe('Neues Teamprotokoll · Kindertreff');
+    const sp = (await als(db, tl, () => q<{ p: { titel: string } }>(`select fn_push_vorbereiten('spaeter') as p`))).rows[0]!.p;
+    expect(sp.titel).toBe('aus der späteren Migration');
+  });
+});

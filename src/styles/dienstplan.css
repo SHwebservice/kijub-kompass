@@ -56,3 +56,34 @@
 
 /* Personen als Schilder in der Tagesliste */
 .einsatz__schilder { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+
+/* Unterbesetzt (weniger als die Mindestbesetzung), Tage als Knöpfe, neu eingeteilt (Migration 0036) */
+.einsatz__tag--knapp, .einsatz__knapp { color: var(--warning); }
+.einsatz__tag--knapp { box-shadow: inset 0 -3px 0 var(--warning); }
+.einsatz__knapp-hinweis { color: var(--warning); font-weight: 600; margin: 0 0 var(--space-2); }
+.einsatz__tagknopf {
+  display: block; width: 100%; min-width: 2.25rem; min-height: var(--tap, 2.75rem); padding: 2px; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: inherit; font: inherit; line-height: 1.15; cursor: pointer;
+}
+.einsatz__tagknopf span { display: block; }
+.einsatz__tagknopf:hover { background: var(--accent-bg); }
+.einsatz__tagknopf:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.einsatz thead .einsatz__tag:has(.einsatz__tagknopf) { padding: 2px; }
+.einsatz__neu { display: inline-block; width: 7px; height: 7px; margin-left: 2px; border-radius: 50%; background: var(--accent); vertical-align: super; }
+.einsatz__max { font-weight: 400; }
+.einsatz__mindest { gap: var(--space-2); font-size: var(--fs-sm); color: var(--text-muted); }
+
+/* Stand des Monatsplans */
+.plan-status__zeile { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--fs-sm); color: var(--text-muted); }
+.plan-status__punkt { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.plan-status__punkt--fest { background: var(--success); }
+
+/* „Deine Dienste“ und Tagesfenster */
+.mein-plan__tag { border: 0; padding: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; text-align: left; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.mein-plan__tag:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 2px; }
+.mein-plan__nurich { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-sm); }
+.tag__abschnitt { margin: var(--space-3) 0; }
+.tag__abschnitt h3 { margin-bottom: var(--space-2); }
+.tag__liste { margin: 0 0 var(--space-2); padding-left: 1.2rem; }
+.tag__ich { padding: var(--space-3); border-radius: var(--radius); background: var(--accent-bg); }
+.tag__sonder { padding-left: var(--space-3); border-left: 3px solid var(--orange); }

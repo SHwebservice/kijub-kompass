@@ -30,6 +30,8 @@ const leitung: Szene = { ich: { id: 'lea', kategorie: 'Hauptamtliche*r' }, treff
 
 const zeige = (szene: Szene, rolle: 'betreuerin' | 'treffleitung' | 'koordination' = 'betreuerin') => renderMitAuth(<DienstplanTab treff={nord} rolle={rolle} />, szene);
 const knopf = (name: string) => screen.getByRole('button', { name });
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const tagKnopf = (d: string) => screen.findByRole('button', { name: new RegExp(`^${esc(formatKurz(d))} öffnen`) });
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -40,7 +42,8 @@ beforeEach(() => {
   vi.mocked(api.listeAbwesenheiten).mockResolvedValue([]);
   vi.mocked(api.listeTreffAbsprachen).mockResolvedValue([]);
   vi.mocked(api.listeDienstplanKommentare).mockResolvedValue([]);
-  vi.mocked(api.dienstStatistik).mockResolvedValue([]);
+  vi.mocked(api.listeVerhinderungen).mockResolvedValue([]);
+  vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([]);
   vi.mocked(api.setzeZuteilung).mockResolvedValue(undefined);
   vi.mocked(api.dienstSicherstellen).mockResolvedValue('neuer-dienst');
 });
@@ -50,11 +53,11 @@ describe('Dienstplan: Umschalter Woche und Monat', () => {
     zeige(betreuerin);
     expect(await screen.findByText(wochenText(montagVon(heute)))).toBeInTheDocument();
     expect(knopf('Woche')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.queryByRole('list', { name: 'Dienste im Monat' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Einsatzplan Monat' })).not.toBeInTheDocument();
 
     await userEvent.click(knopf('Monat'));
     expect(await screen.findByText(monatText(monat))).toBeInTheDocument();
-    expect(await screen.findByRole('list', { name: 'Dienste im Monat' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Einsatzplan Monat' })).toBeInTheDocument();
     expect(knopf('Monat')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByText(/^KW \d+/)).not.toBeInTheDocument();
 
@@ -64,7 +67,7 @@ describe('Dienstplan: Umschalter Woche und Monat', () => {
 
   it('die Adresse bestimmt die Ansicht: ?ansicht=monat öffnet gleich den Monat', async () => {
     zeige({ ...betreuerin, pfad: '/treffs/t1/dienstplan?ansicht=monat' });
-    expect(await screen.findByRole('list', { name: 'Dienste im Monat' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Einsatzplan Monat' })).toBeInTheDocument();
     expect(knopf('Monat')).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -98,54 +101,57 @@ describe('Dienstplan: Zuteilen in der Monatsansicht', () => {
 
   it('die Treffleitung teilt an einem Tag ohne Dienst zu: der Dienst wird erst beim Speichern angelegt', async () => {
     await imMonat(leitung, 'treffleitung');
-    await userEvent.click(await screen.findByRole('button', { name: `Zuteilen am ${formatKurz(montag)}` }));
+    await userEvent.click(await tagKnopf(montag));
     const dialog = await screen.findByRole('dialog');
     await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
     expect(api.dienstSicherstellen).not.toHaveBeenCalled();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(api.dienstSicherstellen).toHaveBeenCalledWith('t1', montag);
     expect(api.setzeZuteilung).toHaveBeenCalledWith('neuer-dienst', ['ben'], []);
   });
 
-  it('ändert die Zuteilung eines bestehenden Dienstes und lädt danach Dienste und Statistik neu', async () => {
+  it('ändert die Zuteilung eines bestehenden Dienstes und lädt danach die Dienste neu', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: montag, personen: ['lea'] })]);
     await imMonat(leitung, 'treffleitung');
-    await userEvent.click(await screen.findByRole('button', { name: `Zuteilen am ${formatKurz(montag)}` }));
+    await userEvent.click(await tagKnopf(montag));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByLabelText(/Lea Leitner/)).toBeChecked();
     await userEvent.click(within(dialog).getByLabelText(/Anna Adler/));
     const dienstAufrufe = vi.mocked(api.listeDienste).mock.calls.length;
-    const statistikAufrufe = vi.mocked(api.dienstStatistik).mock.calls.length;
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(api.setzeZuteilung).toHaveBeenCalledWith('d1', ['ich'], []);      // nur die Differenz
     await vi.waitFor(() => expect(vi.mocked(api.listeDienste).mock.calls.length).toBeGreaterThan(dienstAufrufe));
-    expect(vi.mocked(api.dienstStatistik).mock.calls.length).toBeGreaterThan(statistikAufrufe);
   });
 
   it('Abwesende werden im Zuteilungsfenster der Monatsansicht markiert', async () => {
     vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: 'x', person_id: 'ben', datum: montag, typ: 'urlaub', notiz: null }]);
     await imMonat(leitung, 'treffleitung');
-    await userEvent.click(await screen.findByRole('button', { name: `Zuteilen am ${formatKurz(montag)}` }));
+    await userEvent.click(await tagKnopf(montag));
     expect(await within(await screen.findByRole('dialog')).findByText(/abwesend: Urlaub/)).toBeInTheDocument();
   });
 
   it('Sonderdienste lassen sich anlegen und bearbeiten', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 's1', datum: montag, ist_sonder: true, bezeichnung: 'Sommerfest', personen: ['ben'] })]);
     await imMonat(leitung, 'treffleitung');
-    await userEvent.click(await screen.findByRole('button', { name: `Sonderdienst Sommerfest am ${formatKurz(montag)} bearbeiten` }));
+    await userEvent.click(await tagKnopf(montag));
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Sonderdienst bearbeiten' }));
+    expect(await screen.findByRole('dialog', { name: 'Sonderdienst bearbeiten' })).toBeInTheDocument();
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
-  it('offene Dienstwünsche erscheinen für die Treffleitung als Hinweis am Tag', async () => {
+  it('offene Dienstwünsche erscheinen für die Treffleitung als Hinweis und als „?“ in der Tabelle', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: montag, wuensche: [{ person_id: 'ben', status: 'offen' }, { person_id: 'ich', status: 'offen' }] })]);
     await imMonat(leitung, 'treffleitung');
-    expect(await screen.findByText('2 Wünsche')).toBeInTheDocument();
+    expect(await screen.findByText(/2 offene Dienstwünsche im/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Wunsch beantworten$/ })).toHaveLength(2);
   });
 
   it('TeilzeitkräfteInnen sehen die Monatsansicht, aber keinen Zuteilen-Knopf und keinen Sonderdienst', async () => {
     await imMonat(betreuerin, 'betreuerin');
-    await screen.findByRole('list', { name: 'Dienste im Monat' });
-    expect(screen.queryByRole('button', { name: /Zuteilen/ })).not.toBeInTheDocument();
+    await screen.findByRole('region', { name: 'Einsatzplan Monat' });
+    expect(screen.queryByRole('button', { name: 'In der Tabelle einteilen' })).not.toBeInTheDocument();
+    await userEvent.click(await tagKnopf(montag));
+    expect(within(await screen.findByRole('dialog')).queryByRole('button', { name: 'Zuteilung speichern' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Sonderdienst/ })).not.toBeInTheDocument();
   });
 });

@@ -5,70 +5,119 @@ import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
 import { sendePush } from '../../mitteilungen/senden';
-import { formatDatum, formatKurz, heuteIso } from '../../freizeiten/logik';
+import { formatDatum, heuteIso } from '../../freizeiten/logik';
 import {
-  entscheideWunsch, holeTreffTeam, legeDienstplanKommentarAn, listeAbwesenheiten, listeDienste, listeDienstplanKommentare, listeFeiertage,
-  listeSchliesszeiten, listeTreffAbsprachen, loescheDienstplanKommentar, wuenscheDienst, wunschZuruecknehmen, type TreffDetailDaten,
+  holeTreffTeam, legeDienstplanKommentarAn, listeAbwesenheiten, listeDienste, listeDienstplanKommentare, listeFeiertage, listeSchliesszeiten,
+  listeTreffAbsprachen, listeVeroeffentlicht, listeVerhinderungen, loescheDienstplanKommentar, type TreffDetailDaten,
 } from '../../treffs/api';
 import {
-  abwesendeAm, addTage, darfWuenschen, dienstZeit, eigenerWunsch, feiertagAm, geschlosseneZeiten, montagVon, offeneWuensche, schliesszeitText, tageskarten, wochenTage, wochenText,
-  type Dienst, type Tageskarte,
+  addTage, feiertagAm, geschlosseneZeiten, monatErster, monateDer, monatText, monatVersatz, montagVon, mitVerhinderungen, offeneWuensche, tageDerAnsicht, tageskarten,
+  wochenText, type Dienst,
 } from '../../treffs/dienstplan';
-import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
+import { LEERER_ENTWURF, mitEntwurf, type Entwurf } from '../../treffs/entwurf';
+import { darfTreffVerwalten } from '../../treffs/logik';
 import type { RolleInTreff } from '../../lib/rollen';
-import { Alert, Badge, Button, Card, Spinner } from '../../components/ui';
-import { SonderdienstSheet, ZuteilenSheet } from './DienstSheets';
+import { Alert, Button, Card, Spinner } from '../../components/ui';
+import { SonderdienstSheet } from './DienstSheets';
 import { Einsatzmatrix } from './Einsatzmatrix';
-import { MonatTab } from './MonatTab';
-import { WuenscheBestaetigen } from './WuenscheBestaetigen';
+import { MatrixLeiste } from './MatrixLeiste';
+import { MeinPlan } from './MeinPlan';
+import { PlanStatus } from './PlanStatus';
+import { TagSheet } from './TagSheet';
+import { useLetzterBesuchDienste } from '../dienste/gesehen';
 
-type Ziel = { art: 'zuteilen'; datum: string; dienst: Dienst | null } | { art: 'sonder'; dienst: Dienst | null };
+type Ansicht = 'woche' | 'monat';
+type Ziel = { art: 'tag'; datum: string } | { art: 'sonder'; dienst: Dienst | null; datum: string };
 
-const WUNSCH_LABEL = { offen: 'Wunsch offen', bestaetigt: 'Wunsch bestätigt', abgelehnt: 'Wunsch abgelehnt' } as const;
-const WUNSCH_TON = { offen: 'warning', bestaetigt: 'success', abgelehnt: 'danger' } as const;
 const datumZeit = (iso: string) => `${formatDatum(iso.slice(0, 10))} ${iso.slice(11, 16)}`;
+const istDatum = (d: string | null): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
 
-interface AnsichtProps { treff: TreffDetailDaten; rolle: RolleInTreff; fokus: string; setFokus: (datum: string) => void }
-
-/** Dienstplan einer Kalenderwoche: Öffnungstage mit Zuteilung, Wünsche, Sonderdienste, Feiertage, Abwesenheiten und Wochenkommentare. */
-function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
+/**
+ * Reiter „Dienstplan“: Woche oder Monat (Adresse ?ansicht=monat, ein bestimmter Tag mit ?datum=JJJJ-MM-TT). Für alle gleich aufgebaut:
+ * Stand des Monatsplans (in Planung / veröffentlicht), „Deine Dienste“, die Einsatz-Matrix „Wer arbeitet wann“ als einzige Planungsfläche
+ * und – in der Woche – die Kommentare. Ein Klick auf einen Tag öffnet das Tagesfenster; dort wird zugeteilt, gewünscht und entschieden.
+ */
+export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; rolle: RolleInTreff }) {
   const { ich } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const ansicht: Ansicht = params.get('ansicht') === 'monat' ? 'monat' : 'woche';
+  const [fokus, setFokus] = useState(() => (istDatum(params.get('datum')) ? params.get('datum')! : heuteIso()));
   const heute = heuteIso();
+  const tage = tageDerAnsicht(ansicht, fokus);
+  const von = tage[0]!;
+  const bis = tage[tage.length - 1]!;
   const montag = montagVon(fokus);
-  const setMontag = (m: string) => setFokus(m);
-  const sonntag = addTage(montag, 6);
-  const schluessel = `${t.id}-${montag}`;
+  const monat = monatErster(fokus);
+  const schluessel = `${t.id}-${von}-${bis}`;
 
   const team = useLaden(() => holeTreffTeam(t.id), `treffteam-${t.id}`);
-  const dienste = useLaden(() => listeDienste(t.id, montag, sonntag), `dienste-${schluessel}`);
-  const feiertage = useLaden(() => listeFeiertage(t.id, montag, sonntag), `feiertage-${schluessel}`);
-  const abwesenheiten = useLaden(() => listeAbwesenheiten(montag, sonntag), `abwesenheiten-${schluessel}`);
-  const schliesszeiten = useLaden(() => listeSchliesszeiten(t.id, montag, sonntag), `schliesszeiten-${schluessel}`);
+  const dienste = useLaden(() => listeDienste(t.id, von, bis), `dienste-${schluessel}`);
+  const feiertage = useLaden(() => listeFeiertage(t.id, von, bis), `feiertage-${schluessel}`);
+  const abwesenheiten = useLaden(() => listeAbwesenheiten(von, bis), `abwesenheiten-${schluessel}`);
+  const schliesszeiten = useLaden(() => listeSchliesszeiten(t.id, von, bis), `schliesszeiten-${schluessel}`);
+  const verhinderungen = useLaden(async () => (await listeVerhinderungen(t.id, von, bis)) ?? [], `verhinderungen-${schluessel}`);
+  const veroeffentlicht = useLaden(async () => ((await listeVeroeffentlicht([t.id], von, bis)) ?? []).map((m) => m.monat), `veroeffentlicht-${schluessel}`);
   const absprachen = useLaden(() => listeTreffAbsprachen(t.id), `treffabsprachen-${t.id}`);
-  const kommentare = useLaden(() => listeDienstplanKommentare(t.id, montag), `dp-kommentare-${schluessel}`);
-  const neuLaden = () => { dienste.neuLaden(); feiertage.neuLaden(); schliesszeiten.neuLaden(); kommentare.neuLaden(); absprachen.neuLaden(); team.neuLaden(); };
-  useLive(['dienste', 'dienst_zuteilungen', 'dienst_wuensche', 'feiertage', 'treff_schliesszeiten', 'dienstplan_kommentare', 'notizen', 'treff_team'], neuLaden);
+  const kommentare = useLaden(async () => (ansicht === 'woche' ? listeDienstplanKommentare(t.id, montag) : []), `dp-kommentare-${t.id}-${ansicht}-${montag}`);
+  const letzterBesuch = useLetzterBesuchDienste(ich?.id);
+  useLive(['dienste', 'dienst_zuteilungen', 'dienst_wuensche', 'feiertage', 'treff_schliesszeiten', 'dienstplan_kommentare', 'dienstplan_monate', 'notizen', 'treff_team'], () => {
+    dienste.neuLaden(); feiertage.neuLaden(); schliesszeiten.neuLaden(); kommentare.neuLaden(); absprachen.neuLaden(); team.neuLaden(); veroeffentlicht.neuLaden();
+  });
 
   const [ziel, setZiel] = useState<Ziel | null>(null);
-  const [fehler, setFehler] = useState<string | null>(null);
-  const [arbeitet, setArbeitet] = useState(false);
-  const [kommentarText, setKommentarText] = useState('');
   const schliessen = useCallback(() => setZiel(null), []);
+  const [bearbeiten, setBearbeiten] = useState(false);
+  const [entwurf, setEntwurf] = useState<Entwurf>(LEERER_ENTWURF);
+  const [mindest, setMindest] = useState(t.mindestbesetzung ?? 1);
+  const [nurIch, setNurIch] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [kommentarText, setKommentarText] = useState('');
   if (!ich) return null;
 
   const verwaltung = darfTreffVerwalten(rolle);
   const mitglieder = team.daten ?? [];
   const namen = Object.fromEntries(mitglieder.map((m) => [m.person_id, `${m.vorname} ${m.nachname}`]));
   const name = (id: string) => namen[id] ?? 'Jemand';
-  const karten = tageskarten(wochenTage(montag), t.oeffnungszeiten, dienste.daten ?? [], geschlosseneZeiten(schliesszeiten.daten ?? [], feiertage.daten ?? [], t.id));
-  const wuensche = offeneWuensche(karten);
-  const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? abwesenheiten.fehler ?? absprachen.fehler ?? kommentare.fehler ?? schliesszeiten.fehler;
+  const imTeam = mitglieder.some((m) => m.person_id === ich.id);
+  const zu = geschlosseneZeiten(schliesszeiten.daten ?? [], feiertage.daten ?? [], t.id);
+  const karten = tageskarten(tage, t.oeffnungszeiten, dienste.daten ?? [], zu);
+  const abw = mitVerhinderungen(abwesenheiten.daten ?? [], verhinderungen.daten ?? []);
+  const fest = veroeffentlicht.daten ?? [];
+  const editierend = verwaltung && bearbeiten && ansicht === 'monat';
+  const ladefehler = team.fehler ?? dienste.fehler ?? feiertage.fehler ?? abwesenheiten.fehler ?? absprachen.fehler ?? kommentare.fehler ?? schliesszeiten.fehler
+    ?? verhinderungen.fehler ?? veroeffentlicht.fehler;
   const laedt = team.laedt || dienste.laedt;
+  const zeitraumText = ansicht === 'woche' ? 'in dieser Woche' : `im ${monatText(monat)}`;
 
-  async function aktion(fn: () => Promise<void>) {
-    setFehler(null); setArbeitet(true);
-    try { await fn(); dienste.neuLaden(); } catch (e) { setFehler(fehlerText(e)); } finally { setArbeitet(false); }
+  const neuLaden = () => { dienste.neuLaden(); };
+
+  // Ein Entwurf gilt nur für seinen Monat: Beim Blättern oder Umschalten geht er (nach Rückfrage) verloren.
+  const entwurfVerwerfen = () => {
+    if (entwurf.size > 0 && !window.confirm('Die Änderungen in der Tabelle sind noch nicht gespeichert und gehen verloren. Trotzdem wechseln?')) return false;
+    setEntwurf(LEERER_ENTWURF);
+    return true;
+  };
+  const blaettern = (n: number) => {
+    if (!entwurfVerwerfen()) return;
+    setFokus(ansicht === 'woche' ? addTage(montag, 7 * n) : monatVersatz(monat, n));
+  };
+  const zuHeute = () => { if (entwurfVerwerfen()) setFokus(heute); };
+
+  function wechsle(neu: Ansicht) {
+    if (neu === ansicht || !entwurfVerwerfen()) return;
+    setBearbeiten(false);
+    // Von der Monats- zur Wochenansicht: im laufenden Monat zur heutigen Woche, sonst zur Woche des Monatsanfangs
+    if (neu === 'woche') setFokus(fokus.slice(0, 7) === heute.slice(0, 7) ? heute : monat);
+    setParams(neu === 'monat' ? { ansicht: 'monat' } : {}, { replace: true });
   }
+
+  // Anklickbare Zellen außerhalb des Bearbeitens: die eigene Zeile (BetreuerInnen) und offene Wünsche (Treffleitung)
+  const zelleKlickbar = (datum: string, person: string) => {
+    const k = karten.find((x) => x.datum === datum);
+    if (!k) return false;
+    if (verwaltung) return k.regulaer?.wuensche.some((w) => w.person_id === person && w.status === 'offen') ?? false;
+    return person === ich.id && (!!k.oeffnung || k.sonder.some((s) => s.personen.includes(ich.id)));
+  };
 
   async function kommentarSenden(e: FormEvent) {
     e.preventDefault();
@@ -78,159 +127,16 @@ function WochenAnsicht({ treff: t, rolle, fokus, setFokus }: AnsichtProps) {
       const id = await legeDienstplanKommentarAn(t.id, montag, ich.id, kommentarText);
       setKommentarText(''); kommentare.neuLaden();
       if (id) sendePush('dienstplan_kommentar', id);
-    }
-    catch (err) { setFehler(fehlerText(err)); }
+    } catch (err) { setFehler(fehlerText(err)); }
   }
 
-  const chips = (d: Dienst | null) => (d?.personen.length ? (
-    <div className="row" style={{ gap: 'var(--space-2)' }} aria-label="Eingeteilt">
-      {d.personen.map((p) => <Badge key={p} ton={p === ich.id ? 'accent' : 'neutral'}>{name(p)}</Badge>)}
-    </div>
-  ) : <span className="field__hint">Noch niemand eingeteilt</span>);
-
-  const karte = (k: Tageskarte) => {
-    const feiertag = feiertagAm(k.datum, feiertage.daten ?? [], t.id);
-    const weg = abwesendeAm(k.datum, abwesenheiten.daten ?? []);
-    const absprachenAmTag = (absprachen.daten ?? []).filter((n) => n.datum === k.datum);
-    const w = eigenerWunsch(k, ich!.id);
-    const offene = (k.regulaer?.wuensche ?? []).filter((x) => x.status === 'offen');
-    const zeit = k.oeffnung ? oeffnungszeitText(k.oeffnung) : '';
-    const istHeute = k.datum === heute;
-
-    return (
-      <section key={k.datum} className={`plan__tag${istHeute ? ' plan__tag--heute' : ''}`} aria-label={`Dienst am ${formatKurz(k.datum)}`}>
-        <h3>{formatKurz(k.datum)}{istHeute ? ' · heute' : ''}{zeit ? ` · ${zeit}` : ''}</h3>
-        <div className="list__meta" style={{ marginBottom: 'var(--space-2)' }}>
-          {feiertag && <Badge ton="warning">Feiertag: {feiertag.bezeichnung}</Badge>}
-          {k.geschlossen && !k.geschlossen.feiertag && <Badge>{schliesszeitText(k.geschlossen)}</Badge>}
-          {absprachenAmTag.length > 0 && <Badge ton="accent">📌 {absprachenAmTag.length === 1 ? 'Absprache' : `${absprachenAmTag.length} Absprachen`}</Badge>}
-          {weg.map((a) => <Badge key={a.id} ton="danger">{name(a.person_id)}: {a.typ === 'urlaub' ? 'Urlaub' : 'krank'}</Badge>)}
-        </div>
-
-        {k.oeffnung && (
-          <div style={{ marginBottom: 'var(--space-2)' }}>
-            {chips(k.regulaer)}
-            {offene.length > 0 && verwaltung && (
-              <ul className="list" style={{ marginTop: 'var(--space-2)' }} aria-label="Offene Wünsche">
-                {offene.map((x) => (
-                  <li key={x.person_id} className="list__item">
-                    <div className="list__main"><strong>{name(x.person_id)}</strong> wünscht diesen Dienst</div>
-                    <div className="row" style={{ gap: 'var(--space-2)' }}>
-                      <Button klein variante="primary" disabled={arbeitet} aria-label={`Wunsch von ${name(x.person_id)} bestätigen`}
-                        onClick={() => void aktion(async () => { await entscheideWunsch(k.regulaer!.id, x.person_id, true); sendePush('wunsch_antwort', k.regulaer!.id, { person: x.person_id }); })}>Bestätigen</Button>
-                      <Button klein disabled={arbeitet} aria-label={`Wunsch von ${name(x.person_id)} ablehnen`}
-                        onClick={() => void aktion(async () => { await entscheideWunsch(k.regulaer!.id, x.person_id, false); sendePush('wunsch_antwort', k.regulaer!.id, { person: x.person_id }); })}>Ablehnen</Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="row" style={{ marginTop: 'var(--space-2)', gap: 'var(--space-2)' }}>
-              {verwaltung && (!k.geschlossen || (k.regulaer?.personen.length ?? 0) > 0) && <Button klein onClick={() => setZiel({ art: 'zuteilen', datum: k.datum, dienst: k.regulaer })}>Zuteilen</Button>}
-              {w && rolle === 'betreuerin' && <Badge ton={WUNSCH_TON[w]}>{WUNSCH_LABEL[w]}</Badge>}
-              {darfWuenschen(rolle, k, ich!.id, heute) && (
-                <Button klein disabled={arbeitet} onClick={() => void aktion(async () => { await wuenscheDienst(t.id, k.datum); sendePush('wunsch_neu', t.id, { datum: k.datum }); })}>Dienst wünschen</Button>
-              )}
-              {rolle === 'betreuerin' && w === 'offen' && (
-                <Button klein variante="ghost" disabled={arbeitet} onClick={() => void aktion(() => wunschZuruecknehmen(k.regulaer!.id, ich!.id))}>Wunsch zurücknehmen</Button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {k.sonder.map((s) => (
-          <div key={s.id} className="hinweis-warnung" style={{ marginBottom: 'var(--space-2)' }}>
-            <strong>Sonderdienst: {s.bezeichnung}</strong>
-            <div className="list__meta"><span>{dienstZeit(s)}{dienstZeit(s) ? ' Uhr' : ''}</span></div>
-            {chips(s)}
-            {verwaltung && <div style={{ marginTop: 'var(--space-2)' }}><Button klein onClick={() => setZiel({ art: 'sonder', dienst: s })}>Bearbeiten</Button></div>}
-          </div>
-        ))}
-      </section>
-    );
-  };
-
-  return (
-    <div className="stack">
-      {(ladefehler || fehler) && <Alert ton="error">{ladefehler ?? fehler}</Alert>}
-
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <Button aria-label="Vorherige Woche" onClick={() => setMontag(addTage(montag, -7))}>←</Button>
-        <div style={{ textAlign: 'center' }}>
-          <strong>{wochenText(montag)}</strong>
-          {montag !== montagVon(heute) && <div><Button klein variante="ghost" onClick={() => setFokus(heute)}>Zur aktuellen Woche</Button></div>}
-        </div>
-        <Button aria-label="Nächste Woche" onClick={() => setMontag(addTage(montag, 7))}>→</Button>
-      </div>
-
-      {verwaltung && wuensche.length > 0 && <Alert ton="info">{wuensche.length === 1 ? 'Ein offener Dienstwunsch' : `${wuensche.length} offene Dienstwünsche`} in dieser Woche.</Alert>}
-      {verwaltung && (
-        <p><Button klein onClick={() => setZiel({ art: 'sonder', dienst: null })}>+ Sonderdienst</Button></p>
-      )}
-
-      {laedt && <Spinner />}
-      {!laedt && karten.length === 0 && (
-        <Card><p>{t.oeffnungszeiten.length === 0 ? 'Der Treff hat noch keine Öffnungstage.' : 'In dieser Woche gibt es keinen Dienst.'}</p></Card>
-      )}
-      {!laedt && (
-        <Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={abwesenheiten.daten ?? []} feiertage={feiertage.daten ?? []}
-          treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum="Woche"
-          kopf={verwaltung ? <WuenscheBestaetigen treffId={t.id} karten={karten} abwesenheiten={abwesenheiten.daten ?? []} feiertage={feiertage.daten ?? []}
-            zeitraum="in dieser Woche" geaendert={() => dienste.neuLaden()} /> : undefined} />
-      )}
-      {!laedt && karten.map(karte)}
-
-      <Card>
-        <h2>Kommentare zur Woche</h2>
-        {(kommentare.daten ?? []).length === 0 && <p className="field__hint">Noch keine Kommentare.</p>}
-        <ul className="list" style={{ marginBottom: 'var(--space-3)' }}>
-          {(kommentare.daten ?? []).map((c) => (
-            <li key={c.id} className="list__item">
-              <div className="list__main">
-                <div style={{ whiteSpace: 'pre-line' }}>{c.text}</div>
-                <div className="list__meta"><span>{name(c.person_id)}</span><span>{datumZeit(c.created_at)}</span></div>
-              </div>
-              {(c.person_id === ich.id || verwaltung) && (
-                <Button klein variante="ghost" aria-label="Kommentar löschen"
-                  onClick={() => void aktion(async () => { await loescheDienstplanKommentar(c.id); kommentare.neuLaden(); })}>🗑</Button>
-              )}
-            </li>
-          ))}
-        </ul>
-        <form onSubmit={(e) => void kommentarSenden(e)}>
-          <div className="field">
-            <label className="field__label" htmlFor="dp-kommentar">Kommentar schreiben</label>
-            <textarea id="dp-kommentar" className="input" rows={2} value={kommentarText} onChange={(e) => setKommentarText(e.target.value)} style={{ padding: 'var(--space-3)' }} />
-          </div>
-          <Button klein type="submit" disabled={!kommentarText.trim()}>Kommentar senden</Button>
-        </form>
-      </Card>
-
-      {ziel?.art === 'zuteilen' && (
-        <ZuteilenSheet treffId={t.id} datum={ziel.datum} dienst={ziel.dienst} team={mitglieder} abwesenheiten={abwesenheiten.daten ?? []}
-          feiertag={feiertagAm(ziel.datum, feiertage.daten ?? [], t.id)} schliessen={schliessen} geaendert={() => dienste.neuLaden()} />
-      )}
-      {ziel?.art === 'sonder' && (
-        <SonderdienstSheet treffId={t.id} dienst={ziel.dienst} startDatum={montag <= heute && heute <= sonntag ? heute : montag} team={mitglieder}
-          abwesenheiten={abwesenheiten.daten ?? []} schliessen={schliessen} geaendert={() => dienste.neuLaden()} />
-      )}
-    </div>
-  );
-}
-
-/** Reiter „Dienstplan“: Wochen- oder Monatsansicht, umschaltbar. Der gewählte Zeitraum bleibt beim Umschalten erhalten; die Ansicht steht in der Adresse (?ansicht=monat). */
-export function DienstplanTab({ treff, rolle }: { treff: TreffDetailDaten; rolle: RolleInTreff }) {
-  const [params, setParams] = useSearchParams();
-  const ansicht = params.get('ansicht') === 'monat' ? 'monat' : 'woche';
-  const [fokus, setFokus] = useState(() => heuteIso());
-
-  function wechsle(neu: 'woche' | 'monat') {
-    if (neu === ansicht) return;
-    const heute = heuteIso();
-    // Von der Monats- zur Wochenansicht: im laufenden Monat zur heutigen Woche, sonst zur Woche des Monatsanfangs
-    if (neu === 'woche' && fokus.slice(0, 7) === heute.slice(0, 7)) setFokus(heute);
-    setParams(neu === 'monat' ? { ansicht: 'monat' } : {}, { replace: true });
+  async function kommentarLoeschen(id: string) {
+    setFehler(null);
+    try { await loescheDienstplanKommentar(id); kommentare.neuLaden(); } catch (err) { setFehler(fehlerText(err)); }
   }
+
+  const tagKarte = ziel?.art === 'tag' ? karten.find((k) => k.datum === ziel.datum) : undefined;
+  const aktuell = ansicht === 'woche' ? montag === montagVon(heute) : monat === monatErster(heute);
 
   return (
     <div className="stack">
@@ -238,9 +144,90 @@ export function DienstplanTab({ treff, rolle }: { treff: TreffDetailDaten; rolle
         <button type="button" className="segment__knopf" aria-pressed={ansicht === 'woche'} onClick={() => wechsle('woche')}>Woche</button>
         <button type="button" className="segment__knopf" aria-pressed={ansicht === 'monat'} onClick={() => wechsle('monat')}>Monat</button>
       </div>
-      {ansicht === 'woche'
-        ? <WochenAnsicht treff={treff} rolle={rolle} fokus={fokus} setFokus={setFokus} />
-        : <MonatTab treff={treff} rolle={rolle} fokus={fokus} setFokus={setFokus} />}
+
+      {(ladefehler || fehler) && <Alert ton="error">{ladefehler ?? fehler}</Alert>}
+
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <Button aria-label={ansicht === 'woche' ? 'Vorherige Woche' : 'Vorheriger Monat'} onClick={() => blaettern(-1)}>←</Button>
+        <div style={{ textAlign: 'center' }}>
+          <strong>{ansicht === 'woche' ? wochenText(montag) : monatText(monat)}</strong>
+          {!aktuell && <div><Button klein variante="ghost" onClick={zuHeute}>{ansicht === 'woche' ? 'Zur aktuellen Woche' : 'Zum aktuellen Monat'}</Button></div>}
+        </div>
+        <Button aria-label={ansicht === 'woche' ? 'Nächste Woche' : 'Nächster Monat'} onClick={() => blaettern(1)}>→</Button>
+      </div>
+
+      {!veroeffentlicht.laedt && (
+        <PlanStatus treffId={t.id} monate={monateDer(karten.map((k) => k.datum))} veroeffentlicht={fest} verwaltung={verwaltung} heute={heute} geaendert={() => veroeffentlicht.neuLaden()} />
+      )}
+
+      {verwaltung && !laedt && !editierend && offeneWuensche(karten).length > 0 && (
+        <Alert ton="info">
+          {offeneWuensche(karten).length === 1 ? 'Ein offener Dienstwunsch' : `${offeneWuensche(karten).length} offene Dienstwünsche`} {zeitraumText} – in der Tabelle mit „?“ markiert. Antippen zum Beantworten.
+        </Alert>
+      )}
+
+      {laedt && <Spinner />}
+      {!laedt && karten.length === 0 && (
+        <Card><p>{t.oeffnungszeiten.length === 0 ? 'Der Treff hat noch keine Öffnungstage.' : `${ansicht === 'woche' ? 'In dieser Woche' : 'In diesem Monat'} gibt es keinen Dienst.`}</p></Card>
+      )}
+
+      {!laedt && imTeam && !verwaltung && karten.length > 0 && (
+        <MeinPlan karten={karten} ichId={ich.id} heute={heute} zeitraum={zeitraumText} letzterBesuch={letzterBesuch} veroeffentlicht={fest}
+          abwesenheiten={abw} nurIch={nurIch} setNurIch={setNurIch} tagOeffnen={(datum) => setZiel({ art: 'tag', datum })} />
+      )}
+
+      {!laedt && (
+        <Einsatzmatrix karten={editierend ? mitEntwurf(karten, entwurf) : karten} mitglieder={mitglieder} abwesenheiten={abw} feiertage={feiertage.daten ?? []}
+          treffId={t.id} ichId={ich.id} heute={heute} mitWuenschen={verwaltung} zeitraum={ansicht === 'woche' ? 'Woche' : 'Monat'}
+          mindestbesetzung={mindest} letzterBesuch={letzterBesuch} stunden={verwaltung ? { mitHoechst: ansicht === 'monat' } : undefined}
+          nurIch={nurIch && !verwaltung}
+          bearbeiten={editierend ? { gespeichert: karten, entwurf, aendern: (f) => setEntwurf(f) } : undefined}
+          tagOeffnen={editierend ? undefined : (datum) => setZiel({ art: 'tag', datum })} zelleKlickbar={zelleKlickbar}
+          kopf={verwaltung ? (
+            <MatrixLeiste treffId={t.id} ansicht={ansicht} monat={monat} karten={karten} team={mitglieder} oeffnungszeiten={t.oeffnungszeiten}
+              abwesenheiten={abw} feiertage={feiertage.daten ?? []} veroeffentlicht={fest} mindestbesetzung={mindest} mindestbesetzungGeaendert={setMindest}
+              bearbeiten={editierend} setBearbeiten={setBearbeiten} entwurf={entwurf} setEntwurf={setEntwurf}
+              neuerSonderdienst={() => setZiel({ art: 'sonder', dienst: null, datum: tage.includes(heute) ? heute : von })} geaendert={neuLaden} />
+          ) : undefined} />
+      )}
+
+      {ansicht === 'woche' && (
+        <Card>
+          <h2>Kommentare zur Woche</h2>
+          {(kommentare.daten ?? []).length === 0 && <p className="field__hint">Noch keine Kommentare.</p>}
+          <ul className="list" style={{ marginBottom: 'var(--space-3)' }}>
+            {(kommentare.daten ?? []).map((c) => (
+              <li key={c.id} className="list__item">
+                <div className="list__main">
+                  <div style={{ whiteSpace: 'pre-line' }}>{c.text}</div>
+                  <div className="list__meta"><span>{name(c.person_id)}</span><span>{datumZeit(c.created_at)}</span></div>
+                </div>
+                {(c.person_id === ich.id || verwaltung) && (
+                  <Button klein variante="ghost" aria-label="Kommentar löschen" onClick={() => void kommentarLoeschen(c.id)}>🗑</Button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <form onSubmit={(e) => void kommentarSenden(e)}>
+            <div className="field">
+              <label className="field__label" htmlFor="dp-kommentar">Kommentar schreiben</label>
+              <textarea id="dp-kommentar" className="input" rows={2} value={kommentarText} onChange={(e) => setKommentarText(e.target.value)} style={{ padding: 'var(--space-3)' }} />
+            </div>
+            <Button klein type="submit" disabled={!kommentarText.trim()}>Kommentar senden</Button>
+          </form>
+        </Card>
+      )}
+
+      {tagKarte && (
+        <TagSheet treffId={t.id} rolle={rolle} karte={tagKarte} team={mitglieder} abwesenheiten={abw} feiertag={feiertagAm(tagKarte.datum, feiertage.daten ?? [], t.id)}
+          absprachen={(absprachen.daten ?? []).filter((n) => n.datum === tagKarte.datum)} ichId={ich.id} heute={heute} veroeffentlicht={fest}
+          sonderdienst={(d) => setZiel({ art: 'sonder', dienst: d, datum: tagKarte.datum })} geaendert={neuLaden}
+          verhinderungGeaendert={() => verhinderungen.neuLaden()} schliessen={schliessen} />
+      )}
+      {ziel?.art === 'sonder' && (
+        <SonderdienstSheet treffId={t.id} dienst={ziel.dienst} startDatum={ziel.datum} team={mitglieder} abwesenheiten={abw}
+          veroeffentlicht={fest} schliessen={schliessen} geaendert={neuLaden} />
+      )}
     </div>
   );
 }

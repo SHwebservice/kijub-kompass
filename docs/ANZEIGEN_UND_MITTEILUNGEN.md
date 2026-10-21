@@ -10,7 +10,7 @@ Rollen: **Koordination**, **Freizeitleitung**, **TeamerIn**, **Treffleitung**, *
 |---|---|---|---|---|---|---|
 | Kacheln Freizeiten (Wochenplan, Hinweise, Team) | alle aktuellen | eigene | eigene | – | – | – |
 | Kachel Lebensmittel | ja, Zahl knapper Artikel | ja, mit Zahl | – | – | – | – |
-| Kacheln Treffs (Tagesprotokoll, Notizen, Dienstplan, Absprachen, Team) | alle | – | – | eigene | eigene | – |
+| Kacheln Treffs (Tagesprotokoll, Notizen, Dienstplan, Absprachen → Notizen gefiltert, Team) | alle | – | – | eigene | eigene | – |
 | Nachweis | Zahl eingereichter | – | – | Zahl eingereichter | nur TZK, ohne Zahl | – |
 | Dienstwünsche, Monatsplan, Abwesenheit & Feiertage | ja | – | – | ja | – | – |
 | Verwaltung (Bewerbungen, Personen, Planung, Inhalte …) | ja, mit Zahlen | – | – | – | – | – |
@@ -36,7 +36,9 @@ Es gibt keine Einstellung je Mitteilungsart und keine Ruhezeiten: Jede Person sc
 | Neuer Hinweis in einer Freizeit | Team der Freizeit | 0015 |
 | Neue Absprache (Freizeit) | Leitung der Freizeit und Freizeitenkoordination | 0015, 0018 |
 | Neue Absprache (Treff) | Team des Treffs | 0015 |
-| Dienstplan geändert | nur die betroffenen Personen | 0015 |
+| Dienstplan geändert | nur die betroffenen Personen – seit 0036 nur in **veröffentlichten** Monaten (solange ein Monat in Planung ist, keine Mitteilung) | 0015, 0036 |
+| **Dienstplan veröffentlicht** („Der Dienstplan für November steht“) | Team des Treffs ohne die veröffentlichende Person | 0036 |
+| **Kann nicht, ist aber eingeteilt** (eine Person markiert einen Tag, an dem sie im Dienst steht, als „kann nicht“) | Treffleitung des Treffs | 0036 |
 | Kommentar im Dienstplan | Team des Treffs | 0015 |
 | Neuer Dienstwunsch | Treffleitung | 0015 |
 | Antwort auf einen Dienstwunsch | die Person | 0015 |

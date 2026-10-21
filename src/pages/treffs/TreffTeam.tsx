@@ -5,7 +5,6 @@ import { fehlerText } from '../../lib/fehler';
 import { listePersonen } from '../../freizeiten/api';
 import { holeTreffTeam, treffTeamEntfernen, treffTeamRolleAendern, type TreffDetailDaten, type TreffTeamMitglied } from '../../treffs/api';
 import { darfInTreff, sortiereTreffTeam, TREFF_ROLLEN_LABEL } from '../../treffs/logik';
-import type { RolleInTreff } from '../../lib/rollen';
 import { treffTeamHinzufuegenViele } from '../../zuordnung/api';
 import { kandidatenFuer, personName, TREFF_ROLLEN } from '../../zuordnung/logik';
 import { bestaetigeTreffEntfernen } from '../../zuordnung/entfernen';
@@ -30,11 +29,10 @@ function Kontakt({ m }: { m: TreffTeamMitglied }) {
   );
 }
 
-/** Team des Treffs. Kontaktdaten kommen nur an, wenn die Datenbank sie freigibt (Treffleitung, Koordination). Die Koordination verwaltet das Team. */
-export function TreffTeamTab({ treff: t, rolle }: { treff: TreffDetailDaten; rolle: RolleInTreff }) {
+/** Team des Treffs verwalten (Koordination, unter „Treff bearbeiten“): zuordnen, Rolle ändern, entfernen. Änderungen gelten sofort. */
+export function TreffTeam({ treff: t }: { treff: Pick<TreffDetailDaten, 'id' | 'name'> }) {
   const team = useLaden(() => holeTreffTeam(t.id), `treffteam-${t.id}`);
-  const verwaltung = rolle === 'koordination';
-  const personen = useLaden(async () => (verwaltung ? listePersonen() : []), `treff-personen-${verwaltung}`);
+  const personen = useLaden(listePersonen, 'treff-personen');
   useLive(['treff_team'], () => team.neuLaden());
   const [fehler, setFehler] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
@@ -68,36 +66,28 @@ export function TreffTeamTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
                 </div>
                 <Kontakt m={m} />
               </div>
-              {verwaltung && (
-                <div className="row" style={{ gap: 'var(--space-2)' }}>
-                  <select aria-label={`Rolle von ${m.vorname} ${m.nachname}`} className="input" style={{ width: 'auto', minHeight: 36 }} value={m.rolle} disabled={arbeitet}
-                    onChange={(e) => void ausfuehren(() => treffTeamRolleAendern(t.id, m.person_id, e.target.value as 'betreuerin' | 'treffleitung'))}>
-                    <option value="betreuerin">BetreuerIn</option>
-                    <option value="treffleitung">Treffleitung</option>
-                  </select>
-                  <Button klein variante="danger" disabled={arbeitet}
-                    onClick={() => void ausfuehren(async () => {
-                      if (await bestaetigeTreffEntfernen(t.id, t.name, m.person_id, `${m.vorname} ${m.nachname}`, heuteIso())) await treffTeamEntfernen(t.id, m.person_id);
-                    })}>
-                    Entfernen
-                  </Button>
-                </div>
-              )}
+              <div className="row" style={{ gap: 'var(--space-2)' }}>
+                <select aria-label={`Rolle von ${m.vorname} ${m.nachname}`} className="input" style={{ width: 'auto', minHeight: 36 }} value={m.rolle} disabled={arbeitet}
+                  onChange={(e) => void ausfuehren(() => treffTeamRolleAendern(t.id, m.person_id, e.target.value as 'betreuerin' | 'treffleitung'))}>
+                  <option value="betreuerin">BetreuerIn</option>
+                  <option value="treffleitung">Treffleitung</option>
+                </select>
+                <Button klein variante="danger" disabled={arbeitet}
+                  onClick={() => void ausfuehren(async () => {
+                    if (await bestaetigeTreffEntfernen(t.id, t.name, m.person_id, `${m.vorname} ${m.nachname}`, heuteIso())) await treffTeamEntfernen(t.id, m.person_id);
+                  })}>
+                  Entfernen
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
       )}
 
-      {rolle === 'betreuerin' && <p className="field__hint">Kontaktdaten der anderen sehen nur die Treffleitung und die Koordination.</p>}
-
-      {verwaltung && (
-        <>
-          {personen.fehler && <Alert ton="error">{personen.fehler}</Alert>}
-          <MehrfachZuordnung titel="Personen zuordnen" kandidaten={kandidaten} rollen={TREFF_ROLLEN}
-            hinweis="Treffs sind für TZK, FSJ, Praktikum unbezahlt und Hauptamtliche offen."
-            zuordnen={async (ids, r) => { await treffTeamHinzufuegenViele(t.id, ids, r); team.neuLaden(); }} />
-        </>
-      )}
+      {personen.fehler && <Alert ton="error">{personen.fehler}</Alert>}
+      <MehrfachZuordnung titel="Personen zuordnen" kandidaten={kandidaten} rollen={TREFF_ROLLEN}
+        hinweis="Treffs sind für TZK, FSJ, Praktikum unbezahlt und Hauptamtliche offen."
+        zuordnen={async (ids, r) => { await treffTeamHinzufuegenViele(t.id, ids, r); team.neuLaden(); }} />
     </div>
   );
 }

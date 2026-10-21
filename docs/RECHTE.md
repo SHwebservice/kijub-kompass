@@ -94,7 +94,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Ressource | Koordination | Leitung | TeamerIn | Treffleitung | BetreuerIn | Sonstige |
 |---|---|---|---|---|---|---|
 | Treff-Stammdaten, Öffnungszeiten | L E Ä X | — | — | L (Treff) | L (Treff) | — · **Δ** Altcode: öffentlich lesbar |
-| Wochenprogramm (Tag → Programm) | alle | — | — | L E Ä X | L E Ä X | — |
+| Wochenprogramm (Freitext) | L Ä | — | — | L Ä | L | — |
 | Absprachen | L E Ä X | — | — | L E Ä X | L, bestätigen | — |
 | Teamprotokolle (Teambesprechung, Information, Sonstiges; Migration 0035) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L, „gelesen“ (eigener Treff) | — |
 | Protokoll-Vorlagen je Wochentag (Migration 0028) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L (eigener Treff) | — |
@@ -106,6 +106,10 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Wunschdienst | L | — | — | L, **beantworten** (bestätigen/ablehnen) | E/X (eig. Wunsch), L | — |
 | Mehrere Wünsche auf einmal bestätigen (Migration 0025) | alle | — | — | ja (nur Dienste des eigenen Treffs) | — | — |
 | Dienstplan-Kommentare | alle | — | — | L E X | L E (eig.) X (eig.) | — |
+| Monatsplan veröffentlichen / zurück in Planung (Migration 0036) | L E X (Treffkoordination) | — | — | L E X (eigener Treff) | L (Stand „vorläufig“) | — · eine Mitteilung ans Team beim Veröffentlichen |
+| „Kann nicht“ an einem Tag (Migration 0036) | L (Treffkoordination) | — | — | L (eigener Treff) | E X (nur eigene, nur künftige Tage des eigenen Treffs), L (eig.) | — · nicht für das übrige Team sichtbar; fällt beim Verlassen des Treffs weg |
+| Mindestbesetzung je Treff (Migration 0036) | Ä (Treffkoordination) | — | — | Ä (eigener Treff) | L | — |
+| Kalender „Meine Dienste“ (Datei und Abo-Link, Migration 0036) | eig. | eig. | eig. | eig. | eig. | — · Abo-Link mit persönlichem Schlüssel (gespeichert nur als Hash), jederzeit neu erzeugbar oder löschbar |
 | Abwesenheiten (Urlaub/Krank) | L E Ä X | — | — | L E Ä X (Personen des Treffs) | L (eig.) | — |
 | Feiertage (schließen seit 0027 den Treff wie eine Schließzeit) | L E Ä X | — | — | L (Treff) E Ä X (eigener Treff) | L | — |
 | Schließzeiten des Treffs (Migration 0026) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L | — · an Schließtagen kein regulärer Dienst (weder einteilen noch wünschen), kein Protokoll nötig |

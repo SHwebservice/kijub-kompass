@@ -1,20 +1,17 @@
 import { useState } from 'react';
 import { fehlerText } from '../../lib/fehler';
 import { sendePush } from '../../mitteilungen/senden';
-import { formatDatum, wochentagLang } from '../../freizeiten/logik';
-import { dienstSicherstellen, setzeZuteilung, speichereSonderdienst, loescheDienst, type TreffTeamMitglied } from '../../treffs/api';
-import { abwesendeAm, validiereSonderdienst, zuteilungsAenderung, type Abwesenheit, type Dienst, type Feiertag } from '../../treffs/dienstplan';
+import { speichereSonderdienst, loescheDienst, type TreffTeamMitglied } from '../../treffs/api';
+import { ABWESENHEIT_TEXT, abwesendeAm, mitteilungFuer, validiereSonderdienst, zuteilungsAenderung, type Abwesenheit, type Dienst } from '../../treffs/dienstplan';
 import { sortiereTreffTeam, STANDARD_BIS, STANDARD_VON } from '../../treffs/logik';
 import { Sheet } from '../../components/Sheet';
 import { Alert, Button, TextField } from '../../components/ui';
-
-const ABWESEND = { urlaub: 'Urlaub', krank: 'krank' } as const;
 
 interface AuswahlProps {
   team: TreffTeamMitglied[];
   gewaehlt: string[];
   aendere: (neu: string[]) => void;
-  /** Abwesenheiten des Tages (werden hinter dem Namen angezeigt). */
+  /** Abwesenheiten des Tages (werden hinter dem Namen angezeigt), auch „kann nicht“. */
   abwesend?: Abwesenheit[];
   /** Personen, die diesen Dienst gewünscht haben. */
   wuenschen?: string[];
@@ -26,7 +23,7 @@ export function ZuteilungsAuswahl({ team, gewaehlt, aendere, abwesend = [], wuen
     <fieldset className="optionen">
       <legend className="field__label">Eingeteilt</legend>
       {sortiereTreffTeam(team).map((m) => {
-        const weg = abwesend.find((a) => a.person_id === m.person_id);
+        const weg = abwesend.filter((a) => a.person_id === m.person_id);
         return (
           <label key={m.person_id} className="option">
             <input type="checkbox" checked={gewaehlt.includes(m.person_id)}
@@ -34,56 +31,13 @@ export function ZuteilungsAuswahl({ team, gewaehlt, aendere, abwesend = [], wuen
             <span>
               {m.vorname} {m.nachname}
               {m.rolle === 'treffleitung' && ' (Treffleitung)'}
-              {weg && <em> – abwesend: {ABWESEND[weg.typ]}</em>}
+              {weg.map((a) => <em key={a.id}>{a.typ === 'verhindert' ? ' – kann nicht' : ` – abwesend: ${ABWESENHEIT_TEXT[a.typ]}`}</em>)}
               {wuenschen.includes(m.person_id) && <em> – wünscht den Dienst</em>}
             </span>
           </label>
         );
       })}
     </fieldset>
-  );
-}
-
-interface ZuteilenProps {
-  treffId: string;
-  datum: string;
-  dienst: Dienst | null;
-  team: TreffTeamMitglied[];
-  abwesenheiten: Abwesenheit[];
-  feiertag: Feiertag | null;
-  schliessen: () => void;
-  geaendert: () => void;
-}
-
-/** Zuteilung für den regulären Dienst eines Öffnungstags. Der Dienst wird erst beim Speichern angelegt. */
-export function ZuteilenSheet({ treffId, datum, dienst, team, abwesenheiten, feiertag, schliessen, geaendert }: ZuteilenProps) {
-  const alt = dienst?.personen ?? [];
-  const [gewaehlt, setGewaehlt] = useState(alt);
-  const [fehler, setFehler] = useState<string | null>(null);
-  const [arbeitet, setArbeitet] = useState(false);
-
-  async function speichern() {
-    setArbeitet(true); setFehler(null);
-    try {
-      const id = dienst?.id ?? await dienstSicherstellen(treffId, datum);
-      const { hinzu, weg } = zuteilungsAenderung(alt, gewaehlt);
-      await setzeZuteilung(id, hinzu, weg);
-      if (hinzu.length + weg.length > 0) sendePush('dienstplan', treffId, { personen: [...hinzu, ...weg] });     // wer neu eingeteilt oder herausgenommen wurde, erfährt es
-      geaendert(); schliessen();
-    } catch (e) { setFehler(fehlerText(e, 'Die Zuteilung konnte nicht gespeichert werden.')); setArbeitet(false); }
-  }
-
-  return (
-    <Sheet titel={`Dienst am ${wochentagLang(datum)}, ${formatDatum(datum)}`} schliessen={schliessen}>
-      {fehler && <Alert ton="error">{fehler}</Alert>}
-      {feiertag && <Alert ton="warning">Feiertag: {feiertag.bezeichnung}</Alert>}
-      <ZuteilungsAuswahl team={team} gewaehlt={gewaehlt} aendere={setGewaehlt} abwesend={abwesendeAm(datum, abwesenheiten)}
-        wuenschen={(dienst?.wuensche ?? []).filter((w) => w.status === 'offen').map((w) => w.person_id)} />
-      <div className="row">
-        <Button variante="primary" laedt={arbeitet} onClick={() => void speichern()}>Speichern</Button>
-        <Button onClick={schliessen}>Abbrechen</Button>
-      </div>
-    </Sheet>
   );
 }
 
@@ -94,12 +48,14 @@ interface SonderProps {
   startDatum: string;
   team: TreffTeamMitglied[];
   abwesenheiten: Abwesenheit[];
+  /** Veröffentlichte Monate: nur dort bekommen die Betroffenen eine Mitteilung. */
+  veroeffentlicht: readonly string[];
   schliessen: () => void;
   geaendert: () => void;
 }
 
 /** Sonderdienst („außerordentlicher Dienst“): Datum, Zeit, Bezeichnung und Personen. */
-export function SonderdienstSheet({ treffId, dienst, startDatum, team, abwesenheiten, schliessen, geaendert }: SonderProps) {
+export function SonderdienstSheet({ treffId, dienst, startDatum, team, abwesenheiten, veroeffentlicht, schliessen, geaendert }: SonderProps) {
   const alt = dienst?.personen ?? [];
   const [datum, setDatum] = useState(dienst?.datum ?? startDatum);
   const [von, setVon] = useState(dienst?.von ?? STANDARD_VON);
@@ -115,6 +71,13 @@ export function SonderdienstSheet({ treffId, dienst, startDatum, team, abwesenhe
     try { await aktion(); geaendert(); schliessen(); } catch (e) { setFehler(fehlerText(e, 'Das hat nicht geklappt.')); setArbeitet(false); }
   }
 
+  /** Mitteilung an die Betroffenen, wenn der Monat des Dienstes (alter oder neuer Tag) veröffentlicht ist. */
+  const melde = (personen: string[]) => {
+    const tage = [datum, ...(dienst && dienst.datum !== datum ? [dienst.datum] : [])];
+    const empfaenger = mitteilungFuer(tage.flatMap((d) => personen.map((person) => ({ datum: d, person }))), veroeffentlicht);
+    if (empfaenger.length) sendePush('dienstplan', treffId, { personen: empfaenger });
+  };
+
   function speichern() {
     const f = validiereSonderdienst({ datum, von, bis, bezeichnung });
     setFeld(f);
@@ -122,7 +85,7 @@ export function SonderdienstSheet({ treffId, dienst, startDatum, team, abwesenhe
     const { hinzu, weg } = zuteilungsAenderung(alt, gewaehlt);
     void ausfuehren(async () => {
       await speichereSonderdienst(treffId, dienst?.id ?? null, { datum, von, bis, bezeichnung }, gewaehlt, alt);
-      if (hinzu.length + weg.length > 0) sendePush('dienstplan', treffId, { personen: [...hinzu, ...weg] });
+      melde([...hinzu, ...weg]);
     });
   }
 
@@ -142,7 +105,7 @@ export function SonderdienstSheet({ treffId, dienst, startDatum, team, abwesenhe
         <Button onClick={schliessen}>Abbrechen</Button>
         {dienst && (
           <Button variante="danger" disabled={arbeitet}
-            onClick={() => { if (window.confirm('Diesen Sonderdienst löschen?')) void ausfuehren(async () => { await loescheDienst(dienst.id); if (alt.length) sendePush('dienstplan', treffId, { personen: alt }); }); }}>Löschen</Button>
+            onClick={() => { if (window.confirm('Diesen Sonderdienst löschen?')) void ausfuehren(async () => { await loescheDienst(dienst.id); if (alt.length) melde(alt); }); }}>Löschen</Button>
         )}
       </div>
     </Sheet>

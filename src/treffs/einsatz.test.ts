@@ -14,7 +14,7 @@ const tage = ['2027-03-01', '2027-03-02', '2027-03-03', '2027-03-08'];
 const heute = '2027-03-02';
 
 const bau = (dienste: Dienst[], extra: { abw?: Abwesenheit[]; feiertage?: Feiertag[]; wuensche?: boolean } = {}) =>
-  baueEinsatz(tageskarten(tage, oeffnung, dienste), mitglieder, extra.abw ?? [], extra.feiertage ?? [], 't1', heute, extra.wuensche);
+  baueEinsatz(tageskarten(tage, oeffnung, dienste), mitglieder, extra.abw ?? [], extra.feiertage ?? [], 't1', heute, { mitWuenschen: extra.wuensche });
 
 describe('baueEinsatz: Spalten', () => {
   it('eine Spalte je Öffnungstag (Tage ohne Dienst und Öffnung fehlen) mit Wochentag, Tag und Heute-Marke', () => {
@@ -74,5 +74,38 @@ describe('baueEinsatz: Zeilen', () => {
     expect(bau([d], { wuensche: true }).zeilen.find((z) => z.person_id === 'ben')!.zellen[0]!.wunsch).toBe(true);
     expect(bau([d], { wuensche: true }).zeilen.find((z) => z.person_id === 'anna')!.zellen[0]!.wunsch).toBe(false);
     expect(bau([d]).zeilen.find((z) => z.person_id === 'ben')!.zellen[0]!.wunsch).toBe(false);
+  });
+});
+
+describe('baueEinsatz: Mindestbesetzung, eigene Zeile, „kann nicht“ und neu', () => {
+  it('unterbesetzt: weniger Personen als die Mindestbesetzung, aber nicht leer', () => {
+    const karten = tageskarten(tage, oeffnung, [dienst({ id: 'a', datum: '2027-03-03', personen: ['ben'] }), dienst({ id: 'b', datum: '2027-03-08', personen: ['ben', 'anna'] })]);
+    const { spalten } = baueEinsatz(karten, mitglieder, [], [], 't1', heute, { mindestbesetzung: 2 });
+    expect(spalten.map((s) => [s.unbesetzt, s.unterbesetzt])).toEqual([[false, false], [false, true], [false, false]]);
+  });
+
+  it('die eigene Zeile steht oben', () => {
+    const { zeilen } = baueEinsatz(tageskarten(tage, oeffnung, []), mitglieder, [], [], 't1', heute, { ichId: 'ben' });
+    expect(zeilen.map((z) => z.person_id)).toEqual(['ben', 'lea', 'anna']);
+  });
+
+  it('„kann nicht“ erscheint, Urlaub geht vor', () => {
+    const abw: Abwesenheit[] = [
+      { id: 'v1', person_id: 'ben', datum: '2027-03-03', typ: 'verhindert', notiz: null },
+      { id: 'v2', person_id: 'anna', datum: '2027-03-03', typ: 'verhindert', notiz: null },
+      { id: 'u', person_id: 'anna', datum: '2027-03-03', typ: 'urlaub', notiz: null },
+    ];
+    const { zeilen } = bau([], { abw });
+    expect(zeilen.find((z) => z.person_id === 'ben')!.zellen[1]!.abwesend).toBe('verhindert');
+    expect(zeilen.find((z) => z.person_id === 'anna')!.zellen[1]!.abwesend).toBe('urlaub');
+  });
+
+  it('neu: nur in der eigenen Zeile und nur, was nach dem letzten Besuch eingeteilt wurde', () => {
+    const d = dienst({ id: 'a', datum: '2027-03-03', personen: ['ben', 'anna'], seit: { ben: '2027-03-02T10:00:00Z', anna: '2027-03-02T10:00:00Z' } });
+    const alt = dienst({ id: 'b', datum: '2027-03-08', personen: ['ben'], seit: { ben: '2027-02-20T10:00:00Z' } });
+    const { zeilen } = baueEinsatz(tageskarten(tage, oeffnung, [d, alt]), mitglieder, [], [], 't1', heute, { ichId: 'ben', letzterBesuch: '2027-03-01T00:00:00Z' });
+    expect(zeilen[0]!.zellen.map((c) => c.neu)).toEqual([false, true, false]);
+    expect(zeilen.find((z) => z.person_id === 'anna')!.zellen[1]!.neu).toBe(false);
+    expect(baueEinsatz(tageskarten(tage, oeffnung, [d]), mitglieder, [], [], 't1', heute, { ichId: 'ben', letzterBesuch: null }).zeilen[0]!.zellen[1]!.neu).toBe(false);
   });
 });

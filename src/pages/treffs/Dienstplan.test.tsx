@@ -8,8 +8,8 @@ import { sendePush } from '../../mitteilungen/senden';
 import { DienstplanTab } from './DienstplanTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
-import { addTage, montagVon, type Dienst } from '../../treffs/dienstplan';
-import { formatKurz, heuteIso } from '../../freizeiten/logik';
+import { addTage, monatErster, montagVon, type Dienst } from '../../treffs/dienstplan';
+import { formatDatum, formatKurz, heuteIso } from '../../freizeiten/logik';
 
 vi.mock('../../treffs/api');
 
@@ -34,13 +34,20 @@ const dienst = (o: Partial<Dienst> & { id: string; datum: string }): Dienst => (
 const betreuerin: Szene = { ich: { kategorie: 'TZK' }, treffs: [{ treff_id: 't1', rolle: 'betreuerin' }] };
 const leitung: Szene = { ich: { id: 'lea', kategorie: 'Hauptamtliche*r' }, treffs: [{ treff_id: 't1', rolle: 'treffleitung' }] };
 
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const tagKnopf = (d: string) => screen.getByRole('button', { name: new RegExp(`^${esc(formatKurz(d))} öffnen`) });
+
 async function zeige(szene: Szene, rolle: 'betreuerin' | 'treffleitung' | 'koordination' = 'betreuerin') {
   renderMitAuth(<DienstplanTab treff={nord} rolle={rolle} />, szene);
   await screen.findByText(/KW \d+/);
   await userEvent.click(screen.getByRole('button', { name: 'Nächste Woche' }));
-  await screen.findByRole('region', { name: `Dienst am ${formatKurz(mo)}` });
+  await screen.findByRole('button', { name: new RegExp(`^${esc(formatKurz(mo))} öffnen`) });
 }
-const tag = (d: string) => screen.getByRole('region', { name: `Dienst am ${formatKurz(d)}` });
+/** Öffnet das Tagesfenster über die Kopfzeile der Tabelle. */
+async function tag(d: string) {
+  await userEvent.click(tagKnopf(d));
+  return screen.findByRole('dialog', { name: new RegExp(esc(formatDatum(d))) });
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -51,23 +58,28 @@ beforeEach(() => {
   vi.mocked(api.listeAbwesenheiten).mockResolvedValue([]);
   vi.mocked(api.listeTreffAbsprachen).mockResolvedValue([]);
   vi.mocked(api.listeDienstplanKommentare).mockResolvedValue([]);
+  vi.mocked(api.listeVerhinderungen).mockResolvedValue([]);
+  // Beide Monate der Woche sind veröffentlicht (sonst gehen bei Änderungen keine Mitteilungen raus)
+  vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([{ treff_id: 't1', monat: monatErster(mo) }, { treff_id: 't1', monat: monatErster(addTage(mo, 6)) }]);
+  vi.mocked(api.holeDiensteGesehen).mockResolvedValue(null);
   for (const fn of [api.wuenscheDienst, api.wunschZuruecknehmen, api.entscheideWunsch, api.setzeZuteilung, api.speichereSonderdienst, api.loescheDienst,
-    api.legeDienstplanKommentarAn, api.loescheDienstplanKommentar] as const) {
+    api.legeDienstplanKommentarAn, api.loescheDienstplanKommentar, api.trageVerhinderungEin, api.nimmVerhinderungZurueck, api.merkeDiensteGesehen] as const) {
     vi.mocked(fn as (...a: never[]) => Promise<void>).mockResolvedValue(undefined);
   }
   vi.mocked(api.dienstSicherstellen).mockResolvedValue('neuer-dienst');
 });
 
 describe('Dienstplan: Anzeige', () => {
-  it('zeigt die Öffnungstage der Woche mit Zeit und Eingeteilten', async () => {
+  it('die Tabelle zeigt die Öffnungstage als Spalten; das Tagesfenster zeigt Zeit und Eingeteilte', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea', 'ben'] })]);
     await zeige(betreuerin);
-    const k = tag(mo);
+    expect(screen.queryByRole('button', { name: new RegExp(`^${esc(formatKurz(addTage(mo, 1)))} öffnen`) })).not.toBeInTheDocument();   // Dienstag: zu
+    const k = await tag(mo);
     expect(within(k).getByText('Lea Leitner')).toBeInTheDocument();
     expect(within(k).getByText('Ben Baum')).toBeInTheDocument();
-    expect(k).toHaveTextContent('15:00–19:00 Uhr');
-    expect(within(tag(mi)).getByText('Noch niemand eingeteilt')).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: `Dienst am ${formatKurz(addTage(mo, 1))}` })).not.toBeInTheDocument();   // Dienstag: zu
+    expect(k).toHaveTextContent('15:00–19:00');
+    await userEvent.click(within(k).getByRole('button', { name: 'Schließen' }));
+    expect(within(await tag(mi)).getByText('Noch niemand eingeteilt')).toBeInTheDocument();
   });
 
   it('die Wochen lassen sich blättern, „Zur aktuellen Woche“ springt zurück', async () => {
@@ -80,25 +92,55 @@ describe('Dienstplan: Anzeige', () => {
     expect(api.listeDienste).toHaveBeenLastCalledWith('t1', addTage(mo, -7), addTage(mo, -1));
   });
 
-  it('zeigt Feiertag, Absprache am Tag und Abwesende', async () => {
+  it('zeigt Feiertag, Absprache am Tag und Abwesende im Tagesfenster', async () => {
     vi.mocked(api.listeFeiertage).mockResolvedValue([{ id: 'f', treff_id: null, datum: mo, bezeichnung: 'Tag der Arbeit' }]);
     vi.mocked(api.listeTreffAbsprachen).mockResolvedValue([
       { id: 'a', art: 'absprache', geltung: 'tag', datum: mi, text: 'Schlüssel', erstellt_von: 'lea', created_at: '2027-01-01T10:00:00Z', bestaetigungen: [], kommentare: [] },
     ]);
     vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: 'x', person_id: 'ben', datum: mi, typ: 'urlaub', notiz: null }]);
     await zeige(leitung, 'treffleitung');
-    expect(within(tag(mo)).getByText('Feiertag: Tag der Arbeit')).toBeInTheDocument();
-    expect(within(tag(mi)).getByText(/Absprache/)).toBeInTheDocument();
-    expect(within(tag(mi)).getByText('Ben Baum: Urlaub')).toBeInTheDocument();
+    const montag = await tag(mo);
+    expect(within(montag).getByText('Feiertag: Tag der Arbeit')).toBeInTheDocument();
+    await userEvent.click(within(montag).getByRole('button', { name: 'Schließen' }));
+    const mittwoch = await tag(mi);
+    expect(within(mittwoch).getByText('Schlüssel')).toBeInTheDocument();
+    expect(within(mittwoch).getByText('Ben Baum: Urlaub')).toBeInTheDocument();
   });
 
-  it('Sonderdienst erscheint auch an einem Schließtag', async () => {
+  it('Sonderdienst erscheint auch an einem Schließtag (eigene Spalte, im Tagesfenster mit Zeit)', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 's', datum: sa, ist_sonder: true, bezeichnung: 'Sommerfest', von: '10:00', bis: '16:00', personen: ['ich'] })]);
     await zeige(betreuerin);
-    const k = tag(sa);
+    const k = await tag(sa);
     expect(k).toHaveTextContent('Sonderdienst: Sommerfest');
     expect(k).toHaveTextContent('10:00–16:00 Uhr');
     expect(within(k).getByText('Anna Adler')).toBeInTheDocument();
+  });
+
+  it('„Deine Dienste“ zeigt die eigenen Dienste der Woche mit Stunden; die eigene Zeile steht oben', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['ich', 'ben'] }), dienst({ id: 'd2', datum: mi, von: '14:00', bis: '18:00', personen: ['ben'] })]);
+    await zeige(betreuerin);
+    const mein = screen.getByRole('list', { name: 'Meine Dienste im Zeitraum' });
+    expect(within(mein).getAllByRole('listitem')).toHaveLength(1);
+    expect(mein).toHaveTextContent('15:00–19:00 Uhr');
+    expect(screen.getByText(/Ein Dienst/).closest('span')).toHaveTextContent('Ein Dienst · 4 h');
+    const zeilen = within(screen.getByRole('region', { name: 'Einsatzplan Woche' })).getAllByRole('rowheader');
+    expect(zeilen[0]).toHaveTextContent('Anna Adler');
+  });
+
+  it('„nur mich zeigen“ blendet die anderen Zeilen aus', async () => {
+    await zeige(betreuerin);
+    await userEvent.click(screen.getByLabelText('In der Tabelle nur mich zeigen'));
+    const tabelle = screen.getByRole('region', { name: 'Einsatzplan Woche' });
+    expect(within(tabelle).queryByText('Ben Baum')).not.toBeInTheDocument();
+    expect(within(tabelle).getByText('Anna Adler')).toBeInTheDocument();
+  });
+
+  it('neu seit dem letzten Besuch eingeteilte Dienste sind markiert; der Besuch wird gemerkt', async () => {
+    vi.mocked(api.holeDiensteGesehen).mockResolvedValue('2020-01-01T00:00:00Z');
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['ich'], seit: { ich: '2026-01-01T00:00:00Z' } })]);
+    await zeige(betreuerin);
+    expect(await within(screen.getByRole('list', { name: 'Meine Dienste im Zeitraum' })).findByText('neu')).toBeInTheDocument();
+    expect(api.merkeDiensteGesehen).toHaveBeenCalledWith('ich');
   });
 
   it('meldet Ladefehler', async () => {
@@ -108,13 +150,55 @@ describe('Dienstplan: Anzeige', () => {
   });
 });
 
-describe('Dienstplan: Wünsche der BetreuerInnen', () => {
+describe('Dienstplan: veröffentlichen', () => {
+  it('Monat in Planung: das Team sieht „vorläufig“', async () => {
+    vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([]);
+    await zeige(betreuerin);
+    expect(screen.getAllByText(/ist noch in Planung und kann sich ändern/).length).toBeGreaterThan(0);
+  });
+
+  it('Treffleitung veröffentlicht: Rückfrage, Speichern, eine Mitteilung ans Team', async () => {
+    vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await zeige(leitung, 'treffleitung');
+    const knopf = screen.getAllByRole('button', { name: /veröffentlichen$/ })[0]!;
+    await userEvent.click(knopf);
+    expect(api.veroeffentliche).toHaveBeenCalledWith('t1', monatErster(mo));
+    await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan_veroeffentlicht', 't1', { monat: monatErster(mo) }));
+  });
+
+  it('solange ein Monat in Planung ist, löst Zuteilen keine Mitteilung aus', async () => {
+    vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([]);
+    await zeige(leitung, 'treffleitung');
+    const dialog = await tag(mi);
+    await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
+    await vi.waitFor(() => expect(api.setzeZuteilung).toHaveBeenCalled());
+    expect(sendePush).not.toHaveBeenCalled();
+  });
+
+  it('veröffentlichter Monat: die Treffleitung kann ihn zurück in die Planung nehmen', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(screen.getAllByRole('button', { name: 'Zurück in Planung' })[0]!);
+    expect(api.nimmVeroeffentlichungZurueck).toHaveBeenCalledWith('t1', monatErster(mo));
+  });
+});
+
+describe('Dienstplan: Wünsche und „kann nicht“ der BetreuerInnen', () => {
   it('wünscht einen Tag; Zuteilen und Sonderdienst gibt es nicht', async () => {
     await zeige(betreuerin);
-    expect(screen.queryByRole('button', { name: 'Zuteilen' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Sonderdienst' })).not.toBeInTheDocument();
-    await userEvent.click(within(tag(mi)).getByRole('button', { name: 'Dienst wünschen' }));
+    const k = await tag(mi);
+    expect(within(k).queryByRole('button', { name: 'Zuteilung speichern' })).not.toBeInTheDocument();
+    await userEvent.click(within(k).getByRole('button', { name: 'Dienst wünschen' }));
     expect(api.wuenscheDienst).toHaveBeenCalledWith('t1', mi);
+  });
+
+  it('die eigene Zeile ist anklickbar und öffnet den Tag', async () => {
+    await zeige(betreuerin);
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(`^Mein Tag: .*${esc(formatKurz(mi))}`) }));
+    expect(await screen.findByRole('dialog', { name: new RegExp(esc(formatDatum(mi))) })).toBeInTheDocument();
   });
 
   it('zeigt den Stand des Wunsches und erlaubt das Zurücknehmen eines offenen', async () => {
@@ -123,48 +207,69 @@ describe('Dienstplan: Wünsche der BetreuerInnen', () => {
       dienst({ id: 'd2', datum: mi, wuensche: [{ person_id: 'ich', status: 'abgelehnt' }] }),
     ]);
     await zeige(betreuerin);
-    expect(within(tag(mo)).getByText('Wunsch offen')).toBeInTheDocument();
-    expect(within(tag(mo)).queryByRole('button', { name: 'Dienst wünschen' })).not.toBeInTheDocument();
-    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Wunsch zurücknehmen' }));
+    const montag = await tag(mo);
+    expect(within(montag).getByText('Wunsch offen')).toBeInTheDocument();
+    expect(within(montag).queryByRole('button', { name: 'Dienst wünschen' })).not.toBeInTheDocument();
+    await userEvent.click(within(montag).getByRole('button', { name: 'Wunsch zurücknehmen' }));
     expect(api.wunschZuruecknehmen).toHaveBeenCalledWith('d1', 'ich');
-    expect(within(tag(mi)).getByText('Wunsch abgelehnt')).toBeInTheDocument();
-    expect(within(tag(mi)).getByRole('button', { name: 'Dienst wünschen' })).toBeInTheDocument();   // nach Ablehnung erneut möglich
+    await userEvent.click(within(montag).getByRole('button', { name: 'Schließen' }));
+    const mittwoch = await tag(mi);
+    expect(within(mittwoch).getByText('Wunsch abgelehnt')).toBeInTheDocument();
+    expect(within(mittwoch).getByRole('button', { name: 'Dienst wünschen' })).toBeInTheDocument();   // nach Ablehnung erneut möglich
   });
 
   it('wer schon eingeteilt ist, sieht keinen Wunsch-Knopf', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['ich'] })]);
     await zeige(betreuerin);
-    expect(within(tag(mo)).queryByRole('button', { name: 'Dienst wünschen' })).not.toBeInTheDocument();
+    expect(within(await tag(mo)).queryByRole('button', { name: 'Dienst wünschen' })).not.toBeInTheDocument();
+  });
+
+  it('„kann nicht“ eintragen und zurücknehmen; eingeteilt: die Treffleitung bekommt eine Mitteilung', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['ich'] })]);
+    await zeige(betreuerin);
+    await userEvent.click(within(await tag(mo)).getByRole('button', { name: 'Kann an diesem Tag nicht' }));
+    expect(api.trageVerhinderungEin).toHaveBeenCalledWith('t1', 'ich', mo);
+    await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('verhindert', 't1', { datum: mo }));
+
+    vi.mocked(api.listeVerhinderungen).mockResolvedValue([{ treff_id: 't1', person_id: 'ich', datum: mi }]);
+    await userEvent.click(screen.getByRole('button', { name: 'Schließen' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Nächste Woche' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Vorherige Woche' }));
+    const mittwoch = await tag(mi);
+    await userEvent.click(within(mittwoch).getByRole('button', { name: 'Kann doch' }));
+    expect(api.nimmVerhinderungZurueck).toHaveBeenCalledWith('t1', 'ich', mi);
+    expect(sendePush).toHaveBeenCalledTimes(1);
   });
 
   it('zeigt Fehler der Datenbank', async () => {
     vi.mocked(api.wuenscheDienst).mockRejectedValue(new ApiFehler({ code: '23514', message: 'Du bist an diesem Tag schon eingeteilt' }));
     await zeige(betreuerin);
-    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Dienst wünschen' }));
+    await userEvent.click(within(await tag(mo)).getByRole('button', { name: 'Dienst wünschen' }));
     expect(await screen.findByText(/schon eingeteilt/)).toBeInTheDocument();
   });
 });
 
 describe('Dienstplan: Treffleitung', () => {
-  it('beantwortet Wünsche', async () => {
+  it('beantwortet Wünsche im Tagesfenster; die „?“-Zelle öffnet es', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, wuensche: [{ person_id: 'ben', status: 'offen' }, { person_id: 'ich', status: 'bestaetigt' }] })]);
     await zeige(leitung, 'treffleitung');
-    expect(screen.getByText('Ein offener Dienstwunsch in dieser Woche.')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Wunsch von Ben Baum bestätigen' }));
+    expect(screen.getByText(/Ein offener Dienstwunsch in dieser Woche/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^Ben Baum: .*Wunsch beantworten$/ }));
+    const k = await screen.findByRole('dialog');
+    await userEvent.click(within(k).getByRole('button', { name: 'Wunsch von Ben Baum bestätigen' }));
     expect(api.entscheideWunsch).toHaveBeenCalledWith('d1', 'ben', true);
-    await userEvent.click(screen.getByRole('button', { name: 'Wunsch von Ben Baum ablehnen' }));
+    await userEvent.click(within(k).getByRole('button', { name: 'Wunsch von Ben Baum ablehnen' }));
     expect(api.entscheideWunsch).toHaveBeenCalledWith('d1', 'ben', false);
-    expect(screen.queryByRole('button', { name: /Wunsch von Anna Adler/ })).not.toBeInTheDocument();   // schon beantwortet
+    expect(within(k).queryByRole('button', { name: /Wunsch von Anna Adler/ })).not.toBeInTheDocument();   // schon beantwortet
   });
 
   it('teilt an einem Tag ohne Dienst zu: der Dienst wird erst beim Speichern angelegt', async () => {
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(within(tag(mi)).getByRole('button', { name: 'Zuteilen' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await tag(mi);
     await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
     await userEvent.click(within(dialog).getByLabelText(/Lea Leitner/));
     expect(api.dienstSicherstellen).not.toHaveBeenCalled();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(api.dienstSicherstellen).toHaveBeenCalledWith('t1', mi);
     expect(api.setzeZuteilung).toHaveBeenCalledWith('neuer-dienst', ['ben', 'lea'], []);
   });
@@ -172,38 +277,38 @@ describe('Dienstplan: Treffleitung', () => {
   it('ändert die Zuteilung eines bestehenden Dienstes (nur die Differenz)', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea', 'ben'] })]);
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Zuteilen' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await tag(mo);
     expect(within(dialog).getByLabelText(/Ben Baum/)).toBeChecked();
     await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
     await userEvent.click(within(dialog).getByLabelText(/Anna Adler/));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(api.dienstSicherstellen).not.toHaveBeenCalled();
     expect(api.setzeZuteilung).toHaveBeenCalledWith('d1', ['ich'], ['ben']);
   });
 
-  it('markiert Abwesende im Zuteilungsfenster', async () => {
+  it('markiert Abwesende und „kann nicht“ im Tagesfenster', async () => {
     vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: 'x', person_id: 'ben', datum: mo, typ: 'krank', notiz: null }]);
+    vi.mocked(api.listeVerhinderungen).mockResolvedValue([{ treff_id: 't1', person_id: 'ich', datum: mo }]);
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Zuteilen' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await tag(mo);
     expect(within(dialog).getByText(/abwesend: krank/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/– kann nicht/)).toBeInTheDocument();
   });
 
-  it('Feiertag (seit 0027): Tag ist zu – Schild, kein Zuteilen, kein Wünschen', async () => {
+  it('Feiertag (seit 0027): Tag ist zu – Schild, kein Zuteilen', async () => {
     vi.mocked(api.listeFeiertage).mockResolvedValue([{ id: 'f', treff_id: 't1', datum: mo, bezeichnung: 'Feiertag X' }]);
     await zeige(leitung, 'treffleitung');
-    expect(await within(tag(mo)).findByText('Feiertag: Feiertag X')).toBeInTheDocument();
-    expect(within(tag(mo)).queryByRole('button', { name: 'Zuteilen' })).not.toBeInTheDocument();
+    const dialog = await tag(mo);
+    expect(within(dialog).getByText('Feiertag: Feiertag X')).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Zuteilung speichern' })).not.toBeInTheDocument();
   });
 
   it('meldet Fehler beim Speichern und lässt das Fenster offen', async () => {
     vi.mocked(api.setzeZuteilung).mockRejectedValue(new ApiFehler({ code: '23514', message: 'Die Person gehört nicht zu diesem Treff' }));
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Zuteilen' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await tag(mo);
     await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(await within(dialog).findByText(/gehört nicht zu diesem Treff/)).toBeInTheDocument();
   });
 
@@ -223,15 +328,39 @@ describe('Dienstplan: Treffleitung', () => {
     expect(w).toMatchObject({ bezeichnung: 'Sommerfest', von: '15:00', bis: '19:00' });
   });
 
+  it('legt aus dem Tagesfenster einen Sonderdienst an diesem Tag an', async () => {
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(within(await tag(mi)).getByRole('button', { name: '+ Sonderdienst an diesem Tag' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Neuer Sonderdienst' });
+    expect(within(dialog).getByLabelText('Datum')).toHaveValue(mi);
+  });
+
   it('bearbeitet und löscht einen Sonderdienst', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 's', datum: sa, ist_sonder: true, bezeichnung: 'Fest', von: '10:00', bis: '12:00', personen: ['ben'] })]);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(within(tag(sa)).getByRole('button', { name: 'Bearbeiten' }));
+    await userEvent.click(within(await tag(sa)).getByRole('button', { name: 'Sonderdienst bearbeiten' }));
     const dialog = await screen.findByRole('dialog', { name: 'Sonderdienst bearbeiten' });
     expect(within(dialog).getByLabelText('Bezeichnung')).toHaveValue('Fest');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }));
     expect(api.loescheDienst).toHaveBeenCalledWith('s');
+  });
+
+  it('ändert die Mindestbesetzung; unterbesetzte Tage werden gemeldet', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['ben'] }), dienst({ id: 'd2', datum: mi, personen: ['ben', 'ich'] })]);
+    vi.mocked(api.setzeMindestbesetzung).mockResolvedValue(undefined);
+    await zeige(leitung, 'treffleitung');
+    expect(screen.queryByText(/weniger als/)).not.toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Mindestens'), '2');
+    expect(api.setzeMindestbesetzung).toHaveBeenCalledWith('t1', 2);
+    expect(await screen.findByText('Ein Öffnungstag hat weniger als 2 Personen (orange markiert).')).toBeInTheDocument();
+  });
+
+  it('Stunden je Person stehen für die Treffleitung immer in der Tabelle', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['ben'] })]);
+    await zeige(leitung, 'treffleitung');
+    expect(within(screen.getByRole('region', { name: 'Einsatzplan Woche' })).getByRole('columnheader', { name: 'Std.' })).toBeInTheDocument();
+    expect(within(screen.getByRole('row', { name: /Ben Baum/ })).getByText('4 h')).toBeInTheDocument();
   });
 });
 
@@ -268,7 +397,7 @@ describe('Dienstplan: Kommentare', () => {
 describe('Dienstplan: Mitteilungen werden ausgelöst', () => {
   it('Dienstwunsch: die Treffleitung bekommt eine Mitteilung (mit dem Tag)', async () => {
     await zeige(betreuerin);
-    await userEvent.click(within(tag(mi)).getByRole('button', { name: 'Dienst wünschen' }));
+    await userEvent.click(within(await tag(mi)).getByRole('button', { name: 'Dienst wünschen' }));
     expect(sendePush).toHaveBeenCalledWith('wunsch_neu', 't1', { datum: mi });
     expect(sendePush).toHaveBeenCalledTimes(1);
   });
@@ -276,7 +405,7 @@ describe('Dienstplan: Mitteilungen werden ausgelöst', () => {
   it('gescheiterter Wunsch: keine Mitteilung', async () => {
     vi.mocked(api.wuenscheDienst).mockRejectedValue(new ApiFehler({ code: '23514', message: 'Du bist an diesem Tag schon eingeteilt' }));
     await zeige(betreuerin);
-    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Dienst wünschen' }));
+    await userEvent.click(within(await tag(mo)).getByRole('button', { name: 'Dienst wünschen' }));
     await screen.findByText(/schon eingeteilt/);
     expect(sendePush).not.toHaveBeenCalled();
   });
@@ -284,31 +413,27 @@ describe('Dienstplan: Mitteilungen werden ausgelöst', () => {
   it('Wunsch bestätigt oder abgelehnt: die Person bekommt eine Mitteilung', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, wuensche: [{ person_id: 'ben', status: 'offen' }] })]);
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(screen.getByRole('button', { name: 'Wunsch von Ben Baum bestätigen' }));
+    const k = await tag(mo);
+    await userEvent.click(within(k).getByRole('button', { name: 'Wunsch von Ben Baum bestätigen' }));
     expect(sendePush).toHaveBeenCalledWith('wunsch_antwort', 'd1', { person: 'ben' });
-    await userEvent.click(screen.getByRole('button', { name: 'Wunsch von Ben Baum ablehnen' }));
+    await userEvent.click(within(k).getByRole('button', { name: 'Wunsch von Ben Baum ablehnen' }));
     expect(sendePush).toHaveBeenCalledTimes(2);
   });
 
   it('Zuteilung: nur wer neu eingeteilt oder herausgenommen wurde, wird benachrichtigt', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea', 'ben'] })]);
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Zuteilen' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await tag(mo);
     await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));          // heraus
     await userEvent.click(within(dialog).getByLabelText(/Anna Adler/));        // neu
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ich', 'ben'] }));
   });
 
-  it('Zuteilung ohne Änderung: keine Mitteilung', async () => {
+  it('Zuteilung ohne Änderung: Speichern ist gesperrt', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea'] })]);
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(within(tag(mo)).getByRole('button', { name: 'Zuteilen' }));
-    const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
-    await vi.waitFor(() => expect(api.setzeZuteilung).toHaveBeenCalled());
-    expect(sendePush).not.toHaveBeenCalled();
+    expect(within(await tag(mo)).getByRole('button', { name: 'Zuteilung speichern' })).toBeDisabled();
   });
 
   it('Sonderdienst anlegen: die Eingeteilten werden benachrichtigt; löschen: die bisher Eingeteilten', async () => {
@@ -317,12 +442,14 @@ describe('Dienstplan: Mitteilungen werden ausgelöst', () => {
     await zeige(leitung, 'treffleitung');
     await userEvent.click(screen.getByRole('button', { name: '+ Sonderdienst' }));
     const neu = await screen.findByRole('dialog', { name: 'Neuer Sonderdienst' });
+    await userEvent.clear(within(neu).getByLabelText('Datum'));
+    await userEvent.type(within(neu).getByLabelText('Datum'), mi);
     await userEvent.type(within(neu).getByLabelText('Bezeichnung'), 'Aufbau');
     await userEvent.click(within(neu).getByLabelText(/Anna Adler/));
     await userEvent.click(within(neu).getByRole('button', { name: 'Speichern' }));
     await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ich'] }));
 
-    await userEvent.click(within(tag(sa)).getByRole('button', { name: 'Bearbeiten' }));
+    await userEvent.click(within(await tag(sa)).getByRole('button', { name: 'Sonderdienst bearbeiten' }));
     const bearbeiten = await screen.findByRole('dialog', { name: 'Sonderdienst bearbeiten' });
     await userEvent.click(within(bearbeiten).getByRole('button', { name: 'Löschen' }));
     await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben'] }));
@@ -338,10 +465,11 @@ describe('Dienstplan: Mitteilungen werden ausgelöst', () => {
 });
 
 describe('Barrierefreiheit (axe)', () => {
-  it('keine Verstöße gegen gängige Regeln', async () => {
+  it('keine Verstöße in der Ansicht und im Tagesfenster', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea', 'ben'] })]);
     await zeige(betreuerin);
-    tag(mo);
+    expect(await axeVerstoesse(document.body)).toEqual([]);
+    await tag(mo);
     expect(await axeVerstoesse(document.body)).toEqual([]);
   });
 });

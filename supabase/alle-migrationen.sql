@@ -1,7 +1,7 @@
 -- KiJuB-Kompass · alle Migrationen in einer Datei (GENERIERT – nicht von Hand ändern)
 -- Erzeugt mit: npm run sql:bundle
 -- Nur für ein LEERES Projekt gedacht: einmal komplett im SQL Editor ausführen.
--- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql, 0014_betrieb.sql, 0015_mitteilungen.sql, 0016_tagesprotokoll.sql, 0017_mitteilungen_mehr.sql, 0018_koordination_getrennt.sql, 0019_fehlermeldungen.sql, 0020_heute.sql, 0021_bewerbung_rolle_treff_aufraeumen.sql, 0022_nachweise_erstellen.sql, 0023_ueberschneidung_akzeptiert.sql, 0024_dienstplan_anwenden.sql, 0025_wuensche_bestaetigen.sql, 0026_schliesszeiten_farbe.sql, 0027_feiertag_schliesst.sql, 0028_protokoll_vorlagen.sql, 0029_checkliste.sql, 0030_bewerbungen_mehr.sql, 0031_checkliste_termine.sql, 0032_freizeit_typ_material.sql, 0033_kijuko_kueche.sql, 0034_kijuko_lieferungen_typ.sql, 0035_teamprotokolle.sql
+-- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql, 0014_betrieb.sql, 0015_mitteilungen.sql, 0016_tagesprotokoll.sql, 0017_mitteilungen_mehr.sql, 0018_koordination_getrennt.sql, 0019_fehlermeldungen.sql, 0020_heute.sql, 0021_bewerbung_rolle_treff_aufraeumen.sql, 0022_nachweise_erstellen.sql, 0023_ueberschneidung_akzeptiert.sql, 0024_dienstplan_anwenden.sql, 0025_wuensche_bestaetigen.sql, 0026_schliesszeiten_farbe.sql, 0027_feiertag_schliesst.sql, 0028_protokoll_vorlagen.sql, 0029_checkliste.sql, 0030_bewerbungen_mehr.sql, 0031_checkliste_termine.sql, 0032_freizeit_typ_material.sql, 0033_kijuko_kueche.sql, 0034_kijuko_lieferungen_typ.sql, 0035_teamprotokolle.sql, 0036_dienstplan_uebersicht.sql, 0037_teamprotokolle_format.sql, 0038_wochenprogramm_freitext.sql
 
 -- ════════ 0001_stammdaten.sql ════════
 -- KiJuB-Kompass · 0001 Stammdaten
@@ -4933,3 +4933,486 @@ begin
   end if;
   return fn_push_vorbereiten_basis(p_art, p_ref, p_extra);
 end $$;
+
+-- ════════ 0036_dienstplan_uebersicht.sql ════════
+-- KiJuB-Kompass · 0036: Dienstplan übersichtlicher planen und schneller einsehen
+--
+-- 1) Monatsplan veröffentlichen (dienstplan_monate): Solange ein Monat „in Planung“ ist, schickt die App bei Änderungen keine
+--    Mitteilungen; mit „Veröffentlichen“ bekommt das Team eine einzige Mitteilung (Art 'dienstplan_veroeffentlicht'). Danach gibt es
+--    wie bisher Mitteilungen bei Änderungen. Monate, in denen es vor dieser Migration schon Dienste gab, gelten als veröffentlicht.
+-- 2) „Kann nicht“ (dienst_verhinderungen): Mitarbeitende markieren künftige Tage ihres Treffs, an denen sie nicht können. Das ist keine
+--    Abwesenheit (die trägt die Treffleitung ein), sondern ein Hinweis für die Planung. Sehen dürfen es die Person selbst, die Treffleitung
+--    und die Treffkoordination. Steht die Person an dem Tag schon im Dienst, bekommt die Treffleitung eine Mitteilung (Art 'verhindert').
+-- 3) Mindestbesetzung je Treff (treffs.mindestbesetzung): Öffnungstage mit weniger Personen gelten als „unterbesetzt“.
+--    Treffleitung und Treffkoordination ändern sie mit fn_mindestbesetzung_setzen.
+-- 4) Seit wann jemand eingeteilt ist (dienst_zuteilungen.created_at): für „neu eingeteilt seit deinem letzten Besuch“.
+--    Bestehende Einteilungen bleiben ohne Zeitpunkt (gelten nicht als neu).
+-- 5) Kalender: fn_meine_dienste_ics liefert die eigenen Dienste als iCalendar-Text (Download); ein persönlicher Abo-Link
+--    (kalender_abos, nur der Hash des Schlüssels wird gespeichert) erlaubt der Edge Function `kalender`, denselben Text ohne Anmeldung
+--    auszuliefern. Der Link lässt sich jederzeit neu erzeugen (der alte wird ungültig) oder löschen.
+
+-- ===== 1) Veröffentlichte Monate =====
+create table dienstplan_monate (
+  treff_id            uuid not null references treffs(id) on delete cascade,
+  monat               date not null check (extract(day from monat) = 1),
+  veroeffentlicht_von uuid references personen(id) on delete set null,
+  veroeffentlicht_am  timestamptz not null default now(),
+  primary key (treff_id, monat)
+);
+
+create function fn_dienstplan_monat_pruefen() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  new.veroeffentlicht_von := meine_person_id();
+  new.veroeffentlicht_am := now();
+  return new;
+end $$;
+revoke execute on function fn_dienstplan_monat_pruefen() from public, anon, authenticated;
+create trigger dienstplan_monate_pruefen before insert on dienstplan_monate for each row execute function fn_dienstplan_monat_pruefen();
+
+alter table dienstplan_monate enable row level security;
+revoke all on dienstplan_monate from anon;
+grant select, insert, delete on dienstplan_monate to authenticated;
+create policy lesen on dienstplan_monate for select to authenticated using (ist_treffkoord() or ist_im_treff(treff_id));
+create policy veroeffentlichen on dienstplan_monate for insert to authenticated with check (ist_treffkoord() or ist_treffleitung(treff_id));
+create policy zuruecknehmen on dienstplan_monate for delete to authenticated using (ist_treffkoord() or ist_treffleitung(treff_id));
+
+-- Bisherige Monate mit Diensten gelten als veröffentlicht (so ändert sich für laufende Pläne nichts)
+insert into dienstplan_monate (treff_id, monat)
+select distinct treff_id, date_trunc('month', datum)::date from dienste;
+
+-- ===== 2) „Kann nicht“ =====
+create table dienst_verhinderungen (
+  treff_id   uuid not null references treffs(id) on delete cascade,
+  person_id  uuid not null references personen(id) on delete cascade,
+  datum      date not null,
+  created_at timestamptz not null default now(),
+  primary key (treff_id, person_id, datum)
+);
+create index dienst_verhinderungen_datum on dienst_verhinderungen (treff_id, datum);
+
+alter table dienst_verhinderungen enable row level security;
+revoke all on dienst_verhinderungen from anon;
+grant select, insert, delete on dienst_verhinderungen to authenticated;
+create policy lesen on dienst_verhinderungen for select to authenticated
+  using (person_id = meine_person_id() or ist_treffkoord() or ist_treffleitung(treff_id));
+create policy eintragen on dienst_verhinderungen for insert to authenticated
+  with check (person_id = meine_person_id() and ist_im_treff(treff_id) and datum >= (now() at time zone 'Europe/Berlin')::date);
+create policy zuruecknehmen on dienst_verhinderungen for delete to authenticated using (person_id = meine_person_id());
+
+-- Wer einen Treff verlässt, dessen künftige „kann nicht“ fallen weg (wie Dienste und Wünsche, Migration 0021)
+create function fn_treff_team_verhinderungen_aufraeumen() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  delete from dienst_verhinderungen where treff_id = old.treff_id and person_id = old.person_id;
+  return old;
+end $$;
+revoke execute on function fn_treff_team_verhinderungen_aufraeumen() from public, anon, authenticated;
+create trigger treff_team_verhinderungen_aufraeumen after delete on treff_team for each row execute function fn_treff_team_verhinderungen_aufraeumen();
+
+-- ===== 3) Mindestbesetzung =====
+alter table treffs add column mindestbesetzung smallint not null default 1 check (mindestbesetzung between 1 and 20);
+
+create function fn_mindestbesetzung_setzen(p_treff uuid, p_anzahl integer) returns void
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if not (ist_treffkoord() or ist_treffleitung(p_treff)) then
+    raise exception 'Nur Treffleitung und Treffkoordination dürfen die Mindestbesetzung ändern' using errcode = '42501';
+  end if;
+  if p_anzahl is null or p_anzahl < 1 or p_anzahl > 20 then
+    raise exception 'Die Mindestbesetzung muss zwischen 1 und 20 liegen' using errcode = 'check_violation';
+  end if;
+  update treffs set mindestbesetzung = p_anzahl where id = p_treff;
+end $$;
+revoke execute on function fn_mindestbesetzung_setzen(uuid, integer) from public, anon;
+grant execute on function fn_mindestbesetzung_setzen(uuid, integer) to authenticated;
+
+-- ===== 4) Zeitpunkt der Einteilung =====
+alter table dienst_zuteilungen add column created_at timestamptz;
+alter table dienst_zuteilungen alter column created_at set default now();
+
+-- ===== 5) Kalender =====
+create table kalender_abos (
+  person_id  uuid primary key references personen(id) on delete cascade,
+  token_hash text not null unique,
+  created_at timestamptz not null default now()
+);
+alter table kalender_abos enable row level security;
+revoke all on kalender_abos from anon, authenticated;
+-- Kein direkter Zugriff: Anlegen, Prüfen und Löschen nur über die Funktionen unten.
+
+create function fn_ics_text(t text) returns text
+language sql immutable set search_path = public, pg_temp as $$
+  select replace(replace(replace(replace(replace(coalesce(t, ''), '\', '\\'), ';', '\;'), ',', '\,'), chr(13), ''), chr(10), '\n')
+$$;
+revoke execute on function fn_ics_text(text) from public, anon, authenticated;
+
+-- iCalendar-Text mit den Diensten einer Person (60 Tage zurück bis ein Jahr voraus). Monate „in Planung“ erscheinen als vorläufig.
+create function fn_ics_fuer_person(p_person uuid) returns text
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare
+  nl text := chr(13) || chr(10);
+  r record; ics text; ort text; titel text;
+  stempel text := to_char(now() at time zone 'utc', 'YYYYMMDD"T"HH24MISS"Z"');
+begin
+  ics := 'BEGIN:VCALENDAR' || nl || 'VERSION:2.0' || nl || 'PRODID:-//KiJuB-Kompass//Dienste//DE' || nl || 'CALSCALE:GREGORIAN' || nl
+    || 'METHOD:PUBLISH' || nl || 'X-WR-CALNAME:Meine Dienste (KiJuB-Kompass)' || nl || 'X-WR-TIMEZONE:Europe/Berlin' || nl
+    || 'REFRESH-INTERVAL;VALUE=DURATION:PT6H' || nl || 'X-PUBLISHED-TTL:PT6H' || nl
+    || 'BEGIN:VTIMEZONE' || nl || 'TZID:Europe/Berlin' || nl
+    || 'BEGIN:DAYLIGHT' || nl || 'TZOFFSETFROM:+0100' || nl || 'TZOFFSETTO:+0200' || nl || 'TZNAME:CEST' || nl
+    || 'DTSTART:19700329T020000' || nl || 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU' || nl || 'END:DAYLIGHT' || nl
+    || 'BEGIN:STANDARD' || nl || 'TZOFFSETFROM:+0200' || nl || 'TZOFFSETTO:+0100' || nl || 'TZNAME:CET' || nl
+    || 'DTSTART:19701025T030000' || nl || 'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU' || nl || 'END:STANDARD' || nl
+    || 'END:VTIMEZONE' || nl;
+  for r in
+    select d.id, d.datum, d.von, d.bis, d.ist_sonder, d.bezeichnung, t.name as treff, t.adresse_abw, o.name as ort_name, o.adresse as ort_adresse,
+           exists (select 1 from dienstplan_monate m where m.treff_id = d.treff_id and m.monat = date_trunc('month', d.datum)::date) as fest
+      from dienst_zuteilungen z join dienste d on d.id = z.dienst_id join treffs t on t.id = d.treff_id left join orte o on o.id = t.ort_id
+     where z.person_id = p_person and d.datum between current_date - 60 and current_date + 366
+     order by d.datum, d.von nulls first
+  loop
+    titel := case when r.ist_sonder then 'Sonderdienst: ' || r.bezeichnung || ' · ' || r.treff else 'Dienst · ' || r.treff end;
+    ort := coalesce(nullif(trim(r.adresse_abw), ''), nullif(concat_ws(', ', r.ort_name, nullif(trim(r.ort_adresse), '')), ''));
+    ics := ics || 'BEGIN:VEVENT' || nl || 'UID:' || r.id || '@kijub-kompass' || nl || 'DTSTAMP:' || stempel || nl;
+    if r.von is not null and r.bis is not null then
+      ics := ics || 'DTSTART;TZID=Europe/Berlin:' || to_char(r.datum, 'YYYYMMDD') || 'T' || to_char(r.von, 'HH24MISS') || nl
+                 || 'DTEND;TZID=Europe/Berlin:' || to_char(r.datum, 'YYYYMMDD') || 'T' || to_char(r.bis, 'HH24MISS') || nl;
+    else
+      ics := ics || 'DTSTART;VALUE=DATE:' || to_char(r.datum, 'YYYYMMDD') || nl || 'DTEND;VALUE=DATE:' || to_char(r.datum + 1, 'YYYYMMDD') || nl;
+    end if;
+    ics := ics || 'SUMMARY:' || fn_ics_text(left(titel, 120)) || nl;
+    if ort is not null then ics := ics || 'LOCATION:' || fn_ics_text(left(ort, 200)) || nl; end if;
+    if not r.fest then ics := ics || 'DESCRIPTION:' || fn_ics_text('Vorläufig: Der Dienstplan dieses Monats ist noch in Planung.') || nl; end if;
+    ics := ics || 'STATUS:' || case when r.fest then 'CONFIRMED' else 'TENTATIVE' end || nl || 'END:VEVENT' || nl;
+  end loop;
+  return ics || 'END:VCALENDAR' || nl;
+end $$;
+revoke execute on function fn_ics_fuer_person(uuid) from public, anon, authenticated;
+
+create function fn_meine_dienste_ics() returns text
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare ich uuid := meine_person_id();
+begin
+  if ich is null or not ist_aktive_person() then raise exception 'Nicht angemeldet' using errcode = '42501'; end if;
+  return fn_ics_fuer_person(ich);
+end $$;
+revoke execute on function fn_meine_dienste_ics() from public, anon;
+grant execute on function fn_meine_dienste_ics() to authenticated;
+
+-- Neuer Abo-Link: gibt den Schlüssel einmalig zurück; ein vorhandener Link wird damit ungültig.
+create function fn_kalender_link_erneuern() returns text
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare ich uuid := meine_person_id(); schluessel text;
+begin
+  if ich is null or not ist_aktive_person() then raise exception 'Nicht angemeldet' using errcode = '42501'; end if;
+  schluessel := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+  insert into kalender_abos (person_id, token_hash) values (ich, encode(sha256(convert_to(schluessel, 'UTF8')), 'hex'))
+  on conflict (person_id) do update set token_hash = excluded.token_hash, created_at = now();
+  return schluessel;
+end $$;
+
+create function fn_kalender_link_entfernen() returns void
+language sql security definer set search_path = public, pg_temp as $$
+  delete from kalender_abos where person_id = meine_person_id()
+$$;
+
+-- Seit wann es einen Abo-Link gibt (null = keiner)
+create function fn_kalender_link_seit() returns timestamptz
+language sql stable security definer set search_path = public, pg_temp as $$
+  select created_at from kalender_abos where person_id = meine_person_id()
+$$;
+
+revoke execute on function fn_kalender_link_erneuern(), fn_kalender_link_entfernen(), fn_kalender_link_seit() from public, anon;
+grant execute on function fn_kalender_link_erneuern(), fn_kalender_link_entfernen(), fn_kalender_link_seit() to authenticated;
+
+-- Für die Edge Function `kalender` (nur mit dem Service-Schlüssel): Kalender zum Schlüssel, null bei unbekanntem Schlüssel oder inaktiver Person.
+create function fn_kalender_ics(p_token text) returns text
+language plpgsql stable security definer set search_path = public, pg_temp as $$
+declare pid uuid;
+begin
+  if p_token is null or p_token !~ '^[0-9a-f]{64}$' then return null; end if;
+  select a.person_id into pid from kalender_abos a join personen p on p.id = a.person_id
+   where a.token_hash = encode(sha256(convert_to(p_token, 'UTF8')), 'hex') and p.aktiv;
+  if pid is null then return null; end if;
+  return fn_ics_fuer_person(pid);
+end $$;
+revoke execute on function fn_kalender_ics(text) from public, anon, authenticated;
+grant execute on function fn_kalender_ics(text) to service_role;
+
+-- ===== Live-Aktualisierung: veröffentlichte Monate (keine personenbezogenen Daten) =====
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'dienstplan_monate') then
+    alter publication supabase_realtime add table public.dienstplan_monate;
+  end if;
+end $$;
+
+-- ===== Mitteilungen: Plan veröffentlicht (ans Team), „kann nicht“ trotz Einteilung (an die Treffleitung) =====
+create or replace function fn_push_vorbereiten(p_art text, p_ref uuid default null, p_extra jsonb default '{}') returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare z bewerbungen_zeitraum; a materialliste_abgabe; f freizeiten; tp treff_teamprotokolle; t treffs; ich uuid := meine_person_id();
+  m dienstplan_monate; v dienst_verhinderungen; v_monat date; v_datum date;
+  monate text[] := array['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+begin
+  if p_art = 'bewerbung_zeitraum' then
+    select * into z from bewerbungen_zeitraum where id = p_ref and person_id = ich and created_at >= now() - interval '10 minutes';
+    if z.id is null then raise exception 'Mitteilung nicht zulässig' using errcode = '42501'; end if;
+    return jsonb_build_object(
+      'empfaenger', to_jsonb(array(select id from personen where ist_freizeitkoordination and aktiv)),
+      'titel', 'Neue Bewerbung', 'text', fn_push_name(ich) || ' bewirbt sich für ' || zeitraum_text(z) || '.', 'url', '/bewerbungen');
+  elsif p_art = 'materialliste' then
+    select * into a from materialliste_abgabe where freizeit_id = p_ref and abgegeben_von = ich and abgegeben_am >= now() - interval '10 minutes';
+    if a.freizeit_id is null then raise exception 'Mitteilung nicht zulässig' using errcode = '42501'; end if;
+    select * into f from freizeiten where id = p_ref;
+    return jsonb_build_object(
+      'empfaenger', to_jsonb(array(select id from personen where ist_freizeitkoordination and aktiv and id <> ich)),
+      'titel', 'Materialliste · ' || f.name, 'text', fn_push_name(ich) || ' hat die Materialliste abgegeben (' ||
+        (select count(*) from freizeit_materialliste where freizeit_id = f.id) || ' Positionen).', 'url', '/freizeiten/' || f.id || '/material');
+  elsif p_art = 'teamprotokoll' then
+    select * into tp from treff_teamprotokolle where id = p_ref and erstellt_von = ich and created_at >= now() - interval '10 minutes';
+    if tp.id is null then raise exception 'Mitteilung nicht zulässig' using errcode = '42501'; end if;
+    select * into t from treffs where id = tp.treff_id;
+    return jsonb_build_object(
+      'empfaenger', to_jsonb(array(select tm.person_id from treff_team tm join personen p on p.id = tm.person_id
+                                   where tm.treff_id = t.id and p.aktiv and tm.person_id <> ich)),
+      'titel', 'Neues Teamprotokoll · ' || t.name,
+      'text', tp.titel || ' (' || to_char(tp.datum, 'DD.MM.YYYY') || ') – bitte lesen.',
+      'url', '/treffs/' || t.id || '/teamprotokolle');
+  elsif p_art = 'dienstplan_veroeffentlicht' then
+    v_monat := (p_extra ->> 'monat')::date;
+    select * into m from dienstplan_monate where treff_id = p_ref and monat = v_monat and veroeffentlicht_von = ich and veroeffentlicht_am >= now() - interval '10 minutes';
+    if m.treff_id is null then raise exception 'Mitteilung nicht zulässig' using errcode = '42501'; end if;
+    select * into t from treffs where id = p_ref;
+    return jsonb_build_object(
+      'empfaenger', to_jsonb(array(select tm.person_id from treff_team tm join personen p on p.id = tm.person_id
+                                   where tm.treff_id = t.id and p.aktiv and tm.person_id <> ich)),
+      'titel', 'Dienstplan · ' || t.name,
+      'text', 'Der Dienstplan für ' || monate[extract(month from v_monat)::int] || ' ' || extract(year from v_monat)::int || ' steht. Schau nach, wann du eingeteilt bist.',
+      'url', '/treffs/' || t.id || '/dienstplan?ansicht=monat&datum=' || to_char(v_monat, 'YYYY-MM-DD'));
+  elsif p_art = 'verhindert' then
+    v_datum := (p_extra ->> 'datum')::date;
+    select * into v from dienst_verhinderungen where treff_id = p_ref and person_id = ich and datum = v_datum and created_at >= now() - interval '10 minutes';
+    if v.treff_id is null or not exists (select 1 from dienst_zuteilungen dz join dienste d on d.id = dz.dienst_id
+                                          where d.treff_id = p_ref and d.datum = v_datum and dz.person_id = ich) then
+      raise exception 'Mitteilung nicht zulässig' using errcode = '42501';
+    end if;
+    select * into t from treffs where id = p_ref;
+    return jsonb_build_object(
+      'empfaenger', to_jsonb(array(select tm.person_id from treff_team tm join personen p on p.id = tm.person_id
+                                   where tm.treff_id = t.id and tm.rolle = 'treffleitung' and p.aktiv and tm.person_id <> ich)),
+      'titel', 'Kann nicht · ' || t.name,
+      'text', fn_push_name(ich) || ' kann am ' || to_char(v_datum, 'DD.MM.YYYY') || ' nicht, ist aber eingeteilt.',
+      'url', '/treffs/' || t.id || '/dienstplan?datum=' || to_char(v_datum, 'YYYY-MM-DD'));
+  end if;
+  return fn_push_vorbereiten_basis(p_art, p_ref, p_extra);
+end $$;
+
+-- ════════ 0037_teamprotokolle_format.sql ════════
+-- KiJuB-Kompass · 0037: Teamprotokolle gegliedert, mit Entwurf, gemeldeten Änderungen und Rücksicht auf neue Teammitglieder
+--
+-- 1) Gliederung: Ein Protokoll besteht aus Abschnitten (abschnitte = [{titel, text}], Überschrift + Ergebnis; in der App einklappbar)
+--    und am Ende optional dem nächsten Treffen (naechstes_datum, naechstes_zeit) sowie den Aufgaben und Zielen (aufgaben).
+--    Die Spalte `text` füllt die Datenbank als reinen Text aus allem (für Suche/Export und ältere Stände der App).
+--    Bestehende Protokolle werden zu einem Abschnitt ohne Überschrift. Wer nur `text` schreibt, bekommt ebenfalls einen solchen Abschnitt.
+-- 2) Entwurf (entwurf): sehen nur Treffleitung und Treffkoordination, ohne Mitteilung und ohne „gelesen“. Mit dem Veröffentlichen
+--    (entwurf → false) setzt die Datenbank gemeldet_am/gemeldet_von; erst dann darf die Mitteilung an das Team raus. Zurück zum Entwurf geht nicht.
+-- 3) Änderung melden (fn_teamprotokoll_aenderung_melden): setzt den Gelesen-Stand zurück, alle lesen erneut; Mitteilung 'teamprotokoll_geaendert'.
+-- 4) Neue Teammitglieder: Wer einem Treff zugeordnet wird, bekommt die schon veröffentlichten Protokolle als „vor Eintritt“ vermerkt
+--    (treff_teamprotokoll_gelesen.vor_eintritt) – sie gelten nicht als ungelesen, erscheinen bei der Treffleitung aber nicht als „gelesen“.
+--    Wird eine Änderung gemeldet, zählt das Protokoll auch für sie wieder als ungelesen.
+--
+-- Mitteilungen: fn_push_vorbereiten wird hier NICHT neu geschrieben, sondern umbenannt (fn_push_vorbereiten_vor_0037) und von einer neuen
+-- fn_push_vorbereiten umhüllt, die nur die Arten 'teamprotokoll' und 'teamprotokoll_geaendert' selbst beantwortet. Wer fn_push_vorbereiten
+-- später neu schreibt, muss diese beiden Zweige übernehmen.
+--
+-- Die Datei läuft auch ein zweites Mal ohne Schaden (falls ein erster Versuch im SQL Editor mittendrin abbrach), und sie kommt
+-- ohne Zeichenketten mit Backslash aus – Zeilenumbrüche entstehen mit chr(10).
+
+alter table treff_teamprotokolle
+  add column if not exists abschnitte jsonb not null default '[]',
+  add column if not exists naechstes_datum date,
+  add column if not exists naechstes_zeit  time,
+  add column if not exists aufgaben        text not null default '' check (length(aufgaben) <= 5000),
+  add column if not exists entwurf         boolean not null default false,
+  add column if not exists gemeldet_am     timestamptz,
+  add column if not exists gemeldet_von    uuid references personen(id) on delete set null;
+alter table treff_teamprotokolle drop constraint if exists treff_teamprotokolle_text_check;
+alter table treff_teamprotokolle alter column text set default '';
+
+alter table treff_teamprotokoll_gelesen add column if not exists vor_eintritt boolean not null default false;
+
+-- Bestand: ein Abschnitt ohne Überschrift; gemeldet beim Anlegen (der Trigger kommt erst danach)
+update treff_teamprotokolle set abschnitte = jsonb_build_array(jsonb_build_object('titel', '', 'text', text)), gemeldet_am = created_at, gemeldet_von = erstellt_von
+ where abschnitte = '[]'::jsonb and gemeldet_am is null;
+
+create or replace function fn_teamprotokoll_pruefen() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $fn$
+declare inhalt text;
+begin
+  if exists (select 1 from unnest(new.anwesend) a(pid) where not exists (select 1 from treff_team t where t.treff_id = new.treff_id and t.person_id = a.pid)) then
+    raise exception 'Anwesend können nur Personen aus dem Team des Treffs sein' using errcode = 'check_violation';
+  end if;
+  new.anwesend := array(select distinct x from unnest(new.anwesend) x);
+
+  -- Abschnitte: wer nur `text` schreibt (oder ändert), bekommt einen Abschnitt ohne Überschrift
+  if new.abschnitte is null or jsonb_typeof(new.abschnitte) <> 'array' then
+    raise exception 'Die Abschnitte müssen eine Liste sein' using errcode = 'check_violation';
+  end if;
+  if (tg_op = 'INSERT' and jsonb_array_length(new.abschnitte) = 0 and trim(coalesce(new.text, '')) <> '')
+     or (tg_op = 'UPDATE' and new.text is distinct from old.text and new.abschnitte = old.abschnitte) then
+    new.abschnitte := jsonb_build_array(jsonb_build_object('titel', '', 'text', trim(coalesce(new.text, ''))));
+  end if;
+  if exists (select 1 from jsonb_array_elements(new.abschnitte) e
+             where jsonb_typeof(e) <> 'object' or jsonb_typeof(coalesce(e -> 'titel', '""')) <> 'string' or jsonb_typeof(coalesce(e -> 'text', '""')) <> 'string'
+                or length(trim(coalesce(e ->> 'titel', ''))) > 200) then
+    raise exception 'Jeder Abschnitt braucht eine Überschrift (höchstens 200 Zeichen) und einen Text' using errcode = 'check_violation';
+  end if;
+  new.abschnitte := coalesce((
+    select jsonb_agg(jsonb_build_object('titel', trim(coalesce(e ->> 'titel', '')), 'text', trim(coalesce(e ->> 'text', ''))) order by nr)
+    from jsonb_array_elements(new.abschnitte) with ordinality x(e, nr)
+    where trim(coalesce(e ->> 'titel', '')) <> '' or trim(coalesce(e ->> 'text', '')) <> ''), '[]');
+  if jsonb_array_length(new.abschnitte) > 50 then raise exception 'Höchstens 50 Abschnitte' using errcode = 'check_violation'; end if;
+
+  new.aufgaben := trim(coalesce(new.aufgaben, ''));
+  if new.naechstes_datum is null then new.naechstes_zeit := null; end if;
+
+  -- reiner Text aus allem
+  select string_agg(case when e ->> 'titel' <> '' then e ->> 'titel' || case when e ->> 'text' <> '' then chr(10) || (e ->> 'text') else '' end else e ->> 'text' end, chr(10) || chr(10) order by nr)
+    into inhalt from jsonb_array_elements(new.abschnitte) with ordinality x(e, nr);
+  if new.naechstes_datum is not null then
+    inhalt := concat_ws(chr(10) || chr(10), inhalt, 'Nächstes Treffen: ' || to_char(new.naechstes_datum, 'DD.MM.YYYY') || coalesce(' um ' || to_char(new.naechstes_zeit, 'HH24:MI') || ' Uhr', ''));
+  end if;
+  if new.aufgaben <> '' then inhalt := concat_ws(chr(10) || chr(10), inhalt, 'Aufgaben und Ziele:' || chr(10) || new.aufgaben); end if;
+  new.text := coalesce(inhalt, '');
+  if length(new.text) > 20000 then raise exception 'Das Protokoll ist zu lang (höchstens 20000 Zeichen)' using errcode = 'check_violation'; end if;
+  if not new.entwurf and new.text = '' then raise exception 'Ein veröffentlichtes Protokoll braucht einen Inhalt' using errcode = 'check_violation'; end if;
+
+  if tg_op = 'INSERT' then
+    new.erstellt_von := coalesce(meine_person_id(), new.erstellt_von); new.created_at := now();
+    if new.entwurf then new.gemeldet_am := null; new.gemeldet_von := null;
+    else new.gemeldet_am := now(); new.gemeldet_von := coalesce(meine_person_id(), new.erstellt_von); end if;
+  else
+    if new.treff_id is distinct from old.treff_id then raise exception 'Ein Protokoll lässt sich nicht in einen anderen Treff verschieben' using errcode = 'check_violation'; end if;
+    if new.entwurf and not old.entwurf then raise exception 'Ein veröffentlichtes Protokoll wird nicht wieder zum Entwurf' using errcode = 'check_violation'; end if;
+    new.erstellt_von := old.erstellt_von; new.created_at := old.created_at;
+    if old.entwurf and not new.entwurf then
+      new.gemeldet_am := now(); new.gemeldet_von := coalesce(meine_person_id(), new.gemeldet_von);
+    elsif coalesce(current_setting('kompass.teamprotokoll_melden', true), '') <> 'ja' then
+      new.gemeldet_am := old.gemeldet_am; new.gemeldet_von := old.gemeldet_von;     -- melden nur über fn_teamprotokoll_aenderung_melden
+    end if;
+  end if;
+  new.bearbeitet_von := coalesce(meine_person_id(), new.bearbeitet_von);
+  new.updated_at := now();
+  return new;
+end $fn$;
+
+-- Entwürfe sehen nur Treffleitung und Treffkoordination
+drop policy if exists lesen on treff_teamprotokolle;
+create policy lesen on treff_teamprotokolle for select to authenticated
+  using (ist_treffkoord() or ist_treffleitung(treff_id) or (not entwurf and ist_im_treff(treff_id)));
+
+-- „Gelesen“ gibt es nur bei veröffentlichten Protokollen
+create or replace function darf_teamprotokoll_sehen(pid uuid) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $fn$
+  select exists (select 1 from treff_teamprotokolle p where p.id = pid and not p.entwurf and (ist_treffkoord() or ist_im_treff(p.treff_id)))
+$fn$;
+
+-- Änderung ans Team melden: Gelesen-Stand zurücksetzen, gemeldet_am/-von setzen (danach darf die Mitteilung raus)
+create or replace function fn_teamprotokoll_aenderung_melden(p_id uuid) returns void
+language plpgsql security definer set search_path = public, pg_temp as $fn$
+declare tp treff_teamprotokolle;
+begin
+  select * into tp from treff_teamprotokolle where id = p_id;
+  if tp.id is null or not (ist_treffkoord() or ist_treffleitung(tp.treff_id)) then
+    raise exception 'Keine Berechtigung' using errcode = '42501';
+  end if;
+  if tp.entwurf then raise exception 'Ein Entwurf wird veröffentlicht, nicht gemeldet' using errcode = 'check_violation'; end if;
+  perform set_config('kompass.teamprotokoll_melden', 'ja', true);
+  update treff_teamprotokolle set gemeldet_am = now(), gemeldet_von = meine_person_id() where id = p_id;
+  perform set_config('kompass.teamprotokoll_melden', '', true);
+  delete from treff_teamprotokoll_gelesen where protokoll_id = p_id;
+end $fn$;
+revoke execute on function fn_teamprotokoll_aenderung_melden(uuid) from public, anon;
+grant execute on function fn_teamprotokoll_aenderung_melden(uuid) to authenticated;
+
+-- Neu im Team: bisherige Protokolle gelten als „vor Eintritt“ und damit nicht als ungelesen
+create or replace function fn_treff_team_teamprotokolle() returns trigger
+language plpgsql security definer set search_path = public, pg_temp as $fn$
+begin
+  insert into treff_teamprotokoll_gelesen (protokoll_id, person_id, vor_eintritt)
+  select p.id, new.person_id, true from treff_teamprotokolle p where p.treff_id = new.treff_id and not p.entwurf
+  on conflict do nothing;
+  return null;
+end $fn$;
+revoke execute on function fn_treff_team_teamprotokolle() from public, anon;
+drop trigger if exists treff_team_teamprotokolle on treff_team;
+create trigger treff_team_teamprotokolle after insert on treff_team for each row execute function fn_treff_team_teamprotokolle();
+
+-- ===== Mitteilungen 'teamprotokoll' (veröffentlicht) und 'teamprotokoll_geaendert' (Änderung gemeldet) =====
+-- Umbenennen nur, wenn fn_push_vorbereiten noch nicht die Hülle ist. Hat eine spätere Migration sie überschrieben (z. B. 0036 erst nach
+-- 0037 eingespielt), wird deren Fassung zur neuen inneren Funktion – ein erneuter Lauf von 0037 stellt die Hülle so wieder her.
+do $do$
+begin
+  if exists (select 1 from pg_proc where proname = 'fn_push_vorbereiten' and pronamespace = 'public'::regnamespace
+             and prosrc not like '%fn_push_vorbereiten_vor_0037%') then
+    drop function if exists fn_push_vorbereiten_vor_0037(text, uuid, jsonb);
+    alter function fn_push_vorbereiten(text, uuid, jsonb) rename to fn_push_vorbereiten_vor_0037;
+  end if;
+end $do$;
+revoke execute on function fn_push_vorbereiten_vor_0037(text, uuid, jsonb) from public, anon, authenticated;
+
+create or replace function fn_push_vorbereiten(p_art text, p_ref uuid default null, p_extra jsonb default '{}') returns jsonb
+language plpgsql security definer set search_path = public, pg_temp as $fn$
+declare tp treff_teamprotokolle; t treffs; ich uuid := meine_person_id();
+begin
+  if p_art in ('teamprotokoll', 'teamprotokoll_geaendert') then
+    select * into tp from treff_teamprotokolle where id = p_ref and not entwurf and gemeldet_von = ich and gemeldet_am >= now() - interval '10 minutes';
+    if tp.id is null then raise exception 'Mitteilung nicht zulässig' using errcode = '42501'; end if;
+    select * into t from treffs where id = tp.treff_id;
+    return jsonb_build_object(
+      'empfaenger', to_jsonb(array(select tm.person_id from treff_team tm join personen p on p.id = tm.person_id
+                                   where tm.treff_id = t.id and p.aktiv and tm.person_id <> ich)),
+      'titel', case when p_art = 'teamprotokoll' then 'Neues Teamprotokoll · ' else 'Teamprotokoll geändert · ' end || t.name,
+      'text', tp.titel || ' (' || to_char(tp.datum, 'DD.MM.YYYY') || ') – ' || case when p_art = 'teamprotokoll' then 'bitte lesen.' else 'bitte noch einmal lesen.' end,
+      'url', '/treffs/' || t.id || '/teamprotokolle');
+  end if;
+  return fn_push_vorbereiten_vor_0037(p_art, p_ref, p_extra);
+end $fn$;
+revoke execute on function fn_push_vorbereiten(text, uuid, jsonb) from public, anon;
+grant execute on function fn_push_vorbereiten(text, uuid, jsonb) to authenticated;
+
+-- ════════ 0038_wochenprogramm_freitext.sql ════════
+-- KiJuB-Kompass · 0038: Wochenprogramm als Freitext je Treff
+--
+-- Statt eines Programmpunkts je Öffnungstag (treff_plan_eintraege) trägt die Treffleitung das feste, jede Woche wiederkehrende
+-- Programm als einen Freitext ein (treffs.wochenprogramm). Treffleitung und Treffkoordination ändern ihn mit fn_wochenprogramm_setzen.
+-- Bisherige Einträge werden einmalig in den Freitext übernommen („Dienstag: Spielenachmittag – Notiz“). Die alte Tabelle bleibt
+-- unverändert stehen, wird von der App aber nicht mehr benutzt.
+
+alter table treffs add column wochenprogramm text check (wochenprogramm is null or length(wochenprogramm) <= 4000);
+
+update treffs t set wochenprogramm = x.text
+from (
+  select e.treff_id,
+         string_agg(
+           (array['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'])[e.wochentag] || ': '
+             || coalesce(a.name, e.freitext, '')
+             || coalesce(' – ' || nullif(trim(e.notiz), ''), ''),
+           E'\n' order by e.wochentag) as text
+  from treff_plan_eintraege e
+  left join angebote a on a.id = e.angebot_id
+  group by e.treff_id
+) x
+where x.treff_id = t.id and t.wochenprogramm is null;
+
+create function fn_wochenprogramm_setzen(p_treff uuid, p_text text) returns void
+language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if not (ist_treffkoord() or ist_treffleitung(p_treff)) then
+    raise exception 'Nur Treffleitung und Treffkoordination dürfen das Wochenprogramm ändern' using errcode = '42501';
+  end if;
+  update treffs set wochenprogramm = nullif(trim(p_text), '') where id = p_treff;
+end $$;
+revoke execute on function fn_wochenprogramm_setzen(uuid, text) from public, anon;
+grant execute on function fn_wochenprogramm_setzen(uuid, text) to authenticated;

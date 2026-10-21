@@ -3,7 +3,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
 import { sendePush } from '../../mitteilungen/senden';
-import { MonatTab } from './MonatTab';
+import { DienstplanTab } from './DienstplanTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
 import { isoWochentag, monatErster, monatTage, monatText, monatVersatz, type Dienst } from '../../treffs/dienstplan';
@@ -23,6 +23,7 @@ const mittwoche = monatTage(monat).filter((d) => isoWochentag(d) === 3);
 const tagLabel = (d: string) => `${['', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][isoWochentag(d)]} ${Number(d.slice(8, 10))}.`;
 const dienst = (o: Partial<Dienst> & { id: string; datum: string }): Dienst => ({ von: '15:00', bis: '19:00', ist_sonder: false, bezeichnung: null, personen: [], wuensche: [], ...o });
 
+const MONAT = '/treffs/t1/dienstplan?ansicht=monat';
 const leitung: Szene = { ich: { id: 'lea', kategorie: 'Hauptamtliche*r' }, treffs: [{ treff_id: 't1', rolle: 'treffleitung' }] };
 const betreuerin: Szene = { ich: { kategorie: 'TZK' }, treffs: [{ treff_id: 't1', rolle: 'betreuerin' }] };
 
@@ -33,19 +34,21 @@ beforeEach(() => {
   vi.mocked(api.listeFeiertage).mockResolvedValue([]);
   vi.mocked(api.listeSchliesszeiten).mockResolvedValue([]);
   vi.mocked(api.listeAbwesenheiten).mockResolvedValue([]);
-  vi.mocked(api.dienstStatistik).mockResolvedValue([]);
+  vi.mocked(api.listeTreffAbsprachen).mockResolvedValue([]);
+  vi.mocked(api.listeVerhinderungen).mockResolvedValue([]);
+  vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([{ treff_id: 't1', monat }]);
   vi.mocked(api.wendeDienstplanAn).mockResolvedValue({ zugeteilt: 1, entfernt: 1 });
 });
 
 const oeffne = async () => {
-  renderMitAuth(<MonatTab treff={nord} rolle="treffleitung" />, leitung);
+  renderMitAuth(<DienstplanTab treff={nord} rolle="treffleitung" />, { ...leitung, pfad: MONAT });
   await userEvent.click(await screen.findByRole('button', { name: 'In der Tabelle einteilen' }));
 };
 const zelle = (name: string, datum: string) => screen.getByRole('button', { name: new RegExp(`^${name}, ${tagLabel(datum).replace('.', '\\.')}`) });
 
 describe('Einsatz-Matrix bearbeiten (Monat)', () => {
   it('nur Treffleitung und Koordination sehen den Bearbeiten-Knopf', async () => {
-    renderMitAuth(<MonatTab treff={nord} rolle="betreuerin" />, betreuerin);
+    renderMitAuth(<DienstplanTab treff={nord} rolle="betreuerin" />, { ...betreuerin, pfad: MONAT });
     await screen.findByText(monatText(monat));
     await screen.findByRole('table', { name: /an welchen Tagen eingeteilt/ });
     expect(screen.queryByRole('button', { name: 'In der Tabelle einteilen' })).not.toBeInTheDocument();
@@ -73,7 +76,7 @@ describe('Einsatz-Matrix bearbeiten (Monat)', () => {
     await userEvent.click(screen.getByRole('button', { name: /Ben Baum: an allen Öffnungstagen/ }));
     const offen = montage.length + mittwoche.length;
     expect(screen.getByText(`${offen - 1} neue Einteilungen`)).toBeInTheDocument();
-    expect(screen.getByText(/Ben Baum: ein Tag mit Urlaub oder Krankheit ausgelassen/)).toBeInTheDocument();
+    expect(screen.getByText(/Ben Baum: ein Tag mit Urlaub, Krankheit oder „kann nicht“ ausgelassen/)).toBeInTheDocument();
     expect(zelle('Ben Baum', montage[1]!)).toHaveAttribute('aria-pressed', 'false');
 
     await userEvent.click(zelle('Ben Baum', montage[1]!));                                          // einzeln: trotzdem einteilen
@@ -102,13 +105,13 @@ describe('Einsatz-Matrix bearbeiten (Monat)', () => {
     await oeffne();
     const zeile = () => within(screen.getByRole('table', { name: /an welchen Tagen eingeteilt/ })).getByRole('row', { name: /^Ben Baum/ });
     const stunden = () => within(zeile()).getAllByRole('cell').at(-1)!;
-    expect(stunden()).toHaveTextContent(/^0 h$/);
+    expect(stunden()).toHaveTextContent('0 h / 10 h');
     await userEvent.click(zelle('Ben Baum', montage[0]!));
-    expect(stunden()).toHaveTextContent('4 h (+4 h)');
+    expect(stunden()).toHaveTextContent('4 h / 10 h (+4 h)');
     expect(stunden()).not.toHaveClass('einsatz__zuviel');
     await userEvent.click(zelle('Ben Baum', mittwoche[0]!));
     await userEvent.click(zelle('Ben Baum', montage[1]!));
-    expect(stunden()).toHaveTextContent('12 h (+12 h) – mehr als die höchstens 10 h');
+    expect(stunden()).toHaveTextContent('12 h / 10 h (+12 h) – mehr als die höchstens 10 h');
     expect(stunden()).toHaveClass('einsatz__zuviel');
   });
 
@@ -174,7 +177,7 @@ describe('Einsatz-Matrix bearbeiten (Monat)', () => {
     ]);
     vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: 'k', person_id: 'ben', datum: montage[1]!, typ: 'krank', notiz: null }]);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    renderMitAuth(<MonatTab treff={nord} rolle="treffleitung" />, leitung);
+    renderMitAuth(<DienstplanTab treff={nord} rolle="treffleitung" />, { ...leitung, pfad: MONAT });
     await userEvent.click(await screen.findByRole('button', { name: 'Offenen Wunsch bestätigen' }));
     expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/Den offenen Wunsch im Monat bestätigen/));
     expect(api.bestaetigeWuensche).toHaveBeenCalledWith('t1', [{ dienst: 'd1', person: 'ben', datum: montage[0] }]);
@@ -184,16 +187,37 @@ describe('Einsatz-Matrix bearbeiten (Monat)', () => {
     confirm.mockRestore();
   });
 
-  it('Schließzeit: Tage sind markiert, nicht bearbeitbar, ohne Zuteilen-Knopf und nicht „unbesetzt“', async () => {
+  it('Schließzeit: Tage sind markiert, nicht bearbeitbar und nicht „unbesetzt“', async () => {
     vi.mocked(api.listeSchliesszeiten).mockResolvedValue([{ id: 's', treff_id: 't1', von: mittwoche[0]!, bis: mittwoche[0]!, grund: 'Fortbildung' }]);
     await oeffne();
     expect(screen.getByRole('columnheader', { name: new RegExp(`${tagLabel(mittwoche[0]!).replace('.', '\\.')}.*Geschlossen: Fortbildung`) })).toHaveClass('einsatz__tag--zu');
     expect(screen.queryByRole('button', { name: new RegExp(`^Ben Baum, ${tagLabel(mittwoche[0]!).replace('.', '\\.')}`) })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Ben Baum: an allen Öffnungstagen/ }));
     expect(screen.getByText(`${montage.length + mittwoche.length - 1} neue Einteilungen`)).toBeInTheDocument();
-    const liste = screen.getByRole('list', { name: 'Dienste im Monat' });
-    expect(within(liste).getByText('Geschlossen: Fortbildung')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /^Zuteilen am / })).toHaveLength(montage.length + mittwoche.length - 1);
+  });
+
+  it('Wochentags-Muster: je Person die Wochentage, Ergebnis landet im Entwurf; „kann nicht“ wird ausgelassen', async () => {
+    vi.mocked(api.listeVerhinderungen).mockResolvedValue([{ treff_id: 't1', person_id: 'ben', datum: mittwoche[0]! }]);
+    await oeffne();
+    await userEvent.click(screen.getByRole('button', { name: 'Wochentags-Muster …' }));
+    const fenster = await screen.findByRole('dialog', { name: /Wochentags-Muster/ });
+    expect(within(fenster).getByText('höchstens 10 Std./Monat')).toBeInTheDocument();
+    await userEvent.click(within(fenster).getByLabelText('Ben Baum: Mittwoch'));
+    expect(within(fenster).getByText(new RegExp(`${mittwoche.length - 1} neue Einteilung.*1 wegen Urlaub, Krankheit oder „kann nicht“ ausgelassen`))).toBeInTheDocument();
+    await userEvent.click(within(fenster).getByRole('button', { name: 'In den Entwurf übernehmen' }));
+    expect(zelle('Ben Baum', mittwoche[1]!)).toHaveAttribute('aria-pressed', 'true');
+    expect(zelle('Ben Baum', mittwoche[0]!)).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('status')).toHaveTextContent('Wochentags-Muster:');
+    expect(api.wendeDienstplanAn).not.toHaveBeenCalled();                                         // nur Entwurf
+  });
+
+  it('Monat in Planung: Speichern schickt keine Mitteilung', async () => {
+    vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([]);
+    await oeffne();
+    await userEvent.click(zelle('Ben Baum', mittwoche[0]!));
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    await screen.findByText(/gespeichert/);
+    expect(sendePush).not.toHaveBeenCalled();
   });
 
   it('Barrierefreiheit (axe): keine Verstöße im Bearbeiten-Modus', async () => {

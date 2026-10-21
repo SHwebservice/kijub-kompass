@@ -5,8 +5,6 @@ import { holeTreff } from '../../treffs/api';
 import { rolleInTreff, type RolleInTreff } from '../../lib/rollen';
 import { Alert, Badge, EmptyState, Spinner } from '../../components/ui';
 import { TreffUebersicht } from './TreffUebersicht';
-import { TreffTeamTab } from './TreffTeamTab';
-import { TreffAbsprachenTab } from './TreffAbsprachenTab';
 import { DienstplanTab } from './DienstplanTab';
 import { VerwaltungTab } from './VerwaltungTab';
 import { NachweisTab } from './NachweisTab';
@@ -23,9 +21,7 @@ export const TREFF_TABS: TabDef[] = [
   { pfad: 'notizen', label: 'Notizen', sichtbar: (r) => r !== 'gast' },
   { pfad: 'dienstplan', label: 'Dienstplan', sichtbar: (r) => r !== 'gast' },
   { pfad: 'nachweis', label: 'Stundennachweis', sichtbar: (r) => r !== 'gast' },
-  { pfad: 'absprachen', label: 'Absprachen', sichtbar: (r) => r !== 'gast' },
   { pfad: 'teamprotokolle', label: 'Teamprotokolle', sichtbar: (r) => r !== 'gast' },
-  { pfad: 'team', label: 'Team', sichtbar: (r) => r !== 'gast' },
   { pfad: 'verwaltung', label: 'Abwesenheit & Feiertage', sichtbar: (r) => r === 'treffleitung' || r === 'koordination' },
 ];
 
@@ -70,13 +66,15 @@ export function TreffDetail() {
       <Routes>
         <Route index element={<TreffUebersicht treff={d} rolle={rolle} />} />
         {tabs.some((x) => x.pfad === 'protokoll') && <Route path="protokoll" element={<ProtokollTab treff={d} rolle={rolle} />} />}
-        {tabs.some((x) => x.pfad === 'notizen') && <Route path="notizen" element={<NotizenTab treff={d} />} />}
+        {tabs.some((x) => x.pfad === 'notizen') && <Route path="notizen" element={<NotizenTab treff={d} rolle={rolle} />} />}
         {tabs.some((x) => x.pfad === 'dienstplan') && <Route path="dienstplan" element={<DienstplanTab treff={d} rolle={rolle} />} />}
         {tabs.some((x) => x.pfad === 'dienstplan') && <Route path="monat" element={<Navigate to={`/treffs/${id}/dienstplan?ansicht=monat`} replace />} />}
         {tabs.some((x) => x.pfad === 'nachweis') && <Route path="nachweis" element={<NachweisTab treff={d} rolle={rolle} />} />}
-        {tabs.some((x) => x.pfad === 'absprachen') && <Route path="absprachen" element={<TreffAbsprachenTab treff={d} rolle={rolle} />} />}
+        {/* Absprachen sind eine Art im Reiter Notizen; alte Links (Mitteilungen, Startseite) führen dorthin. */}
+        {tabs.some((x) => x.pfad === 'notizen') && <Route path="absprachen" element={<Navigate to={`/treffs/${id}/notizen?art=absprache`} replace />} />}
         {tabs.some((x) => x.pfad === 'teamprotokolle') && <Route path="teamprotokolle" element={<TeamprotokolleTab treff={d} rolle={rolle} />} />}
-        {tabs.some((x) => x.pfad === 'team') && <Route path="team" element={<TreffTeamTab treff={d} rolle={rolle} />} />}
+        {/* Das Team verwaltet die Koordination unter „Bearbeiten“; alte Links auf den früheren Reiter führen dorthin. */}
+        <Route path="team" element={<Navigate to={rolle === 'koordination' ? `/treffs/${id}/bearbeiten` : `/treffs/${id}`} replace />} />
         {tabs.some((x) => x.pfad === 'verwaltung') && <Route path="verwaltung" element={<VerwaltungTab treff={d} rolle={rolle} />} />}
         <Route path="*" element={<Navigate to={`/treffs/${id}`} replace />} />
       </Routes>

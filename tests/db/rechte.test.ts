@@ -408,6 +408,15 @@ describe('Treffs, Dienste, Wünsche', () => {
       `insert into treff_plan_eintraege (treff_id, wochentag, freitext) values ($1, 3, 'x')`, [treff])));
     expect(msg).toMatch(/row-level security/i);
   });
+  it('Wochenprogramm-Freitext: Treffleitung setzt ihn, BetreuerIn liest ihn, darf ihn aber nicht ändern', async () => {
+    await als(db, tl, () => q(`select fn_wochenprogramm_setzen($1, $2)`, [treff, '  Dienstag: Kicker  ']));
+    const r = await als(db, betr, () => q<{ wochenprogramm: string }>(`select wochenprogramm from treffs where id = $1`, [treff]));
+    expect(r.rows[0]!.wochenprogramm).toBe('Dienstag: Kicker');
+    const msg = await als(db, betr, () => fehler(() => q(`select fn_wochenprogramm_setzen($1, 'x')`, [treff])));
+    expect(msg).toMatch(/Nur Treffleitung und Treffkoordination/);
+    await als(db, tl, () => q(`select fn_wochenprogramm_setzen($1, '')`, [treff]));
+    expect((await q<{ wochenprogramm: string | null }>(`select wochenprogramm from treffs where id = $1`, [treff])).rows[0]!.wochenprogramm).toBeNull();
+  });
   it('Treff-Absprachen: Treffleitung schreibt, BetreuerIn liest und bestätigt', async () => {
     const n = (await als(db, tl, () => q<{ id: string }>(
       `insert into notizen (treff_id, art, text) values ($1, 'absprache', 'Schlüssel') returning id`, [treff]))).rows[0]!.id;

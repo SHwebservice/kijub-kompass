@@ -54,7 +54,7 @@ export function ZuordnungsTabelle({ personen, spalten, treffs, freizeitTeams, z,
                 </th>
               );
             })}
-            {treffs.map((t) => <th key={t.id} scope="col" className="zuordnung__kopf"><Link to={`/treffs/${t.id}/team`}>{t.name}</Link></th>)}
+            {treffs.map((t) => <th key={t.id} scope="col" className="zuordnung__kopf"><Link to={`/treffs/${t.id}/bearbeiten`}>{t.name}</Link></th>)}
           </tr>
         </thead>
         <tbody>

@@ -80,10 +80,6 @@ export function sortiereTreffTeam<T extends Pick<TreffMitglied, 'rolle' | 'vorna
 export const TREFF_KATEGORIEN = ['TZK', 'FSJ', 'Praktikum unbezahlt', 'Hauptamtliche*r'];
 export const darfInTreff = (kategorie: string) => TREFF_KATEGORIEN.includes(kategorie);
 
-export interface WochenprogrammEintrag { wochentag: number; angebot_id: string | null; angebot_name: string | null; freitext: string | null; notiz: string | null }
-
-export const programmTitel = (e: Pick<WochenprogrammEintrag, 'angebot_name' | 'freitext'>) => e.angebot_name ?? e.freitext ?? '';
-
 /** Wochenprogramm, Dienstplan und Absprachen verwaltet die Treffleitung (und die Koordination). */
 export const darfTreffVerwalten = (rolle: RolleInTreff) => rolle === 'treffleitung' || rolle === 'koordination';
 

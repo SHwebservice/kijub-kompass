@@ -109,7 +109,7 @@ describe('Startseite: Schnellzugriff', () => {
     await screen.findByRole('navigation', { name: 'Schnellzugriff' });
     expect(await within(screen.getByRole('list', { name: 'Treffs' })).findByRole('link', { name: /Dienstplan\s*Offen:\s*1/ })).toHaveAttribute('href', '/treffs/t1/dienstplan');
     expect(kachelLink('Treffs', /^Stundennachweis/)).toHaveAttribute('href', '/treffs/t1/nachweis');
-    expect(kachelLink('Treffs', /^Absprachen/)).toHaveAttribute('href', '/treffs/t1/absprachen');
+    expect(kachelLink('Treffs', /^Absprachen/)).toHaveAttribute('href', '/treffs/t1/notizen?art=absprache');
     expect(kachelLink('Treffs', 'Alle Treffs')).toHaveAttribute('href', '/treffs');
     expect(kachelLink('Wissen & Konto', 'Treffmappe')).toHaveAttribute('href', '/treffmappe');
     expect(screen.queryByRole('link', { name: /Monatsplan/ })).not.toBeInTheDocument();

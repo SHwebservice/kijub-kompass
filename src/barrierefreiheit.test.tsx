@@ -61,6 +61,7 @@ beforeEach(() => {
   vi.mocked(treffApi.listeTreffs).mockResolvedValue([nord]);
   vi.mocked(treffApi.listeMeineDienste).mockResolvedValue([]);
   vi.mocked(treffApi.holeTreffTeam).mockResolvedValue([treffMitglied({ person_id: 'b', vorname: 'Ben', nachname: 'Baum', kategorie: 'TZK' })]);
+  vi.mocked(treffApi.listeTreffAbsprachen).mockResolvedValue([{ id: 'a1', art: 'absprache', geltung: 'gesamt', datum: null, text: 'Schlüssel abgeben', erstellt_von: 'b', created_at: '2027-06-01T10:30:00Z', bestaetigungen: [], kommentare: [] }]);
   vi.mocked(treffApi.listeFeiertage).mockResolvedValue([]);
   vi.mocked(treffApi.listeSchliesszeiten).mockResolvedValue([]);
   vi.mocked(heuteApi.ladeHeute).mockResolvedValue({
@@ -132,7 +133,7 @@ describe('Barrierefreiheit (axe): keine Verstöße gegen gängige Regeln', () =>
     await screen.findByRole('dialog');
     expect(await axeVerstoesse(document.body)).toEqual([]);
     a.unmount();
-    const b = renderMitAuth(<NotizenTab treff={nord} />, { ich: { id: 'b', kategorie: 'TZK' }, treffs: [{ treff_id: 't1', rolle: 'betreuerin' }] });
+    const b = renderMitAuth(<NotizenTab treff={nord} rolle="betreuerin" />, { ich: { id: 'b', kategorie: 'TZK' }, treffs: [{ treff_id: 't1', rolle: 'betreuerin' }] });
     await screen.findByRole('list', { name: 'Offene Notizen' });
     expect(await axeVerstoesse(b.container)).toEqual([]);
   });

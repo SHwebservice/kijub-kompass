@@ -71,7 +71,7 @@ export function baueFeed(e: FeedEingabe): FeedEintrag[] {
     const teile = [g.hinweise > 0 && personenText(g.hinweise, 'Hinweis', 'Hinweise'), g.absprachen > 0 && personenText(g.absprachen, 'Absprache', 'Absprachen')].filter(Boolean);
     liste.push({
       id: `offen-${g.schluessel}`, gruppe: 'erledigen', icon: g.typ === 'treff' ? '🤝' : '📣', ton: 'warnung', titel: `${teile.join(' und ')} zum Bestätigen`, text: g.name,
-      link: g.typ === 'treff' ? `/treffs/${g.id}/absprachen` : `/freizeiten/${g.id}/hinweise`, aktion: 'Ansehen', zahl: g.anzahl,
+      link: g.typ === 'treff' ? `/treffs/${g.id}/notizen?art=absprache` : `/freizeiten/${g.id}/hinweise`, aktion: 'Ansehen', zahl: g.anzahl,
     });
   }
   for (const k of e.knapp) {

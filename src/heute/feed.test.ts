@@ -49,7 +49,7 @@ describe('baueFeed', () => {
       ],
     }));
     expect(f[0]).toMatchObject({ link: '/freizeiten/f1/hinweise', zahl: 3, titel: '2 Hinweise und 1 Absprache zum Bestätigen', text: 'Sommer' });
-    expect(f[1]).toMatchObject({ link: '/treffs/t1/absprachen', zahl: 1, titel: '1 Absprache zum Bestätigen', text: 'Kindertreff' });
+    expect(f[1]).toMatchObject({ link: '/treffs/t1/notizen?art=absprache', zahl: 1, titel: '1 Absprache zum Bestätigen', text: 'Kindertreff' });
   });
 
   it('knappe Lebensmittel: Ort, Artikel mit Rest, Link zum Lebensmittel-Reiter; ohne Freizeit zur Liste', () => {

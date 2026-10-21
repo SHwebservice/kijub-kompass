@@ -21,6 +21,11 @@ export function baueMenue(r: Rollen | null): MenueGruppe[] {
     ],
   }];
 
+  // Wer in einem Treff Dienste hat, findet sie hier über alle Treffs hinweg (mit Kalender-Übernahme)
+  if (r && r.treffleitungen.length + r.betreuerTreffs.length > 0) {
+    gruppen.unshift({ id: 'dienste', titel: 'Meine Dienste', eintraege: [e('/dienste', '🗓️', 'Meine Dienste', 'Alle eigenen Dienste, Wünsche und Kalender-Abo')] });
+  }
+
   if (r?.koordination) {
     const fk = r.freizeitkoordination; const tk = r.treffkoordination;
     gruppen.push(

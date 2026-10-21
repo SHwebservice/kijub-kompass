@@ -7,8 +7,9 @@ import { holeTreff, loescheTreff, speichereTreff, type TreffFormular } from '../
 import { leereTage, STANDARD_BIS, STANDARD_VON, tageAusOeffnungszeiten, validiereTreff, WOCHENTAGE, wochentagName } from '../../treffs/logik';
 import { nameBestaetigt } from '../PersonEntfernen';
 import { Alert, Button, Card, PageHeader, SelectField, Spinner, TextField } from '../../components/ui';
+import { TreffTeam } from './TreffTeam';
 
-/** Koordination: Treff anlegen, ändern (mit Öffnungszeiten) oder endgültig löschen. */
+/** Koordination: Treff anlegen, ändern (mit Öffnungszeiten und Team) oder endgültig löschen. */
 export function TreffForm() {
   const { id } = useParams();
   const vorhanden = useLaden(async () => (id ? holeTreff(id) : null), `treffform-${id ?? 'neu'}`);
@@ -107,6 +108,14 @@ function FormInhalt({ id, start }: { id: string | null; start: TreffFormular }) 
           <Link className="btn" to={neu ? '/treffs' : `/treffs/${id}`}>Abbrechen</Link>
         </div>
       </form>
+
+      {!neu && (
+        <Card>
+          <h2>Team</h2>
+          <p className="field__hint">Änderungen am Team gelten sofort, unabhängig von „Änderungen speichern“.</p>
+          <TreffTeam treff={{ id, name: start.name }} />
+        </Card>
+      )}
 
       {!neu && (
         <Card className="gefahr">

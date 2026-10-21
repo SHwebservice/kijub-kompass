@@ -24,6 +24,12 @@ describe('Menü unter „Mehr“: Inhalt je Rolle', () => {
   it('TZK im Treff bekommt zusätzlich die Treffmappe', () => {
     expect(pfade(baueMenue(rollenVon({ kategorie: 'TZK' }, [{ treff_id: 't', rolle: 'betreuerin' }])))).toContain('/treffmappe');
   });
+  it('wer in einem Treff ist, findet ganz oben „Meine Dienste“', () => {
+    const g = baueMenue(rollenVon({ kategorie: 'TZK' }, [{ treff_id: 't', rolle: 'betreuerin' }]));
+    expect(ids(g)[0]).toBe('dienste');
+    expect(pfade(g)).toContain('/dienste');
+    expect(pfade(baueMenue(rollenVon({})))).not.toContain('/dienste');
+  });
   it('Koordination (beide Bereiche): Verwaltung in vier Gruppen, ohne „Programmpunkt vorschlagen“', () => {
     const g = baueMenue(rollenVon({ ...BEIDE, kategorie: 'Hauptamtliche*r' }));
     expect(ids(g)).toEqual(['wissen', 'personen', 'planung', 'inhalte', 'kommunikation']);

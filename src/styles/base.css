@@ -371,4 +371,17 @@ a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
 
 /* Teamprotokolle der Treffs */
 .teamprotokoll--neu { border-left: 4px solid var(--warning); }
-.teamprotokoll__text { white-space: pre-wrap; line-height: 1.6; padding: var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); }
+.teamprotokoll--entwurf { border-left: 4px dashed var(--border); }
+.teamprotokoll__inhalt { display: grid; gap: var(--space-2); margin-top: var(--space-3); line-height: 1.6; }
+.teamprotokoll__ergebnis p { margin: 0 0 var(--space-2); white-space: pre-line; }
+.teamprotokoll__ergebnis ul { margin: 0 0 var(--space-2); padding-left: 1.25rem; }
+.teamprotokoll__ergebnis > :last-child { margin-bottom: 0; }
+.teamprotokoll__abschnitt { background: var(--surface-2); border-radius: var(--radius-sm); }
+.teamprotokoll__abschnitt > summary { cursor: pointer; padding: var(--space-3); font-weight: 600; font-size: var(--fs-lg, 1.1rem); min-height: 44px; }
+.teamprotokoll__abschnitt > .teamprotokoll__ergebnis { padding: 0 var(--space-3) var(--space-3); }
+.teamprotokoll__abschluss { padding: var(--space-3); border-left: 3px solid var(--accent); background: var(--accent-bg); border-radius: var(--radius-sm); }
+.teamprotokoll__abschluss p { margin: 0 0 var(--space-1); }
+.teamprotokoll__bearbeiten { border: 0; padding: 0; margin: 0 0 var(--space-4); display: grid; gap: var(--space-3); justify-items: start; }
+.teamprotokoll__bearbeiten > * { justify-self: stretch; }
+.teamprotokoll__bearbeiten > .btn { justify-self: start; }
+.teamprotokoll__abschnitt-form { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }

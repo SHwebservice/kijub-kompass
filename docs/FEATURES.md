@@ -72,7 +72,7 @@ Quellen-Kürzel: `mt` = mitarbeitende.js, `fz` = freizeiten-zugaenge.js, `tf` = 
 | ID | Was der Altcode tut | Quelle | Entscheidung |
 |---|---|---|---|
 | D1 | Stammdaten: Name, Ort (ein Ort gehört höchstens einem Treff), Adresse, Öffnungstage (Mo–So), **Öffnungszeit je Tag als Freitext** („15:00–19:00 Uhr"). | `tf` | **Neu** → Öffnungszeit strukturiert (von/bis), weil Stunden daraus berechnet werden. |
-| D2 | Wochenprogramm: **ein** Programmpunkt pro Öffnungstag (Katalog oder Freitext), Notiz; wiederkehrend (nicht datiert). | `tf` | **Behalten**. |
+| D2 | Wochenprogramm: **ein** Programmpunkt pro Öffnungstag (Katalog oder Freitext), Notiz; wiederkehrend (nicht datiert). | `tf` | **Geändert** (2026-10-21, Migration 0038): ein Freitext je Treff für das feste, wöchentlich wiederkehrende Programm; steht in der Kachel mit den Öffnungszeiten. |
 | D3 | Absprachen (nur Treffleitung legt an; BetreuerInnen bestätigen), optional an ein Datum gekoppelt (Badge im Dienstplan). Keine Hinweise-vs.-Absprachen-Trennung. Absprachen-Bereich startet eingeklappt. | `tf` | **Behalten**. |
 | D4 | „Neu seit letztem Besuch" (Punkt am Reiter Dienstplan / bei Absprachen) – rein lokal per Zeitstempel. | `tf` | **Neu** → serverseitiger „gelesen bis"-Stand je Person (funktioniert geräteübergreifend). |
 | D5 | „Heute-Fokus" und Sticky-Anzeige des Dienstplans. | `tf` | **Behalten** (Startseite „Heute"). |
@@ -190,7 +190,7 @@ B9 (Bewerbung und Zurückziehen, Entscheidung durch die Koordination), Startseit
 ## Stand der Umsetzung: Treffs (Phase 3c, 2026-09-30)
 
 **Umgesetzt und getestet:** D1 (Stammdaten und strukturierte Öffnungszeiten je Wochentag, Formular für die Koordination, Löschen mit Kaskade und Namensbestätigung),
-D2 (Wochenprogramm: ein Programmpunkt je Öffnungstag, Katalog oder Freitext, Notiz), D3 (Absprachen der Treffleitung, optional an einen Tag gekoppelt, von allen im Treff bestätigt),
+D2 (Wochenprogramm als Freitext je Treff, seit 0038), D3 (Absprachen der Treffleitung, optional an einen Tag gekoppelt, von allen im Treff bestätigt),
 D6 (Team mit rollenabhängigen Kontaktdaten und TZK-Angaben; Zuordnung und Rollen durch die Koordination, nur zulässige Kategorien), D7 (Kaskade),
 E1 (Dienstplan je Kalenderwoche mit Karte je Öffnungstag, Feiertags- und Absprachen-Badge, Abwesenden), E2 (Zuteilen durch Treffleitung/Koordination, Abwesende werden markiert),
 E3 (Wunschdienste: wünschen, zurücknehmen, bestätigen = zugleich einteilen, ablehnen, erneut wünschen nach Ablehnung), E4 (Sonderdienste, auch an Schließtagen),
@@ -207,7 +207,8 @@ Entwurf → eingereicht → freigegeben, PDF über den Druckdialog des Browsers 
 
 **Noch offen (bewusst später):**
 - Kalenderansicht des Monats (heute: Liste), „Neu seit letztem Besuch“ (D4), Push bei Dienständerungen, neuen Wünschen und Kommentaren (Bereich Mitteilungen).
-- Wochenprogramm kann laut Datenbank jede Person des Treffs ändern; die Oberfläche beschränkt es auf Treffleitung und Koordination (bei Bedarf lockern).
+- Das Wochenprogramm (Freitext, 0038) ändern nur Treffleitung und Treffkoordination (fn_wochenprogramm_setzen); die alte Tabelle treff_plan_eintraege wird nicht mehr benutzt.
+- Treffs haben keinen Reiter „Team“ mehr (2026-10-21): Die Koordination verwaltet das Team unter „Treff bearbeiten“ (gilt sofort, ohne „Speichern“); alte Links auf /treffs/:id/team führen dorthin bzw. für alle anderen zur Übersicht. Die Startseiten-Kachel „Team“ der Treffs entfällt.
 
 ## Stand der Umsetzung: Mappen, Formulare und Quiz (Phase 3d, 2026-09-30)
 
@@ -469,3 +470,39 @@ Die 77 Programmpunkte des alten KiJuB Kompass wurden einmalig übernommen: direk
 - **Gelesen:** Wer ein Protokoll öffnet, gilt als „gelesen“. In der Liste sind ungelesene markiert; die Treffleitung sieht je Protokoll „von allen gelesen“ bzw. „n noch nicht gelesen“ und beim Öffnen die Namen.
 - **Startseite:** Karte „Teamprotokoll ungelesen“ bzw. „n Teamprotokolle ungelesen“ je eigenem Treff (Protokolle der letzten 60 Tage) mit Link zum Reiter.
 
+
+## Absprachen der Treffs im Reiter Notizen (2026-10-21)
+
+- Der **Reiter „Absprachen“ entfällt.** Absprachen sind jetzt eine **Art im Reiter „Notizen“** (neben To-do, Einkauf, offene Frage, Sonstiges) mit eigenem Filter *Absprachen*.
+- Sie funktionieren wie bisher: nur **Treffleitung und Treffkoordination** wählen die Art „Absprache“ und dürfen sie bearbeiten/löschen; **alle im Treff bestätigen** sie (👍); optional gelten sie **für einen bestimmten Tag** (Badge im Dienstplan). Das Team bekommt bei einer neuen Absprache eine Mitteilung.
+- Absprachen mit einem Tag in der Vergangenheit stehen eingeklappt unter *Vergangene Absprachen* (nur im Filter *Absprachen*); unter *Alle* erscheinen nur die geltenden.
+- Die Daten liegen unverändert in `notizen` (keine Migration). Alte Links auf `/treffs/:id/absprachen` (Mitteilungen, Startseite) leiten auf `/treffs/:id/notizen?art=absprache` um; Kachel und Startseiten-Karte verlinken direkt dorthin.
+
+## Teamprotokolle: Gliederung, Entwurf, gemeldete Änderungen (2026-10-21)
+
+**Umgesetzt und getestet** (Migration `0037`):
+- **Gegliedertes Protokoll:** je Thema eine **Überschrift** mit dem **Ergebnis** darunter (beliebig viele Abschnitte, sortierbar). Zeilen mit „- “ werden zur Aufzählung. Beim Lesen lassen sich die Überschriften **ein- und ausklappen** (erste offen, „Alle aufklappen/zuklappen“) – gut lesbar auf dem Handy.
+- **Zum Schluss:** *Nächstes Treffen* (Datum, optional Uhrzeit) und *Aufgaben und Ziele*, in der Lese-Ansicht hervorgehoben. Bestehende Protokolle wurden zu einem Abschnitt ohne Überschrift; die Spalte `text` füllt die Datenbank weiter als reinen Text.
+- **Entwurf:** „Als Entwurf speichern“ – nur Treffleitung und Treffkoordination sehen ihn, keine Mitteilung, kein „gelesen“. „Veröffentlichen und Team informieren“ macht ihn sichtbar und schickt die Mitteilung.
+- **Änderung melden:** Beim Bearbeiten eines veröffentlichten Protokolls optional „Änderung ans Team melden“: Der Gelesen-Stand wird zurückgesetzt, alle bekommen die Mitteilung „Teamprotokoll geändert“ und lesen erneut. In der Lese-Ansicht steht „Zuletzt geändert am … von …“.
+- **Neu im Team:** Wer einem Treff zugeordnet wird, sieht die schon veröffentlichten Protokolle nicht als ungelesen. Die Treffleitung sieht diese Personen getrennt („Erst danach ins Team gekommen“); öffnen sie das Protokoll, zählt es als gelesen. Nach einer gemeldeten Änderung gilt es auch für sie wieder als ungelesen.
+- **Zwischenspeicherung:** Ungespeicherte Eingaben bleiben auf dem Gerät, falls das Fenster versehentlich zugeht, und lassen sich beim nächsten Öffnen wiederherstellen oder verwerfen.
+- Technik: `fn_push_vorbereiten` wird in 0037 umbenannt (`fn_push_vorbereiten_vor_0037`) und umhüllt; die Zweige `teamprotokoll` und `teamprotokoll_geaendert` muss übernehmen, wer die Funktion später neu schreibt.
+
+## Dienstplan übersichtlicher planen und schneller einsehen (2026-10-21)
+
+**Umgesetzt und getestet** (Migration `0036`, Edge Function `kalender`):
+- **Eine Planungsfläche:** Woche und Monat zeigen dieselbe Einsatz-Matrix „Wer arbeitet wann“. Die Tageskarten der Woche, die Tagesliste und die Karten „Monat einteilen“ und „Statistik“ des Monats entfallen.
+- **Tagesfenster:** Ein Klick auf einen Tag in der Kopfzeile öffnet alles zu diesem Tag: Öffnungszeit, Feiertag/Schließzeit, Absprachen, Abwesende, Eingeteilte und Sonderdienste. Die Treffleitung teilt dort ein, beantwortet Wünsche und legt einen Sonderdienst an diesem Tag an. BetreuerInnen wünschen den Dienst, nehmen den Wunsch zurück oder sagen „Kann an diesem Tag nicht“.
+- **Anklickbare Zellen:** Die Treffleitung tippt eine „?“-Zelle an, um den Wunsch zu beantworten. BetreuerInnen tippen in ihrer eigenen Zeile auf einen Tag.
+- **Alle Werkzeuge in einem Entwurf:** Im Bearbeiten-Modus des Monats füllt das **Wochentags-Muster** (je Person die Wochentage, mit Regeltagen und Höchststunden, zusätzlich oder ersetzend) denselben Entwurf wie „Vormonat übernehmen“ und „Woche kopieren“. Es gibt einen einzigen Speichern-Knopf.
+- **Stunden immer sichtbar:** Für Treffleitung und Koordination steht die Spalte „Std.“ immer in der Tabelle. Im Monat steht sie als „12 h / 40 h“ und ist rot, wenn die Höchststunden überschritten sind.
+- **Mindestbesetzung je Treff** (Auswahl über der Tabelle, 1–8 Personen; in der Datenbank 1–20): Öffnungstage mit weniger Personen sind orange markiert („unterbesetzt“), leere bleiben rot.
+- **Monat veröffentlichen:** Solange ein Monat „in Planung“ ist, sieht das Team den Hinweis „vorläufig“, und Änderungen lösen keine Mitteilungen aus. „November veröffentlichen“ schickt eine einzige Mitteilung ans Team. Danach gibt es wie bisher Mitteilungen bei Änderungen. „Zurück in Planung“ ist möglich. Monate, die vor der Migration schon Dienste hatten, gelten als veröffentlicht. Antworten auf Wünsche lösen weiterhin immer eine Mitteilung aus.
+- **„Kann nicht“:** Mitarbeitende markieren künftige Tage, an denen sie nicht können. Das sehen nur sie selbst, die Treffleitung und die Treffkoordination. In der Tabelle erscheint ✕. Beim Füllen, Ziehen, Muster, Vormonat und Woche kopieren wird dort nicht eingeteilt; einzeln angeklickt geht es trotzdem. Ist die Person an dem Tag eingeteilt, bekommt die Treffleitung eine Mitteilung.
+- **Für Mitarbeitende:** Die Karte „Deine Dienste“ über der Tabelle zeigt die eigenen Dienste des Zeitraums mit Stunden, offenen Wünschen, „neu“ und „vorläufig“. Die eigene Zeile steht in der Tabelle oben; die Tabelle lässt sich auf „nur mich“ umschalten.
+- **Seite „Meine Dienste“** (`/dienste`, unter *Mehr* und auf der Startseite verlinkt): Alle eigenen Dienste der nächsten 120 Tage über alle Treffs, nach Monaten mit Stunden, dazu offene Wünsche. Jeder Eintrag führt in den Dienstplan an genau diesen Tag (`?datum=`).
+- **Neu seit dem letzten Besuch:** Einteilungen, die nach dem letzten Besuch von „Meine Dienste“ oder dem Dienstplan entstanden sind, tragen „neu“ (auch auf der Startseite). Dafür speichert die Datenbank den Zeitpunkt jeder Einteilung; ältere Einteilungen gelten nicht als neu.
+- **Kalender:** „Als Datei herunterladen (.ics)“ oder ein persönlicher **Abo-Link** für Google, Apple oder Outlook. Er umfasst die Dienste der letzten 60 Tage und des kommenden Jahres, mit Ort des Treffs; Monate in Planung erscheinen als „vorläufig“. Der Schlüssel des Links wird nur als Hash gespeichert und ist nur direkt nach dem Erzeugen sichtbar. Der Link lässt sich jederzeit neu erzeugen (der alte wird ungültig) oder löschen.
+
+**Einrichtung:** Migration `0036` einspielen und die Edge Function `kalender` **mit ausgeschaltetem „Verify JWT“** bereitstellen (`docs/SETUP.md`, Abschnitt 3). Ohne die Funktion funktioniert alles außer dem Abo-Link.
