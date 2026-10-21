@@ -1,33 +1,25 @@
--- KiJuB-Kompass · 0038: Wochenprogramm als Freitext je Treff
+-- KiJuB-Kompass · 0038: Wochenprogramm als Freitext je Öffnungstag
 --
--- Statt eines Programmpunkts je Öffnungstag (treff_plan_eintraege) trägt die Treffleitung das feste, jede Woche wiederkehrende
--- Programm als einen Freitext ein (treffs.wochenprogramm). Treffleitung und Treffkoordination ändern ihn mit fn_wochenprogramm_setzen.
--- Bisherige Einträge werden einmalig in den Freitext übernommen („Dienstag: Spielenachmittag – Notiz“). Die alte Tabelle bleibt
--- unverändert stehen, wird von der App aber nicht mehr benutzt.
+-- Das wiederkehrende Wochenprogramm (treff_plan_eintraege, ein Eintrag je Wochentag) ist nur noch ein Freitext, der in der App
+-- direkt bei den Öffnungszeiten des Tages steht. Katalog-Programmpunkt und Notiz entfallen: Bestehende Einträge werden einmalig
+-- in den Freitext übernommen („Spielenachmittag – Notiz“), die Spalten angebot_id und notiz bleiben leer.
+-- Schreiben dürfen nur noch Treffleitung und Treffkoordination (bisher jede Person des Treffs; die App ließ es ohnehin nur die
+-- Leitung tun).
 
-alter table treffs add column wochenprogramm text check (wochenprogramm is null or length(wochenprogramm) <= 4000);
+update treff_plan_eintraege e
+   set freitext   = coalesce(a.name, e.freitext, '') || coalesce(' – ' || nullif(trim(e.notiz), ''), ''),
+       angebot_id = null,
+       notiz      = null
+  from treff_plan_eintraege x
+  left join angebote a on a.id = x.angebot_id
+ where x.treff_id = e.treff_id and x.wochentag = e.wochentag
+   and (e.angebot_id is not null or e.notiz is not null);
 
-update treffs t set wochenprogramm = x.text
-from (
-  select e.treff_id,
-         string_agg(
-           (array['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'])[e.wochentag] || ': '
-             || coalesce(a.name, e.freitext, '')
-             || coalesce(' – ' || nullif(trim(e.notiz), ''), ''),
-           E'\n' order by e.wochentag) as text
-  from treff_plan_eintraege e
-  left join angebote a on a.id = e.angebot_id
-  group by e.treff_id
-) x
-where x.treff_id = t.id and t.wochenprogramm is null;
+delete from treff_plan_eintraege where trim(coalesce(freitext, '')) = '';
 
-create function fn_wochenprogramm_setzen(p_treff uuid, p_text text) returns void
-language plpgsql security definer set search_path = public, pg_temp as $$
-begin
-  if not (ist_treffkoord() or ist_treffleitung(p_treff)) then
-    raise exception 'Nur Treffleitung und Treffkoordination dürfen das Wochenprogramm ändern' using errcode = '42501';
-  end if;
-  update treffs set wochenprogramm = nullif(trim(p_text), '') where id = p_treff;
-end $$;
-revoke execute on function fn_wochenprogramm_setzen(uuid, text) from public, anon;
-grant execute on function fn_wochenprogramm_setzen(uuid, text) to authenticated;
+alter table treff_plan_eintraege add constraint treff_plan_eintraege_freitext_laenge check (length(freitext) <= 2000);
+
+drop policy schreiben on treff_plan_eintraege;
+create policy schreiben on treff_plan_eintraege for all to authenticated
+  using (ist_treffkoord() or ist_treffleitung(treff_id))
+  with check (ist_treffkoord() or ist_treffleitung(treff_id));

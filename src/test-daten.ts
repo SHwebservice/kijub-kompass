@@ -25,7 +25,7 @@ export const mitglied = (o: Partial<TeamMitglied> & { person_id: string }): Team
 });
 
 export const treff = (o: Partial<TreffDetailDaten> & { id: string }): TreffDetailDaten => ({
-  name: `Treff ${o.id}`, ort_id: null, ort_name: null, oeffnungszeiten: [], adresse_abw: null, mindestbesetzung: 1, ort_adresse: null, wochenprogramm: null, ...o,
+  name: `Treff ${o.id}`, ort_id: null, ort_name: null, oeffnungszeiten: [], adresse_abw: null, mindestbesetzung: 1, ort_adresse: null, wochenprogramm: {}, ...o,
 });
 
 export const treffMitglied = (o: Partial<TreffTeamMitglied> & { person_id: string }): TreffTeamMitglied => ({

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { fehlerText } from '../../lib/fehler';
-import { setzeWochenprogramm, type TreffDetailDaten } from '../../treffs/api';
+import { setzeWochenprogrammTag, type TreffDetailDaten } from '../../treffs/api';
 import { darfTreffVerwalten, oeffnungszeitText, wochentagName } from '../../treffs/logik';
 import type { RolleInTreff } from '../../lib/rollen';
 import { Alert, Button, Card } from '../../components/ui';
@@ -10,19 +10,29 @@ function Zeile({ label, wert }: { label: string; wert: React.ReactNode }) {
   return (<><dt>{label}</dt><dd>{wert}</dd></>);
 }
 
-/** Stammdaten, Öffnungszeiten und das feste Wochenprogramm (ein Freitext, den Treffleitung und Koordination pflegen). */
+/** Stammdaten und Öffnungszeiten; bei jedem Öffnungstag steht sein festes Wochenprogramm (Freitext, pflegen Treffleitung und Koordination). */
 export function TreffUebersicht({ treff: t, rolle }: { treff: TreffDetailDaten; rolle: RolleInTreff }) {
   const verwaltung = darfTreffVerwalten(rolle);
-  const [programm, setProgramm] = useState(t.wochenprogramm ?? '');
-  const [entwurf, setEntwurf] = useState<string | null>(null);
+  const [programm, setProgramm] = useState<Record<number, string>>(t.wochenprogramm);
+  const [entwurf, setEntwurf] = useState<Record<number, string> | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
 
-  async function speichern(text: string) {
+  const geaendert = entwurf ? t.oeffnungszeiten.filter((o) => (entwurf[o.wochentag] ?? '').trim() !== (programm[o.wochentag] ?? '')) : [];
+
+  async function speichern() {
+    if (!entwurf) return;
     setArbeitet(true); setFehler(null);
-    try { await setzeWochenprogramm(t.id, text); setProgramm(text.trim()); setEntwurf(null); }
-    catch (e) { setFehler(fehlerText(e, 'Das Wochenprogramm konnte nicht gespeichert werden.')); }
-    finally { setArbeitet(false); }
+    const neu = { ...programm };
+    try {
+      for (const o of geaendert) {
+        const text = (entwurf[o.wochentag] ?? '').trim();
+        await setzeWochenprogrammTag(t.id, o.wochentag, text);
+        if (text) neu[o.wochentag] = text; else delete neu[o.wochentag];
+      }
+      setEntwurf(null);
+    } catch (e) { setFehler(fehlerText(e, 'Das Wochenprogramm konnte nicht gespeichert werden.')); }
+    finally { setProgramm(neu); setArbeitet(false); }
   }
 
   return (
@@ -33,31 +43,36 @@ export function TreffUebersicht({ treff: t, rolle }: { treff: TreffDetailDaten; 
           <Zeile label="Ort" wert={t.ort_name} />
           <Zeile label="Adresse" wert={t.ort_adresse ?? t.adresse_abw} />
         </dl>
-        <h3>Öffnungszeiten</h3>
-        {t.oeffnungszeiten.length === 0 ? <p>Keine Öffnungstage eingetragen.</p> : (
-          <dl className="daten">
-            {t.oeffnungszeiten.map((o) => <Zeile key={o.wochentag} label={wochentagName(o.wochentag)} wert={oeffnungszeitText(o)} />)}
-          </dl>
-        )}
-
-        <h3>Wochenprogramm</h3>
+        <h3>Öffnungszeiten und Wochenprogramm</h3>
         {fehler && <Alert ton="error">{fehler}</Alert>}
-        {entwurf !== null ? (
+        {t.oeffnungszeiten.length === 0 ? <p>Keine Öffnungstage eingetragen.</p> : entwurf ? (
           <div className="stack">
-            <div className="field">
-              <label className="field__label" htmlFor="wochenprogramm">Festes Programm, das sich jede Woche wiederholt</label>
-              <textarea id="wochenprogramm" className="input" rows={6} maxLength={4000} value={entwurf} onChange={(e) => setEntwurf(e.target.value)}
-                style={{ padding: 'var(--space-3)' }} />
-            </div>
+            {t.oeffnungszeiten.map((o) => (
+              <div key={o.wochentag} className="field">
+                <label className="field__label" htmlFor={`programm-${o.wochentag}`}>{wochentagName(o.wochentag)} · {oeffnungszeitText(o)}</label>
+                <textarea id={`programm-${o.wochentag}`} className="input" rows={2} maxLength={2000} placeholder="Festes Programm an diesem Tag"
+                  value={entwurf[o.wochentag] ?? ''} onChange={(e) => setEntwurf({ ...entwurf, [o.wochentag]: e.target.value })}
+                  style={{ padding: 'var(--space-3)' }} />
+              </div>
+            ))}
             <div className="row">
-              <Button variante="primary" laedt={arbeitet} disabled={entwurf.trim() === programm} onClick={() => void speichern(entwurf)}>Speichern</Button>
+              <Button variante="primary" laedt={arbeitet} disabled={geaendert.length === 0} onClick={() => void speichern()}>Speichern</Button>
               <Button disabled={arbeitet} onClick={() => { setEntwurf(null); setFehler(null); }}>Abbrechen</Button>
             </div>
           </div>
         ) : (
           <>
-            {programm ? <p style={{ whiteSpace: 'pre-line' }}>{programm}</p> : <p className="field__hint">Noch kein Wochenprogramm eingetragen.</p>}
-            {verwaltung && <Button klein onClick={() => { setFehler(null); setEntwurf(programm); }}>{programm ? 'Bearbeiten' : 'Eintragen'}</Button>}
+            <dl className="daten">
+              {t.oeffnungszeiten.map((o) => (
+                <Zeile key={o.wochentag} label={wochentagName(o.wochentag)} wert={
+                  <>
+                    {oeffnungszeitText(o)}
+                    {programm[o.wochentag] && <div style={{ whiteSpace: 'pre-line' }}>{programm[o.wochentag]}</div>}
+                  </>
+                } />
+              ))}
+            </dl>
+            {verwaltung && <Button klein onClick={() => { setFehler(null); setEntwurf({ ...programm }); }}>Programm bearbeiten</Button>}
           </>
         )}
       </Card>

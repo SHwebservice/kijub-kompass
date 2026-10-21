@@ -75,6 +75,7 @@ export function FreizeitenListe() {
   return (
     <>
       <PageHeader titel="Freizeiten">
+        {rollen.freizeitkoordination && <Link className="btn" to="/freizeiten/aufraeumen">Aufräumen</Link>}
         {rollen.freizeitkoordination && <Link className="btn btn--primary" to="/freizeiten/neu">Neue Freizeit</Link>}
       </PageHeader>
       {liste.fehler && <Alert ton="error">{liste.fehler}</Alert>}

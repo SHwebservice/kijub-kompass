@@ -32,8 +32,8 @@ export interface TreffDetailDaten extends TreffZeile {
   /** Ab wie vielen Personen ein Öffnungstag ausreichend besetzt ist (Migration 0036). */
   mindestbesetzung: number;
   ort_adresse: string | null;
-  /** Festes, jede Woche wiederkehrendes Programm als Freitext (Migration 0038). */
-  wochenprogramm: string | null;
+  /** Festes, jede Woche wiederkehrendes Programm als Freitext je Wochentag (1 = Montag; Migration 0038). */
+  wochenprogramm: Record<number, string>;
 }
 
 export interface TreffFormular { name: string; ort_id: string; adresse_abw: string; tage: TageEingabe }
@@ -69,14 +69,15 @@ export async function listeTreffs(): Promise<TreffZeile[]> {
 }
 
 export async function holeTreff(id: string): Promise<TreffDetailDaten | null> {
-  const r = pruefe(await supabase.from('treffs').select(`${LISTE}, adresse_abw, mindestbesetzung, wochenprogramm`).eq('id', id).maybeSingle()) as Roh | null;
+  const r = pruefe(await supabase.from('treffs').select(`${LISTE}, adresse_abw, mindestbesetzung, treff_plan_eintraege(wochentag, freitext)`).eq('id', id).maybeSingle()) as Roh | null;
   if (!r) return null;
   const ort = r.ort_id
     ? pruefe(await supabase.from('orte').select('adresse').eq('id', r.ort_id as string).maybeSingle()) as { adresse: string | null } | null
     : null;
   return {
     ...zeile(r), adresse_abw: (r.adresse_abw as string | null) ?? null, mindestbesetzung: Number(r.mindestbesetzung ?? 1), ort_adresse: ort?.adresse ?? null,
-    wochenprogramm: (r.wochenprogramm as string | null) ?? null,
+    wochenprogramm: Object.fromEntries(((r.treff_plan_eintraege as { wochentag: number; freitext: string | null }[] | null) ?? [])
+      .filter((e) => e.freitext).map((e) => [e.wochentag, e.freitext!])),
   };
 }
 
@@ -123,8 +124,11 @@ export async function treffTeamEntfernen(treffId: string, personId: string): Pro
 
 /* ───── Wochenprogramm ───── */
 
-export async function setzeWochenprogramm(treffId: string, text: string): Promise<void> {
-  pruefe(await supabase.rpc('fn_wochenprogramm_setzen', { p_treff: treffId, p_text: text }));
+/** Setzt das Programm eines Wochentags; ein leerer Text entfernt es. */
+export async function setzeWochenprogrammTag(treffId: string, wochentag: number, text: string): Promise<void> {
+  const freitext = text.trim();
+  if (freitext) pruefe(await supabase.from('treff_plan_eintraege').upsert({ treff_id: treffId, wochentag, freitext, angebot_id: null, notiz: null }));
+  else pruefe(await supabase.from('treff_plan_eintraege').delete().eq('treff_id', treffId).eq('wochentag', wochentag));
 }
 
 /* ───── Absprachen (Bestätigen, Bearbeiten und Löschen laufen über die Funktionen der Freizeiten) ───── */

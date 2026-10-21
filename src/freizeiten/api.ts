@@ -170,6 +170,16 @@ export async function loescheFreizeit(id: string): Promise<void> {
   pruefe(await supabase.from('freizeiten').delete().eq('id', id));
 }
 
+/** Löscht mehrere Freizeiten endgültig (in Paketen, damit die Anfrage kurz bleibt); Ergebnis: Anzahl tatsächlich gelöschter. */
+export async function loescheFreizeiten(ids: string[]): Promise<number> {
+  let geloescht = 0;
+  for (let i = 0; i < ids.length; i += 50) {
+    const r = pruefe(await supabase.from('freizeiten').delete().in('id', ids.slice(i, i + 50)).select('id')) as { id: string }[];
+    geloescht += r.length;
+  }
+  return geloescht;
+}
+
 export async function listeTags(): Promise<string[]> {
   return (pruefe(await supabase.from('tags').select('name').order('name')) as { name: string }[]).map((t) => t.name);
 }
@@ -294,6 +304,18 @@ export async function offeneZeitraumBewerbungen(): Promise<OffeneZeitraumBewerbu
 /** Ordnet die Person einer Freizeit zu; Ergebnis: ID der dabei angenommenen Bewerbung (für „Bewerbung angenommen“). */
 export async function zeitraumZuordnen(id: string, freizeitId: string, rolle: 'teamer' | 'leitung'): Promise<string> {
   return pruefe(await supabase.rpc('fn_zeitraum_zuordnen', { p_zeitraum: id, p_freizeit: freizeitId, p_rolle: rolle })) as string;
+}
+
+/** Zeitraum-Bewerbungen (offen und erledigt) je Jahr, aufsteigend – fürs Aufräumen zum Jahreswechsel. */
+export async function zaehleZeitraumBewerbungenJeJahr(): Promise<{ jahr: number; anzahl: number }[]> {
+  const r = pruefe(await supabase.from('bewerbungen_zeitraum').select('jahr')) as { jahr: number }[];
+  const zahl = new Map<number, number>();
+  r.forEach(({ jahr }) => zahl.set(jahr, (zahl.get(jahr) ?? 0) + 1));
+  return [...zahl].sort(([a], [b]) => a - b).map(([jahr, anzahl]) => ({ jahr, anzahl }));
+}
+
+export async function loescheZeitraumBewerbungenFuer(jahr: number): Promise<void> {
+  pruefe(await supabase.from('bewerbungen_zeitraum').delete().eq('jahr', jahr));
 }
 
 export async function zeitraumErledigt(id: string): Promise<void> {

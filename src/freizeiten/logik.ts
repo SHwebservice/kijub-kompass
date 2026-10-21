@@ -93,6 +93,13 @@ export const nachStart = (a: FreizeitKurz, b: FreizeitKurz) =>
 
 export interface Gruppe<T> { schluessel: string; label: string; eintraege: T[] }
 
+/** Gruppiert nach Jahr des Starts (ältestes zuerst), innerhalb des Jahres nach Start sortiert – fürs Aufräumen zum Jahreswechsel. */
+export function gruppiereNachJahr<T extends FreizeitKurz>(liste: T[]): Gruppe<T>[] {
+  const jahre = [...new Set(liste.map((f) => f.start_datum.slice(0, 4)))].sort();
+  const sortiert = [...liste].sort(nachStart);
+  return jahre.map((j) => ({ schluessel: j, label: j, eintraege: sortiert.filter((f) => f.start_datum.startsWith(j)) }));
+}
+
 /** Gruppiert nach Ferienzeit (Ostern, Sommer, Herbst, Sonstige), innerhalb der Gruppe nach Start sortiert. */
 export function gruppiereNachFerien<T extends FreizeitKurz>(liste: T[]): Gruppe<T>[] {
   const reihenfolge: (Ferienzeitraum | 'sonstige')[] = ['ostern', 'sommer', 'herbst', 'sonstige'];

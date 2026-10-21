@@ -20,6 +20,7 @@ const KijukoImportSeite = lazy(() => import('./pages/KijukoImport').then((m) => 
 const ChecklisteVorlage = lazy(() => import('./pages/ChecklisteVorlage').then((m) => ({ default: m.ChecklisteVorlage })));
 const FreizeitenListe = lazy(() => import('./pages/freizeiten/FreizeitenListe').then((m) => ({ default: m.FreizeitenListe })));
 const FreizeitDetail = lazy(() => import('./pages/freizeiten/FreizeitDetail').then((m) => ({ default: m.FreizeitDetail })));
+const FreizeitenAufraeumen = lazy(() => import('./pages/freizeiten/FreizeitenAufraeumen').then((m) => ({ default: m.FreizeitenAufraeumen })));
 const FreizeitForm = lazy(() => import('./pages/freizeiten/FreizeitForm').then((m) => ({ default: m.FreizeitForm })));
 const Orte = lazy(() => import('./pages/Orte').then((m) => ({ default: m.Orte })));
 const MappeSeite = lazy(() => import('./pages/mappen/MappeSeite').then((m) => ({ default: m.MappeSeite })));
@@ -81,6 +82,7 @@ function Geschuetzt() {
         <Route index element={<Heute />} />
         <Route path="freizeiten" element={<FreizeitenListe />} />
         <Route path="freizeiten/neu" element={rollen?.freizeitkoordination ? <FreizeitForm /> : <Navigate to="/freizeiten" replace />} />
+        <Route path="freizeiten/aufraeumen" element={rollen?.freizeitkoordination ? <FreizeitenAufraeumen /> : <Navigate to="/freizeiten" replace />} />
         <Route path="freizeiten/:id/bearbeiten" element={rollen?.freizeitkoordination ? <FreizeitForm /> : <Navigate to="/freizeiten" replace />} />
         <Route path="freizeiten/:id/*" element={<FreizeitDetail />} />
         <Route path="treffs" element={<TreffeListe />} />
