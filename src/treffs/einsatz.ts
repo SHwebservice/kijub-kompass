@@ -1,5 +1,5 @@
 import { wochentagKurz } from '../freizeiten/logik';
-import { feiertagAm, istNeu, schliesszeitText, type Abwesenheit, type Feiertag, type Tageskarte } from './dienstplan';
+import { abwesenheitText, feiertagAm, istNeu, schliesszeitText, type Abwesenheit, type Feiertag, type Tageskarte } from './dienstplan';
 import { sortiereTreffTeam, type TreffMitglied } from './logik';
 
 /**
@@ -32,6 +32,8 @@ export interface EinsatzZelle {
   /** Bezeichnungen der Sonderdienste, bei denen die Person eingeteilt ist. */
   sonder: string[];
   abwesend: Abwesenheit['typ'] | null;
+  /** Text dazu (bei „Sonstiges“ die Notiz, z. B. „Fortbildung“). */
+  abwesendText: string | null;
   /** Offener Dienstwunsch (nur wenn danach gefragt wird). */
   wunsch: boolean;
   /** Seit dem letzten Besuch neu eingeteilt (nur für die eigene Zeile). */
@@ -89,7 +91,7 @@ export function baueEinsatz(
         dienst,
         sonder: sonder.map((s) => s.bezeichnung ?? 'Sonderdienst'),
         // Urlaub und Krankheit gehen „kann nicht“ vor
-        abwesend: abwesenheiten.filter((a) => a.datum === k.datum && a.person_id === m.person_id).sort((a, b) => (a.typ === 'verhindert' ? 1 : 0) - (b.typ === 'verhindert' ? 1 : 0))[0]?.typ ?? null,
+        ...((w) => ({ abwesend: w?.typ ?? null, abwesendText: w ? abwesenheitText(w) : null }))(abwesenheiten.filter((a) => a.datum === k.datum && a.person_id === m.person_id).sort((a, b) => (a.typ === 'verhindert' ? 1 : 0) - (b.typ === 'verhindert' ? 1 : 0))[0]),
         wunsch: (opt.mitWuenschen ?? false) && (k.regulaer?.wuensche.some((w) => w.person_id === m.person_id && w.status === 'offen') ?? false),
         neu: ich && [...(dienst ? [k.regulaer!] : []), ...sonder].some((d) => istNeu(d.seit?.[m.person_id], opt.letzterBesuch ?? null)),
       };

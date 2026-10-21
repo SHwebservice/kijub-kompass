@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { fehlerText } from '../../lib/fehler';
 import { sendePush } from '../../mitteilungen/senden';
 import { speichereSonderdienst, loescheDienst, type TreffTeamMitglied } from '../../treffs/api';
-import { ABWESENHEIT_TEXT, abwesendeAm, mitteilungFuer, validiereSonderdienst, zuteilungsAenderung, type Abwesenheit, type Dienst } from '../../treffs/dienstplan';
+import { abwesenheitText, abwesendeAm, mitteilungFuer, validiereSonderdienst, zuteilungsAenderung, type Abwesenheit, type Dienst } from '../../treffs/dienstplan';
 import { sortiereTreffTeam, STANDARD_BIS, STANDARD_VON } from '../../treffs/logik';
 import { Sheet } from '../../components/Sheet';
 import { Alert, Button, TextField } from '../../components/ui';
@@ -31,7 +31,7 @@ export function ZuteilungsAuswahl({ team, gewaehlt, aendere, abwesend = [], wuen
             <span>
               {m.vorname} {m.nachname}
               {m.rolle === 'treffleitung' && ' (Treffleitung)'}
-              {weg.map((a) => <em key={a.id}>{a.typ === 'verhindert' ? ' – kann nicht' : ` – abwesend: ${ABWESENHEIT_TEXT[a.typ]}`}</em>)}
+              {weg.map((a) => <em key={a.id}>{a.typ === 'verhindert' ? ' – kann nicht' : ` – abwesend: ${abwesenheitText(a)}`}</em>)}
               {wuenschen.includes(m.person_id) && <em> – wünscht den Dienst</em>}
             </span>
           </label>

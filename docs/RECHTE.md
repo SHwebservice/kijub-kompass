@@ -110,7 +110,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | „Kann nicht“ an einem Tag (Migration 0036) | L (Treffkoordination) | — | — | L (eigener Treff) | E X (nur eigene, nur künftige Tage des eigenen Treffs), L (eig.) | — · nicht für das übrige Team sichtbar; fällt beim Verlassen des Treffs weg |
 | Mindestbesetzung je Treff (Migration 0036) | Ä (Treffkoordination) | — | — | Ä (eigener Treff) | L | — |
 | Kalender „Meine Dienste“ (Datei und Abo-Link, Migration 0036) | eig. | eig. | eig. | eig. | eig. | — · Abo-Link mit persönlichem Schlüssel (gespeichert nur als Hash), jederzeit neu erzeugbar oder löschbar |
-| Abwesenheiten (Urlaub/Krank) | L E Ä X | — | — | L E Ä X (Personen des Treffs) | L (eig.) | — |
+| Abwesenheiten (Urlaub/Krank, seit 0039 auch Sonstiges mit Notiz) | L E Ä X | — | — | L E Ä X (Personen des Treffs) | L (eig.) | — |
 | Feiertage (schließen seit 0027 den Treff wie eine Schließzeit) | L E Ä X | — | — | L (Treff) E Ä X (eigener Treff) | L | — |
 | Schließzeiten des Treffs (Migration 0026) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L | — · an Schließtagen kein regulärer Dienst (weder einteilen noch wünschen), kein Protokoll nötig |
 | Nachweis Teilzeitkräfte (Entwurf) | L Ä X | — | — | L (Treff) | eig.: L E Ä X | — · **Δ** lag nur lokal im Browser |

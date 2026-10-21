@@ -36,7 +36,7 @@ export function geschlosseneZeiten(schliesszeiten: Schliesszeit[], feiertage: Fe
     .map((f): Schliesszeit => ({ id: `feiertag-${f.id}`, treff_id: treffId, von: f.datum, bis: f.datum, grund: f.bezeichnung, feiertag: true }));
   return [...schliesszeiten, ...aus];
 }
-export interface Abwesenheit { id: string; person_id: string; datum: string; typ: 'urlaub' | 'krank' | 'verhindert'; notiz: string | null }
+export interface Abwesenheit { id: string; person_id: string; datum: string; typ: 'urlaub' | 'krank' | 'sonstiges' | 'verhindert'; notiz: string | null }
 
 /** „Kann nicht“: Die Person hat einen Tag ihres Treffs als verhindert markiert (Migration 0036). */
 export interface Verhinderung { treff_id: string; person_id: string; datum: string }
@@ -50,7 +50,10 @@ export const mitVerhinderungen = (abwesenheiten: Abwesenheit[], verhinderungen: 
   ...verhinderungen.map((v): Abwesenheit => ({ id: `verhindert-${v.person_id}-${v.datum}`, person_id: v.person_id, datum: v.datum, typ: 'verhindert', notiz: null })),
 ];
 
-export const ABWESENHEIT_TEXT: Record<Abwesenheit['typ'], string> = { urlaub: 'Urlaub', krank: 'krank', verhindert: 'kann nicht' };
+export const ABWESENHEIT_TEXT: Record<Abwesenheit['typ'], string> = { urlaub: 'Urlaub', krank: 'krank', sonstiges: 'Sonstiges', verhindert: 'kann nicht' };
+
+/** Text einer Abwesenheit: bei „Sonstiges“ die Notiz (z. B. „Fortbildung“), sonst die Art. */
+export const abwesenheitText = (a: Pick<Abwesenheit, 'typ' | 'notiz'>) => (a.typ === 'sonstiges' && a.notiz?.trim() ? a.notiz.trim() : ABWESENHEIT_TEXT[a.typ]);
 
 /* ───── Kalender ───── */
 
@@ -246,7 +249,7 @@ export const stundenText = (h: number) => `${h.toLocaleString('de-DE', { maximum
 
 export const MAX_ABWESENHEIT_TAGE = 366;
 
-export interface AbwesenheitEingabe { person_id: string; von: string; bis: string }
+export interface AbwesenheitEingabe { person_id: string; von: string; bis: string; typ?: Abwesenheit['typ']; notiz?: string }
 
 /** Alle Tage von „von“ bis „bis“ einschließlich; leer bei umgekehrtem Zeitraum. */
 export function tageImZeitraum(von: string, bis: string): string[] {
@@ -255,12 +258,13 @@ export function tageImZeitraum(von: string, bis: string): string[] {
   return Array.from({ length: n + 1 }, (_, i) => addTage(von, i));
 }
 
-export function validiereAbwesenheit(e: AbwesenheitEingabe): { person?: string; zeitraum?: string } {
-  const f: { person?: string; zeitraum?: string } = {};
+export function validiereAbwesenheit(e: AbwesenheitEingabe): { person?: string; zeitraum?: string; notiz?: string } {
+  const f: { person?: string; zeitraum?: string; notiz?: string } = {};
   if (!e.person_id) f.person = 'Bitte eine Person wählen.';
   if (!e.von || !e.bis) f.zeitraum = 'Bitte Beginn und Ende angeben.';
   else if (e.bis < e.von) f.zeitraum = 'Das Ende darf nicht vor dem Beginn liegen.';
   else if (tageImZeitraum(e.von, e.bis).length > MAX_ABWESENHEIT_TAGE) f.zeitraum = `Höchstens ${MAX_ABWESENHEIT_TAGE} Tage auf einmal.`;
+  if (e.typ === 'sonstiges' && !e.notiz?.trim()) f.notiz = 'Bitte angeben, was es ist (z. B. Fortbildung).';
   return f;
 }
 
@@ -273,14 +277,14 @@ export function validiereSchliesszeit(e: { von: string; bis: string }): string |
 }
 
 /** Zusammenhängende Abwesenheiten einer Person und Art werden zu einem Zeitraum gefasst: "05.07.–09.07.". */
-export function abwesenheitsBloecke(liste: Abwesenheit[]): { person_id: string; typ: Abwesenheit['typ']; von: string; bis: string; ids: string[] }[] {
+export function abwesenheitsBloecke(liste: Abwesenheit[]): { person_id: string; typ: Abwesenheit['typ']; notiz: string | null; von: string; bis: string; ids: string[] }[] {
   const sortiert = [...liste].sort((a, b) => a.person_id.localeCompare(b.person_id) || a.typ.localeCompare(b.typ) || a.datum.localeCompare(b.datum));
-  const out: { person_id: string; typ: Abwesenheit['typ']; von: string; bis: string; ids: string[] }[] = [];
+  const out: { person_id: string; typ: Abwesenheit['typ']; notiz: string | null; von: string; bis: string; ids: string[] }[] = [];
   for (const a of sortiert) {
     const letzter = out[out.length - 1];
-    if (letzter && letzter.person_id === a.person_id && letzter.typ === a.typ && addTage(letzter.bis, 1) === a.datum) {
+    if (letzter && letzter.person_id === a.person_id && letzter.typ === a.typ && (letzter.notiz ?? '') === (a.notiz ?? '') && addTage(letzter.bis, 1) === a.datum) {
       letzter.bis = a.datum; letzter.ids.push(a.id);
-    } else out.push({ person_id: a.person_id, typ: a.typ, von: a.datum, bis: a.datum, ids: [a.id] });
+    } else out.push({ person_id: a.person_id, typ: a.typ, notiz: a.notiz, von: a.datum, bis: a.datum, ids: [a.id] });
   }
   return out.sort((a, b) => a.von.localeCompare(b.von) || a.person_id.localeCompare(b.person_id));
 }

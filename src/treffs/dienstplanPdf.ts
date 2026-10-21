@@ -53,7 +53,7 @@ export interface MonatsplanEingabe {
   stand?: Date;
 }
 
-const MARKE: Record<'urlaub' | 'krank', string> = { urlaub: 'U', krank: 'K' };
+const MARKE: Record<'urlaub' | 'krank' | 'sonstiges', string> = { urlaub: 'U', krank: 'K', sonstiges: 'A' };
 
 export function baueMonatsplan(e: MonatsplanEingabe): Monatsplan {
   const team = sortiereTreffTeam(e.mitglieder);
@@ -76,6 +76,8 @@ export function baueMonatsplan(e: MonatsplanEingabe): Monatsplan {
       for (const s of sonder.filter((x) => x.personen.includes(m.person_id))) { teile.push('S'); summen[i]!.dienste += 1; summen[i]!.stunden += dienstStunden(s); besetzt.add(m.person_id); }
       const weg = e.abwesenheiten.find((a) => a.datum === datum && a.person_id === m.person_id && a.typ !== 'verhindert');
       if (weg && weg.typ !== 'verhindert') teile.push(MARKE[weg.typ]);
+      // „Sonstiges“: was genau (z. B. Fortbildung), steht im Hinweis
+      if (weg?.typ === 'sonstiges' && weg.notiz?.trim()) hinweise.push(`${m.vorname}: ${weg.notiz.trim()}`);
       return [...new Set(teile)].join(' ');
     });
     return {
@@ -86,7 +88,7 @@ export function baueMonatsplan(e: MonatsplanEingabe): Monatsplan {
   const stand = e.stand ?? new Date();
   return {
     titel: `Dienstplan ${e.treffName} – ${monatText(e.monat)}${e.vorlaeufig ? ' (vorläufig)' : ''}`,
-    untertitel: `Stand ${stand.toLocaleDateString('de-DE')} · X = Dienst · S = Sonderdienst · U = Urlaub · K = krank · grau = geschlossen bzw. kein Öffnungstag`,
+    untertitel: `Stand ${stand.toLocaleDateString('de-DE')} · X = Dienst · S = Sonderdienst · U = Urlaub · K = krank · A = abwesend (Sonstiges) · grau = geschlossen bzw. kein Öffnungstag`,
     personen: team.map((m) => ({ id: m.person_id, vorname: m.vorname, nachname: m.nachname })),
     zeilen,
     summen: summen.map((s) => ({ dienste: s.dienste, stunden: stundenText(Math.round(s.stunden * 100) / 100) })),
@@ -178,7 +180,7 @@ export async function zeichneMonatsplan(p: Monatsplan): Promise<Doc> {
       doc.setFillColor(grau, grau, grau); doc.rect(links, y, rechts - links, r.zeileH, 'F');
     }
     z.zellen.forEach((c, i) => {
-      if (/[UK]/.test(c)) { doc.setFillColor(255, 228, 196); doc.rect(xPerson(i), y, r.personB, r.zeileH, 'F'); }
+      if (/[UKA]/.test(c)) { doc.setFillColor(255, 228, 196); doc.rect(xPerson(i), y, r.personB, r.zeileH, 'F'); }
     });
     doc.setFont('helvetica', 'bold');
     doc.text(z.tag, links + 1.2, mitte(y, r.zeileH));

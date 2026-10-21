@@ -1,4 +1,4 @@
-import { ABWESENHEIT_TEXT, abwesendeAm, addTage, dienstStunden, feiertagAm, isoWochentag, monatTage, montagVon, type Abwesenheit, type Dienst, type Feiertag, type Tageskarte } from './dienstplan';
+import { abwesenheitText, abwesendeAm, addTage, dienstStunden, feiertagAm, isoWochentag, monatTage, montagVon, type Abwesenheit, type Dienst, type Feiertag, type Tageskarte } from './dienstplan';
 
 /** Eine Einteilung: Person an einem Tag (für fn_dienstplan_anwenden). */
 export interface Paar { datum: string; person: string }
@@ -45,7 +45,7 @@ export const umschalten = (karten: Tageskarte[], e: Entwurf, datum: string, pers
 /** Urlaub, Krankheit, „kann nicht“ oder Feiertag: Beim Füllen und Ziehen wird hier nicht eingeteilt – nur, wenn man die Zelle einzeln anklickt. */
 export function konfliktAm(datum: string, person: string, abwesenheiten: Abwesenheit[], feiertage: Feiertag[], treffId: string): string | null {
   const weg = abwesendeAm(datum, abwesenheiten).find((a) => a.person_id === person);
-  if (weg) return ABWESENHEIT_TEXT[weg.typ];
+  if (weg) return abwesenheitText(weg);
   const f = feiertagAm(datum, feiertage, treffId);
   return f ? `Feiertag: ${f.bezeichnung}` : null;
 }

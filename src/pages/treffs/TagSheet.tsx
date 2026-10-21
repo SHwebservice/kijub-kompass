@@ -7,7 +7,7 @@ import {
   dienstSicherstellen, entscheideWunsch, nimmVerhinderungZurueck, setzeZuteilung, trageVerhinderungEin, wuenscheDienst, wunschZuruecknehmen, type TreffTeamMitglied,
 } from '../../treffs/api';
 import {
-  ABWESENHEIT_TEXT, abwesendeAm, darfWuenschen, dienstZeit, eigenerWunsch, istVeroeffentlicht, mitteilungFuer, schliesszeitText, zuteilungsAenderung,
+  abwesenheitText, abwesendeAm, darfWuenschen, dienstZeit, eigenerWunsch, istVeroeffentlicht, mitteilungFuer, schliesszeitText, zuteilungsAenderung,
   type Abwesenheit, type Dienst, type Feiertag, type Tageskarte,
 } from '../../treffs/dienstplan';
 import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
@@ -121,7 +121,7 @@ export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiert
 
       {weg.length > 0 && (
         <div className="list__meta" aria-label="Abwesend">
-          {weg.map((a) => <Badge key={a.id} ton="danger">{a.person_id === ichId ? 'Du' : name(a.person_id)}: {ABWESENHEIT_TEXT[a.typ]}</Badge>)}
+          {weg.map((a) => <Badge key={a.id} ton="danger">{a.person_id === ichId ? 'Du' : name(a.person_id)}: {abwesenheitText(a)}</Badge>)}
         </div>
       )}
 

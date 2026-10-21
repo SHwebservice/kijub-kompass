@@ -1,7 +1,7 @@
 -- KiJuB-Kompass · alle Migrationen in einer Datei (GENERIERT – nicht von Hand ändern)
 -- Erzeugt mit: npm run sql:bundle
 -- Nur für ein LEERES Projekt gedacht: einmal komplett im SQL Editor ausführen.
--- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql, 0014_betrieb.sql, 0015_mitteilungen.sql, 0016_tagesprotokoll.sql, 0017_mitteilungen_mehr.sql, 0018_koordination_getrennt.sql, 0019_fehlermeldungen.sql, 0020_heute.sql, 0021_bewerbung_rolle_treff_aufraeumen.sql, 0022_nachweise_erstellen.sql, 0023_ueberschneidung_akzeptiert.sql, 0024_dienstplan_anwenden.sql, 0025_wuensche_bestaetigen.sql, 0026_schliesszeiten_farbe.sql, 0027_feiertag_schliesst.sql, 0028_protokoll_vorlagen.sql, 0029_checkliste.sql, 0030_bewerbungen_mehr.sql, 0031_checkliste_termine.sql, 0032_freizeit_typ_material.sql, 0033_kijuko_kueche.sql, 0034_kijuko_lieferungen_typ.sql, 0035_teamprotokolle.sql, 0036_dienstplan_uebersicht.sql, 0037_teamprotokolle_format.sql, 0038_wochenprogramm_freitext.sql
+-- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql, 0014_betrieb.sql, 0015_mitteilungen.sql, 0016_tagesprotokoll.sql, 0017_mitteilungen_mehr.sql, 0018_koordination_getrennt.sql, 0019_fehlermeldungen.sql, 0020_heute.sql, 0021_bewerbung_rolle_treff_aufraeumen.sql, 0022_nachweise_erstellen.sql, 0023_ueberschneidung_akzeptiert.sql, 0024_dienstplan_anwenden.sql, 0025_wuensche_bestaetigen.sql, 0026_schliesszeiten_farbe.sql, 0027_feiertag_schliesst.sql, 0028_protokoll_vorlagen.sql, 0029_checkliste.sql, 0030_bewerbungen_mehr.sql, 0031_checkliste_termine.sql, 0032_freizeit_typ_material.sql, 0033_kijuko_kueche.sql, 0034_kijuko_lieferungen_typ.sql, 0035_teamprotokolle.sql, 0036_dienstplan_uebersicht.sql, 0037_teamprotokolle_format.sql, 0038_wochenprogramm_freitext.sql, 0039_abwesenheit_sonstiges.sql
 
 -- ════════ 0001_stammdaten.sql ════════
 -- KiJuB-Kompass · 0001 Stammdaten
@@ -5408,3 +5408,25 @@ drop policy schreiben on treff_plan_eintraege;
 create policy schreiben on treff_plan_eintraege for all to authenticated
   using (ist_treffkoord() or ist_treffleitung(treff_id))
   with check (ist_treffkoord() or ist_treffleitung(treff_id));
+
+-- ════════ 0039_abwesenheit_sonstiges.sql ════════
+-- KiJuB-Kompass · 0039: Abwesenheit „Sonstiges“ (neben Urlaub und krank)
+--
+-- Für Abwesenheiten wie Fortbildung, Dienstreise oder Sonderurlaub. Was genau, steht in der Notiz.
+-- Im Stundennachweis erscheint die Zeile als „Sonstiges – <Notiz>“ (wie Urlaub mit den üblichen Stunden der Öffnungszeit).
+-- Bisher setzte fn_nachweis_befuellen jeden Typ außer Urlaub als „Krank“ – das wird hier korrigiert.
+
+alter type abwesenheit_typ add value if not exists 'sonstiges';
+
+do $$
+declare r record; def text;
+begin
+  for r in select p.oid from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = 'fn_nachweis_befuellen' loop
+    def := pg_get_functiondef(r.oid);
+    if position($t$case a.typ when 'urlaub' then 'Urlaub' else 'Krank' end$t$ in def) = 0 then
+      raise exception 'fn_nachweis_befuellen hat nicht den erwarteten Aufbau';
+    end if;
+    execute replace(def, $t$case a.typ when 'urlaub' then 'Urlaub' else 'Krank' end$t$,
+                         $t$case a.typ::text when 'urlaub' then 'Urlaub' when 'krank' then 'Krank' else 'Sonstiges' end$t$);
+  end loop;
+end $$;

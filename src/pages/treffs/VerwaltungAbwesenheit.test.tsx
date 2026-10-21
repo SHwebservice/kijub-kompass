@@ -55,6 +55,29 @@ describe('Abwesenheit & Feiertage', () => {
     expect(api.speichereAbwesenheit).toHaveBeenCalledWith('ben', [morgen, addTage(morgen, 1), addTage(morgen, 2)], 'urlaub', 'Familienurlaub');
   });
 
+  it('„Sonstiges“ mit Notiz (z. B. Fortbildung); ohne Notiz kommt ein Hinweis', async () => {
+    await zeige(leitung);
+    await userEvent.selectOptions(screen.getByLabelText('Person'), 'ben');
+    await userEvent.type(screen.getByLabelText('Von'), morgen);
+    await userEvent.selectOptions(screen.getByLabelText('Art'), 'sonstiges');
+    await userEvent.click(screen.getByRole('button', { name: 'Eintragen' }));
+    expect(screen.getByText('Bitte angeben, was es ist (z. B. Fortbildung).')).toBeInTheDocument();
+    expect(api.speichereAbwesenheit).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByLabelText('Notiz (z. B. Fortbildung)'), 'Fortbildung');
+    await userEvent.click(screen.getByRole('button', { name: 'Eintragen' }));
+    expect(api.speichereAbwesenheit).toHaveBeenCalledWith('ben', [morgen], 'sonstiges', 'Fortbildung');
+  });
+
+  it('die Liste zeigt bei „Sonstiges“ die Notiz', async () => {
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([
+      { id: 'a', person_id: 'ben', datum: morgen, typ: 'sonstiges', notiz: 'Fortbildung' },
+      { id: 'b', person_id: 'ben', datum: addTage(morgen, 1), typ: 'sonstiges', notiz: 'Fortbildung' },
+    ]);
+    await zeige(leitung);
+    expect((await screen.findByText('Fortbildung')).closest('li')).toHaveTextContent(/SonstigesFortbildung/);
+    expect(screen.getAllByRole('button', { name: /^Abwesenheit von Ben Baum/ })).toHaveLength(1);     // zwei Tage, ein Block
+  });
+
   it('prüft Eingaben', async () => {
     await zeige(leitung);
     await userEvent.click(screen.getByRole('button', { name: 'Eintragen' }));

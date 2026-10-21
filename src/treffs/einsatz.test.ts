@@ -109,3 +109,11 @@ describe('baueEinsatz: Mindestbesetzung, eigene Zeile, „kann nicht“ und neu'
     expect(baueEinsatz(tageskarten(tage, oeffnung, [d]), mitglieder, [], [], 't1', heute, { ichId: 'ben', letzterBesuch: null }).zeilen[0]!.zellen[1]!.neu).toBe(false);
   });
 });
+
+describe('baueEinsatz: Abwesenheit „Sonstiges“', () => {
+  it('Art und Text (die Notiz) stehen in der Zelle', () => {
+    const { zeilen } = bau([], { abw: [{ id: 's', person_id: 'ben', datum: '2027-03-03', typ: 'sonstiges', notiz: 'Fortbildung' }] });
+    const c = zeilen.find((z) => z.person_id === 'ben')!.zellen[1]!;
+    expect([c.abwesend, c.abwesendText]).toEqual(['sonstiges', 'Fortbildung']);
+  });
+});

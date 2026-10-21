@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { baueEinsatz } from '../../treffs/einsatz';
 import { bearbeitbar, eingeteilt, konfliktAm, setze, stundenVon, umschalten, zeileFuellen, type Entwurf } from '../../treffs/entwurf';
-import { ABWESENHEIT_TEXT, stundenText, type Abwesenheit, type Feiertag, type Tageskarte } from '../../treffs/dienstplan';
+import { stundenText, type Abwesenheit, type Feiertag, type Tageskarte } from '../../treffs/dienstplan';
 import { formatKurz, wochentagLang } from '../../freizeiten/logik';
 import type { TreffTeamMitglied } from '../../treffs/api';
 import { Card } from '../../components/ui';
@@ -44,7 +44,7 @@ interface Props {
   kopf?: ReactNode;
 }
 
-const ZEICHEN: Record<Abwesenheit['typ'], string> = { urlaub: 'U', krank: 'K', verhindert: '✕' };
+const ZEICHEN: Record<Abwesenheit['typ'], string> = { urlaub: 'U', krank: 'K', sonstiges: 'A', verhindert: '✕' };
 
 /**
  * „Wer arbeitet wann“: Personen mal Tage. ● Dienst, ★ Sonderdienst, U Urlaub, K krank, ✕ kann nicht, ? Wunsch; darunter die Besetzung je Tag.
@@ -77,6 +77,7 @@ export function Einsatzmatrix({
   const b = bearbeiten;
   const mitStunden = !!stunden || !!b;
   const verhindertDa = zeilen.some((z) => z.zellen.some((c) => c.abwesend === 'verhindert'));
+  const sonstigesDa = zeilen.some((z) => z.zellen.some((c) => c.abwesend === 'sonstiges'));
   const neuDa = zeilen.some((z) => z.zellen.some((c) => c.neu));
 
   const zelleSetzen = (datum: string, person: string, wert: boolean, einzeln: boolean) => {
@@ -168,7 +169,7 @@ export function Einsatzmatrix({
                       <>
                         {c.dienst && <><span className="einsatz__dienst" aria-hidden="true">●</span><span className="sr-only">eingeteilt</span></>}
                         {c.sonder.length > 0 && <><span className="einsatz__sonder" aria-hidden="true">★</span><span className="sr-only">Sonderdienst: {c.sonder.join(', ')}</span></>}
-                        {c.abwesend && <><span className="einsatz__abwesend" aria-hidden="true">{ZEICHEN[c.abwesend]}</span><span className="sr-only">{c.abwesend === 'verhindert' ? 'kann nicht' : `abwesend: ${ABWESENHEIT_TEXT[c.abwesend]}`}</span></>}
+                        {c.abwesend && <><span className="einsatz__abwesend" aria-hidden="true" title={c.abwesendText ?? undefined}>{ZEICHEN[c.abwesend]}</span><span className="sr-only">{c.abwesend === 'verhindert' ? 'kann nicht' : `abwesend: ${c.abwesendText}`}</span></>}
                         {c.wunsch && <><span className="einsatz__wunsch" aria-hidden="true">?</span><span className="sr-only">wünscht den Dienst</span></>}
                         {c.neu && <><span className="einsatz__neu" aria-hidden="true" /><span className="sr-only">neu</span></>}
                       </>
@@ -243,6 +244,7 @@ export function Einsatzmatrix({
         <li><span className="einsatz__sonder" aria-hidden="true">★</span> Sonderdienst</li>
         <li><span className="einsatz__abwesend" aria-hidden="true">U</span> Urlaub</li>
         <li><span className="einsatz__abwesend" aria-hidden="true">K</span> krank</li>
+        {sonstigesDa && <li><span className="einsatz__abwesend" aria-hidden="true">A</span> abwesend (Sonstiges, z. B. Fortbildung)</li>}
         {verhindertDa && <li><span className="einsatz__abwesend" aria-hidden="true">✕</span> kann nicht</li>}
         {mitWuenschen && <li><span className="einsatz__wunsch" aria-hidden="true">?</span> Wunsch offen</li>}
         {neuDa && <li><span className="einsatz__neu" aria-hidden="true" /> neu seit deinem letzten Besuch</li>}

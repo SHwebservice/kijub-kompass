@@ -120,3 +120,13 @@ describe('PDF erzeugen', () => {
     await expect(zeichneMonatsplan(baueMonatsplan(eingabe({ mitglieder: viele })))).resolves.toBeDefined();
   });
 });
+
+describe('Abwesenheit „Sonstiges“ im Monatsplan', () => {
+  it('Zelle „A“, die Notiz steht mit Vornamen im Hinweis', () => {
+    const p = baueMonatsplan(eingabe({ abwesenheiten: [{ id: 's', person_id: 'ben', datum: '2026-11-04', typ: 'sonstiges', notiz: 'Fortbildung' }] }));
+    const z = p.zeilen.find((x) => x.datum === '2026-11-04')!;
+    expect(z.zellen).toEqual(['', 'A']);
+    expect(z.hinweis).toBe('Ben: Fortbildung');
+    expect(p.untertitel).toContain('A = abwesend (Sonstiges)');
+  });
+});

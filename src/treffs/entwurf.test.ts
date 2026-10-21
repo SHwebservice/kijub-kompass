@@ -153,3 +153,12 @@ describe('Wochentags-Muster in den Entwurf', () => {
     expect(konfliktAm('2027-03-03', 'carla', [{ id: 'v', person_id: 'carla', datum: '2027-03-03', typ: 'verhindert', notiz: null }], [], 't1')).toBe('kann nicht');
   });
 });
+
+describe('Abwesenheit „Sonstiges“ als Konflikt', () => {
+  it('Konflikttext ist die Notiz; beim Füllen der Zeile wird der Tag ausgelassen', () => {
+    const abw: Abwesenheit[] = [{ id: 's', person_id: 'ben', datum: '2027-03-03', typ: 'sonstiges', notiz: 'Fortbildung' }];
+    expect(konfliktAm('2027-03-03', 'ben', abw, [], 't1')).toBe('Fortbildung');
+    expect(konfliktAm('2027-03-03', 'ben', [{ ...abw[0]!, notiz: null }], [], 't1')).toBe('Sonstiges');
+    expect(eingeteilt(karten, zeileFuellen(karten, LEERER_ENTWURF, 'ben', abw, [], 't1').entwurf, '2027-03-03', 'ben')).toBe(false);
+  });
+});
