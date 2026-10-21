@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { formatDatum } from '../../freizeiten/logik';
-import { bloecke, type Teamprotokoll } from '../../teamprotokolle/logik';
+import { ARTEN, bloecke, type Teamprotokoll } from '../../teamprotokolle/logik';
 import { Button } from '../../components/ui';
 
 /** Ergebnis eines Abschnitts: Absätze und Aufzählungen (Zeilen mit „- “ am Anfang). */
@@ -56,5 +57,42 @@ export function TeamprotokollInhalt({ p }: { p: Pick<Teamprotokoll, 'abschnitte'
         </section>
       )}
     </div>
+  );
+}
+
+/** Name der PDF-Datei beim Speichern: der Browser übernimmt den Seitentitel. */
+export const druckTitel = (treffName: string, p: Pick<Teamprotokoll, 'titel' | 'datum'>) => `Teamprotokoll ${treffName} ${p.datum} – ${p.titel}`;
+
+/**
+ * Druckvorlage (A4) eines Teamprotokolls – nur beim Drucken sichtbar, alle Abschnitte ausgeklappt, ohne Gelesen-Stand.
+ * Sie hängt direkt an <body>, weil das Protokoll sonst im Overlay steckt und beim Drucken abgeschnitten würde.
+ */
+export function TeamprotokollDruck({ p, treffName, verfasst, anwesend }: { p: Teamprotokoll; treffName: string; verfasst: string | null; anwesend: string[] }) {
+  return createPortal(
+    <div className="teamprotokoll-druck" aria-hidden="true">
+      <div className="teamprotokoll-druck__kopf">
+        <span>{treffName} · Teamprotokoll</span>
+        <span>{ARTEN[p.art].label}</span>
+      </div>
+      <h1>{p.titel}</h1>
+      <p>{formatDatum(p.datum)}{verfasst ? ` · von ${verfasst}` : ''}{p.entwurf ? ' · Entwurf' : ''}</p>
+      {anwesend.length > 0 && <p><strong>Anwesend:</strong> {anwesend.join(', ')}</p>}
+      {p.abschnitte.map((a, i) => (
+        <section key={i}>
+          {a.titel && <h2>{a.titel}</h2>}
+          {a.text && <Ergebnis text={a.text} />}
+        </section>
+      ))}
+      {p.naechstes_datum && (
+        <p><strong>Nächstes Treffen:</strong> {formatDatum(p.naechstes_datum)}{p.naechstes_zeit ? ` um ${p.naechstes_zeit.slice(0, 5)} Uhr` : ''}</p>
+      )}
+      {p.aufgaben && (
+        <section>
+          <h2>Aufgaben und Ziele</h2>
+          <Ergebnis text={p.aufgaben} />
+        </section>
+      )}
+    </div>,
+    document.body,
   );
 }

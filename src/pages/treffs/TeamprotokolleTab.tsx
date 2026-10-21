@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
@@ -12,14 +13,14 @@ import { ARTEN, istGelesen, istUngelesen, nochNichtGelesen, verfasser, wirklichG
 import type { RolleInTreff } from '../../lib/rollen';
 import { Sheet } from '../../components/Sheet';
 import { Alert, Badge, Button, Card, EmptyState, Spinner } from '../../components/ui';
-import { TeamprotokollInhalt } from './TeamprotokollInhalt';
+import { druckTitel, TeamprotokollDruck, TeamprotokollInhalt } from './TeamprotokollInhalt';
 import { TeamprotokollFormular } from './TeamprotokollFormular';
 
 const name = (m: TreffTeamMitglied) => `${m.vorname} ${m.nachname}`;
 
 /** Ein Protokoll lesen. Beim Öffnen gilt es als gelesen; die Treffleitung sieht, wer es schon gelesen hat. */
-function LesenSheet({ p, team, ichId, verwaltung, schliessen, bearbeiten, geaendert }: {
-  p: Teamprotokoll; team: TreffTeamMitglied[]; ichId: string; verwaltung: boolean; schliessen: () => void; bearbeiten: () => void; geaendert: () => void;
+function LesenSheet({ p, treffName, team, ichId, verwaltung, schliessen, bearbeiten, geaendert }: {
+  p: Teamprotokoll; treffName: string; team: TreffTeamMitglied[]; ichId: string; verwaltung: boolean; schliessen: () => void; bearbeiten: () => void; geaendert: () => void;
 }) {
   const [fehler, setFehler] = useState<string | null>(null);
   const namen = Object.fromEntries(team.map((m) => [m.person_id, name(m)]));
@@ -36,6 +37,17 @@ function LesenSheet({ p, team, ichId, verwaltung, schliessen, bearbeiten, geaend
     vermerkt.current = true;
     vermerkeGelesen(p.id, ichId, vorEintritt).then(geaendert).catch(() => undefined);   // gelesen vermerken stört das Lesen nie
   }, [p, ichId, geaendert]);
+
+  // Die Druckvorlage gibt es nur während des Druckens (window.print() wartet, bis der Druckdialog zu ist).
+  const [drucken, setDrucken] = useState(false);
+  function druckeProtokoll() {
+    flushSync(() => setDrucken(true));
+    const vorher = document.title;
+    document.title = druckTitel(treffName, p);   // daraus macht der Browser den Dateinamen der PDF
+    window.print();
+    document.title = vorher;
+    setDrucken(false);
+  }
 
   async function loeschen() {
     if (!window.confirm(`Das Protokoll „${p.titel}“ löschen?`)) return;
@@ -64,9 +76,11 @@ function LesenSheet({ p, team, ichId, verwaltung, schliessen, bearbeiten, geaend
       )}
       <div className="row" style={{ marginTop: 'var(--space-4)' }}>
         {verwaltung && <Button variante={p.entwurf ? 'primary' : 'standard'} onClick={bearbeiten}>Bearbeiten</Button>}
+        <Button onClick={druckeProtokoll}>Drucken / als PDF speichern</Button>
         {verwaltung && <Button variante="danger" onClick={() => void loeschen()}>Löschen</Button>}
         <Button onClick={schliessen}>Schließen</Button>
       </div>
+      {drucken && <TeamprotokollDruck p={p} treffName={treffName} verfasst={p.erstellt_von ? namen[p.erstellt_von] ?? null : null} anwesend={p.anwesend.map((id) => wer(id))} />}
     </Sheet>
   );
 }
@@ -123,7 +137,7 @@ export function TeamprotokolleTab({ treff: t, rolle }: { treff: TreffDetailDaten
       </ul>
 
       {offen && (
-        <LesenSheet key={offen.id} p={offen} team={mitglieder} ichId={ich.id} verwaltung={verwaltung} schliessen={() => setLesen(null)}
+        <LesenSheet key={offen.id} p={offen} treffName={t.name} team={mitglieder} ichId={ich.id} verwaltung={verwaltung} schliessen={() => setLesen(null)}
           bearbeiten={() => { setLesen(null); setFormular({ vorhanden: offen }); }} geaendert={liste.neuLaden} />
       )}
       {formular && (

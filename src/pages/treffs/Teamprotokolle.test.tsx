@@ -206,6 +206,30 @@ describe('Teamprotokolle', () => {
     expect(within(d).getByText(/Zuletzt geändert am .* von Lea Leitner/)).toBeInTheDocument();
   });
 
+  it('Drucken / als PDF speichern: Vorlage mit allen Abschnitten, Dateiname aus Treff, Datum und Titel', async () => {
+    vi.mocked(api.listeTeamprotokolle).mockResolvedValue([protokoll({
+      id: 'g1', titel: 'Gegliedert', abschnitte: [{ titel: 'Termine', text: 'Sommerfest' }, { titel: 'Kasse', text: '- Kassenbuch prüfen' }],
+      aufgaben: 'Flyer drucken', anwesend: ['lea', 'ben'], gelesen: ['ich'],
+    })]);
+    let beimDrucken: { titel: string; text: string } | null = null;
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {
+      beimDrucken = { titel: document.title, text: document.querySelector('.teamprotokoll-druck')?.textContent ?? '' };
+    });
+    document.title = 'KiJuB-Kompass';
+    renderMitAuth(<TeamprotokolleTab treff={nord} rolle="betreuerin" />, betreuerin);
+    await userEvent.click(await screen.findByRole('button', { name: 'Gegliedert' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Drucken / als PDF speichern' }));
+    expect(print).toHaveBeenCalledTimes(1);
+    expect(beimDrucken!.titel).toBe('Teamprotokoll Treff Nord 2027-03-04 – Gegliedert');
+    for (const teil of ['Treff Nord · Teamprotokoll', 'Gegliedert', '04.03.2027 · von Lea Leitner', 'Anwesend: Lea Leitner, Ben Baum', 'Termine', 'Sommerfest', 'Kasse', 'Kassenbuch prüfen', 'Aufgaben und Ziele', 'Flyer drucken']) {
+      expect(beimDrucken!.text).toContain(teil);
+    }
+    expect(beimDrucken!.text).not.toContain('Gelesen');
+    expect(document.title).toBe('KiJuB-Kompass');
+    expect(document.querySelector('.teamprotokoll-druck')).toBeNull();
+    print.mockRestore();
+  });
+
   it('neu im Team: „vor Eintritt“ ist nicht ungelesen; Öffnen macht daraus „gelesen“; die Leitung sieht es getrennt', async () => {
     vi.mocked(api.listeTeamprotokolle).mockResolvedValue([protokoll({ id: 'p1', titel: 'Alt', gelesen: ['ich'], vorEintritt: ['ich'] })]);
     const u = userEvent.setup();

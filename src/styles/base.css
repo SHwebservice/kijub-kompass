@@ -223,12 +223,20 @@ button.plan__eintrag { cursor: pointer; }
 .hinweis-warnung { color: var(--danger); font-weight: 600; }
 .alert--warning { background: var(--warning-bg); color: var(--warning); }
 
-/* Druckvorlagen (Formulare, Katalog) – nur beim Drucken sichtbar, alles andere wird ausgeblendet */
-.formular-druck, .katalog-druck { display: none; }
+/* Druckvorlagen (Formulare, Katalog, Teamprotokolle) – nur beim Drucken sichtbar, alles andere wird ausgeblendet */
+.formular-druck, .katalog-druck, .teamprotokoll-druck { display: none; }
 @media print {
   @page { size: A4; margin: 15mm; }
   body * { visibility: hidden; }
-  .formular-druck, .formular-druck *, .katalog-druck, .katalog-druck * { visibility: visible; }
+  .formular-druck, .formular-druck *, .katalog-druck, .katalog-druck *, .teamprotokoll-druck, .teamprotokoll-druck * { visibility: visible; }
+  .teamprotokoll-druck { display: block; position: absolute; left: 0; top: 0; width: 100%; color: #000; background: #fff; font-size: 11pt; line-height: 1.45; }
+  .teamprotokoll-druck__kopf { display: flex; justify-content: space-between; font-size: 9pt; margin-bottom: 6mm; border-bottom: 1px solid #000; padding-bottom: 1.5mm; }
+  .teamprotokoll-druck h1 { font-size: 16pt; margin: 0 0 1mm; }
+  .teamprotokoll-druck h2 { font-size: 12.5pt; margin: 5mm 0 1.5mm; break-after: avoid; }
+  .teamprotokoll-druck p { margin: 1mm 0; }
+  .teamprotokoll-druck ul { margin: 1mm 0; padding-left: 6mm; }
+  .teamprotokoll-druck li { break-inside: avoid; }
+  .teamprotokoll-druck .teamprotokoll__ergebnis p { white-space: pre-line; }
   .katalog-druck { display: block; position: absolute; left: 0; top: 0; width: 100%; color: #000; background: #fff; font-size: 11pt; }
   .katalog-druck article { break-inside: avoid; margin-bottom: 10mm; }
   .katalog-druck h1 { font-size: 15pt; margin-bottom: 1mm; }
