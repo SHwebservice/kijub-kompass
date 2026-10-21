@@ -402,20 +402,16 @@ describe('Treffs, Dienste, Wünsche', () => {
     const msg = await als(db, teamer, () => fehler(() => q(`select * from fn_dienst_statistik($1, current_date)`, [treff])));
     expect(msg).toMatch(/Kein Zugriff/);
   });
-  it('BetreuerIn schreibt Wochenprogramm; Außenstehende nicht', async () => {
-    await als(db, betr, () => q(`insert into treff_plan_eintraege (treff_id, wochentag, angebot_id) values ($1, 1, $2)`, [treff, angebot]));
-    const msg = await als(db, teamer, () => fehler(() => q(
+  it('Wochenprogramm je Öffnungstag: Treffleitung schreibt, BetreuerIn liest nur, Außenstehende sehen nichts', async () => {
+    await als(db, tl, () => q(`insert into treff_plan_eintraege (treff_id, wochentag, freitext) values ($1, 2, 'Kicker')`, [treff]));
+    const r = await als(db, betr, () => q<{ freitext: string }>(`select freitext from treff_plan_eintraege where treff_id = $1`, [treff]));
+    expect(r.rows.map((x) => x.freitext)).toEqual(['Kicker']);
+    const msg = await als(db, betr, () => fehler(() => q(
       `insert into treff_plan_eintraege (treff_id, wochentag, freitext) values ($1, 3, 'x')`, [treff])));
     expect(msg).toMatch(/row-level security/i);
-  });
-  it('Wochenprogramm-Freitext: Treffleitung setzt ihn, BetreuerIn liest ihn, darf ihn aber nicht ändern', async () => {
-    await als(db, tl, () => q(`select fn_wochenprogramm_setzen($1, $2)`, [treff, '  Dienstag: Kicker  ']));
-    const r = await als(db, betr, () => q<{ wochenprogramm: string }>(`select wochenprogramm from treffs where id = $1`, [treff]));
-    expect(r.rows[0]!.wochenprogramm).toBe('Dienstag: Kicker');
-    const msg = await als(db, betr, () => fehler(() => q(`select fn_wochenprogramm_setzen($1, 'x')`, [treff])));
-    expect(msg).toMatch(/Nur Treffleitung und Treffkoordination/);
-    await als(db, tl, () => q(`select fn_wochenprogramm_setzen($1, '')`, [treff]));
-    expect((await q<{ wochenprogramm: string | null }>(`select wochenprogramm from treffs where id = $1`, [treff])).rows[0]!.wochenprogramm).toBeNull();
+    await als(db, betr, () => q(`update treff_plan_eintraege set freitext = 'y' where treff_id = $1`, [treff]));
+    expect((await q<{ freitext: string }>(`select freitext from treff_plan_eintraege where treff_id = $1`, [treff])).rows[0]!.freitext).toBe('Kicker');
+    expect((await als(db, teamer, () => q(`select 1 from treff_plan_eintraege where treff_id = $1`, [treff]))).rows).toHaveLength(0);
   });
   it('Treff-Absprachen: Treffleitung schreibt, BetreuerIn liest und bestätigt', async () => {
     const n = (await als(db, tl, () => q<{ id: string }>(

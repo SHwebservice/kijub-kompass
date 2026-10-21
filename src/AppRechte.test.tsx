@@ -39,7 +39,7 @@ function landetBei(ich: Partial<Ich>, pfad: string): string {
 beforeEach(() => { window.history.pushState({}, '', '/'); });
 
 describe('Seiten der Freizeitenkoordination', () => {
-  it.each(['/bewerbungen', '/import', '/freizeiten/neu', '/freizeiten/f1/bearbeiten'])('%s: nur Freizeitenkoordination', (pfad) => {
+  it.each(['/bewerbungen', '/import', '/freizeiten/neu', '/freizeiten/aufraeumen', '/freizeiten/f1/bearbeiten'])('%s: nur Freizeitenkoordination', (pfad) => {
     expect(landetBei(FK, pfad)).toBe(pfad);
     expect(landetBei(BEIDE, pfad)).toBe(pfad);
     expect(landetBei(TK, pfad)).not.toBe(pfad);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   tageVonBis, tageZwischen, wochentagKurz, wochentagLang, formatDatum, formatKurz, zeitraumText, ferienText, phase,
-  gruppiereNachFerien, darfBeworbenWerden, passendeFreizeiten, zeitraumWahlText, bewerbungsJahre, fruehesterBewerbungsstart, bestand, hochrechnung, sortiereTeam, heuteIso,
+  gruppiereNachFerien, gruppiereNachJahr, darfBeworbenWerden, passendeFreizeiten, zeitraumWahlText, bewerbungsJahre, fruehesterBewerbungsstart, bestand, hochrechnung, sortiereTeam, heuteIso,
   tageBisStart, freizeitFarbe, automatischeFarbe, FREIZEIT_FARBEN, formatTagLang, formatMonatKurz, type FreizeitKurz,
 } from './logik';
 
@@ -61,6 +61,17 @@ describe('Ferien und Phasen', () => {
     expect(g.map((x) => x.schluessel)).toEqual(['sommer', 'herbst', 'sonstige']);
     expect(g[0]!.eintraege.map((x) => x.id)).toEqual(['a', 'b']);
     expect(gruppiereNachFerien([])).toEqual([]);
+  });
+  it('gruppiereNachJahr: ältestes Jahr zuerst, innerhalb nach Start; Jahr des Starts zählt', () => {
+    const g = gruppiereNachJahr([
+      fz({ id: 'neu', start_datum: '2027-04-01' }),
+      fz({ id: 'spaet', start_datum: '2026-10-12' }),
+      fz({ id: 'silvester', start_datum: '2026-12-30', ende_datum: '2027-01-02' }),
+      fz({ id: 'frueh', start_datum: '2026-04-06' }),
+    ]);
+    expect(g.map((x) => x.label)).toEqual(['2026', '2027']);
+    expect(g[0]!.eintraege.map((x) => x.id)).toEqual(['frueh', 'spaet', 'silvester']);
+    expect(gruppiereNachJahr([])).toEqual([]);
   });
   it('Bewerbungsfrist: Vorlauf, abgesagte Freizeiten nie', () => {
     expect(fruehesterBewerbungsstart('2027-06-28', 7)).toBe('2027-07-05');

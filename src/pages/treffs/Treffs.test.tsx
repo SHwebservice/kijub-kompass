@@ -20,7 +20,7 @@ vi.mock('../../tagesprotokoll/api');
 const nord = treff({
   id: 't1', name: 'Treff Nord', ort_id: 'o1', ort_name: 'Jugendhaus', ort_adresse: 'Hauptstr. 1, Frankenthal',
   oeffnungszeiten: [{ wochentag: 2, von: '15:00', bis: '19:00' }, { wochentag: 4, von: '14:00', bis: '18:30' }],
-  wochenprogramm: 'Dienstag: Spielenachmittag\nDonnerstag: Kochen',
+  wochenprogramm: { 2: 'Spielenachmittag' },
 });
 
 const leitung: Szene = { ich: { kategorie: 'Hauptamtliche*r' }, treffs: [{ treff_id: 't1', rolle: 'treffleitung' }] };
@@ -111,39 +111,43 @@ describe('Treff-Detail: Reiter je Rolle', () => {
 });
 
 describe('Treff-Übersicht', () => {
-  it('zeigt Adresse, Öffnungszeiten und Wochenprogramm', async () => {
+  it('zeigt Adresse und bei den Öffnungstagen das Wochenprogramm', async () => {
     zeigeDetail(betreuerin);
     expect(await screen.findByText('Hauptstr. 1, Frankenthal')).toBeInTheDocument();
-    expect(screen.getAllByText('15:00–19:00 Uhr').length).toBeGreaterThan(0);
-    expect(screen.getByRole('heading', { name: 'Wochenprogramm' })).toBeInTheDocument();
-    expect(screen.getByText(/Dienstag: Spielenachmittag\s+Donnerstag: Kochen/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Bearbeiten' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Öffnungszeiten und Wochenprogramm' })).toBeInTheDocument();
+    const dienstag = screen.getByText('Spielenachmittag').closest('dd')!;
+    expect(dienstag).toHaveTextContent('15:00–19:00 Uhr');
+    expect(dienstag.previousElementSibling).toHaveTextContent('Dienstag');
+    expect(screen.queryByRole('button', { name: 'Programm bearbeiten' })).not.toBeInTheDocument();
   });
 
-  it('Treffleitung bearbeitet das Wochenprogramm als Freitext', async () => {
-    vi.mocked(api.setzeWochenprogramm).mockResolvedValue(undefined);
+  it('Treffleitung trägt das Programm je Öffnungstag ein; nur geänderte Tage werden gespeichert', async () => {
+    vi.mocked(api.setzeWochenprogrammTag).mockResolvedValue(undefined);
     zeigeDetail(leitung);
-    await userEvent.click(await screen.findByRole('button', { name: 'Bearbeiten' }));
-    const feld = screen.getByLabelText('Festes Programm, das sich jede Woche wiederholt');
-    await userEvent.clear(feld);
-    await userEvent.type(feld, 'Jeden Dienstag Kicker-Turnier');
+    await userEvent.click(await screen.findByRole('button', { name: 'Programm bearbeiten' }));
+    expect(screen.getByLabelText('Dienstag · 15:00–19:00 Uhr')).toHaveValue('Spielenachmittag');
+    await userEvent.type(screen.getByLabelText('Donnerstag · 14:00–18:30 Uhr'), 'Kochen');
     await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
-    expect(api.setzeWochenprogramm).toHaveBeenCalledWith('t1', 'Jeden Dienstag Kicker-Turnier');
-    expect(await screen.findByText('Jeden Dienstag Kicker-Turnier')).toBeInTheDocument();
+    expect(api.setzeWochenprogrammTag).toHaveBeenCalledTimes(1);
+    expect(api.setzeWochenprogrammTag).toHaveBeenCalledWith('t1', 4, 'Kochen');
+    expect((await screen.findByText('Kochen')).closest('dd')).toHaveTextContent('14:00–18:30 Uhr');
   });
 
-  it('ohne Wochenprogramm: Hinweis, Koordination kann eintragen', async () => {
-    vi.mocked(api.holeTreff).mockResolvedValue({ ...nord, wochenprogramm: null });
+  it('Koordination leert einen Tag: das Programm wird entfernt', async () => {
+    vi.mocked(api.setzeWochenprogrammTag).mockResolvedValue(undefined);
     zeigeDetail(koord);
-    expect(await screen.findByText('Noch kein Wochenprogramm eingetragen.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Eintragen' })).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: 'Programm bearbeiten' }));
+    await userEvent.clear(screen.getByLabelText('Dienstag · 15:00–19:00 Uhr'));
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    expect(api.setzeWochenprogrammTag).toHaveBeenCalledWith('t1', 2, '');
+    expect(screen.queryByText('Spielenachmittag')).not.toBeInTheDocument();
   });
 });
 
 describe('Treff-Team (unter „Treff bearbeiten“)', () => {
   it('kein Team-Reiter mehr: der alte Link führt die Treffleitung zur Übersicht', async () => {
     zeigeDetail(leitung, '/treffs/t1/team');
-    expect(await screen.findByRole('heading', { name: 'Wochenprogramm' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Öffnungszeiten und Wochenprogramm' })).toBeInTheDocument();
   });
 
   it('zeigt das Team mit Kontaktdaten', async () => {

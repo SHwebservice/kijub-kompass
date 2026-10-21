@@ -94,7 +94,7 @@ Legende: **L** lesen · **E** erstellen · **Ä** ändern · **X** löschen · *
 | Ressource | Koordination | Leitung | TeamerIn | Treffleitung | BetreuerIn | Sonstige |
 |---|---|---|---|---|---|---|
 | Treff-Stammdaten, Öffnungszeiten | L E Ä X | — | — | L (Treff) | L (Treff) | — · **Δ** Altcode: öffentlich lesbar |
-| Wochenprogramm (Freitext) | L Ä | — | — | L Ä | L | — |
+| Wochenprogramm (Freitext je Öffnungstag) | L E Ä X | — | — | L E Ä X | L | — |
 | Absprachen | L E Ä X | — | — | L E Ä X | L, bestätigen | — |
 | Teamprotokolle (Teambesprechung, Information, Sonstiges; Migration 0035) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L, „gelesen“ (eigener Treff) | — |
 | Protokoll-Vorlagen je Wochentag (Migration 0028) | L E Ä X (Treffkoordination) | — | — | L E Ä X (eigener Treff) | L (eigener Treff) | — |

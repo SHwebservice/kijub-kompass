@@ -64,7 +64,7 @@ Quellen-Kürzel: `mt` = mitarbeitende.js, `fz` = freizeiten-zugaenge.js, `tf` = 
 | C11 | **Lebensmittel-Inventar** nur für Leitung/Koordination: Eingänge (Name, Menge, Einheit, Datum), Verbrauch (je Tag), Restbestand, Warnung „bald leer" (≤ 25 % von erhalten) / „leer", Hochrechnung „reicht voraussichtlich nicht" (Ø Verbrauch × Resttage). Bestand liegt **am Ort**, so dass aufeinanderfolgende Freizeiten am selben Ort den Bestand fortführen. | `fz` | **Behalten**. Freizeit ohne Ort: Ort ist künftig Pflicht für das Lebensmittel-Modul (Vereinfachung, O4). |
 | C12 | Koordinations-Dashboard: Bewerbungen, Vorschläge, Notizen/Nachrichten (mit „gelesen"-Markierung), Lebensmittel-Übersicht, aktuelle Freizeiten, Saison-Gruppierung. | `fz` | **Neu** → siehe Abschnitt H. |
 | C13 | Gruppierung nach Ferienzeitraum/-woche mit Farbpunkt; Sortierung nach Start, dann Name. | `fz` | **Behalten**. |
-| C14 | Freizeit löschen räumt Zuordnungen auf. | `fz` | **Behalten** (Kaskade in der Datenbank). |
+| C14 | Freizeit löschen räumt Zuordnungen auf. | `fz` | **Behalten** (Kaskade in der Datenbank). **Neu:** „Freizeiten → Aufräumen" (nur Freizeitenkoordination) löscht mehrere Freizeiten auf einmal – nach Jahr gruppiert, ganzes Jahr mit einem Klick wählbar, Bestätigung durch Eingabe der Anzahl, Warnung bei noch nicht vorbeigegangenen. Dort lassen sich auch Bewerbungen für eine Ferienzeit je Jahr (bis zum laufenden Jahr) entfernen. Für den Jahreswechsel. |
 | C15 | Live-Synchronisierung: Änderungen anderer erscheinen sofort. | `fz` | **Behalten** (Supabase Realtime). |
 
 ## D. Treffs
@@ -72,7 +72,7 @@ Quellen-Kürzel: `mt` = mitarbeitende.js, `fz` = freizeiten-zugaenge.js, `tf` = 
 | ID | Was der Altcode tut | Quelle | Entscheidung |
 |---|---|---|---|
 | D1 | Stammdaten: Name, Ort (ein Ort gehört höchstens einem Treff), Adresse, Öffnungstage (Mo–So), **Öffnungszeit je Tag als Freitext** („15:00–19:00 Uhr"). | `tf` | **Neu** → Öffnungszeit strukturiert (von/bis), weil Stunden daraus berechnet werden. |
-| D2 | Wochenprogramm: **ein** Programmpunkt pro Öffnungstag (Katalog oder Freitext), Notiz; wiederkehrend (nicht datiert). | `tf` | **Geändert** (2026-10-21, Migration 0038): ein Freitext je Treff für das feste, wöchentlich wiederkehrende Programm; steht in der Kachel mit den Öffnungszeiten. |
+| D2 | Wochenprogramm: **ein** Programmpunkt pro Öffnungstag (Katalog oder Freitext), Notiz; wiederkehrend (nicht datiert). | `tf` | **Geändert** (2026-10-21, Migration 0038): nur noch Freitext je Öffnungstag (kein Katalog, keine Notiz); steht direkt bei den Öffnungszeiten des Tages. |
 | D3 | Absprachen (nur Treffleitung legt an; BetreuerInnen bestätigen), optional an ein Datum gekoppelt (Badge im Dienstplan). Keine Hinweise-vs.-Absprachen-Trennung. Absprachen-Bereich startet eingeklappt. | `tf` | **Behalten**. |
 | D4 | „Neu seit letztem Besuch" (Punkt am Reiter Dienstplan / bei Absprachen) – rein lokal per Zeitstempel. | `tf` | **Neu** → serverseitiger „gelesen bis"-Stand je Person (funktioniert geräteübergreifend). |
 | D5 | „Heute-Fokus" und Sticky-Anzeige des Dienstplans. | `tf` | **Behalten** (Startseite „Heute"). |
@@ -190,7 +190,7 @@ B9 (Bewerbung und Zurückziehen, Entscheidung durch die Koordination), Startseit
 ## Stand der Umsetzung: Treffs (Phase 3c, 2026-09-30)
 
 **Umgesetzt und getestet:** D1 (Stammdaten und strukturierte Öffnungszeiten je Wochentag, Formular für die Koordination, Löschen mit Kaskade und Namensbestätigung),
-D2 (Wochenprogramm als Freitext je Treff, seit 0038), D3 (Absprachen der Treffleitung, optional an einen Tag gekoppelt, von allen im Treff bestätigt),
+D2 (Wochenprogramm als Freitext je Öffnungstag, seit 0038), D3 (Absprachen der Treffleitung, optional an einen Tag gekoppelt, von allen im Treff bestätigt),
 D6 (Team mit rollenabhängigen Kontaktdaten und TZK-Angaben; Zuordnung und Rollen durch die Koordination, nur zulässige Kategorien), D7 (Kaskade),
 E1 (Dienstplan je Kalenderwoche mit Karte je Öffnungstag, Feiertags- und Absprachen-Badge, Abwesenden), E2 (Zuteilen durch Treffleitung/Koordination, Abwesende werden markiert),
 E3 (Wunschdienste: wünschen, zurücknehmen, bestätigen = zugleich einteilen, ablehnen, erneut wünschen nach Ablehnung), E4 (Sonderdienste, auch an Schließtagen),
@@ -207,7 +207,7 @@ Entwurf → eingereicht → freigegeben, PDF über den Druckdialog des Browsers 
 
 **Noch offen (bewusst später):**
 - Kalenderansicht des Monats (heute: Liste), „Neu seit letztem Besuch“ (D4), Push bei Dienständerungen, neuen Wünschen und Kommentaren (Bereich Mitteilungen).
-- Das Wochenprogramm (Freitext, 0038) ändern nur Treffleitung und Treffkoordination (fn_wochenprogramm_setzen); die alte Tabelle treff_plan_eintraege wird nicht mehr benutzt.
+- Das Wochenprogramm (Freitext je Öffnungstag in treff_plan_eintraege, 0038) ändern nur Treffleitung und Treffkoordination; angebot_id und notiz der Tabelle bleiben leer.
 - Treffs haben keinen Reiter „Team“ mehr (2026-10-21): Die Koordination verwaltet das Team unter „Treff bearbeiten“ (gilt sofort, ohne „Speichern“); alte Links auf /treffs/:id/team führen dorthin bzw. für alle anderen zur Übersicht. Die Startseiten-Kachel „Team“ der Treffs entfällt.
 
 ## Stand der Umsetzung: Mappen, Formulare und Quiz (Phase 3d, 2026-09-30)
