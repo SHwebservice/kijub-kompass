@@ -2,7 +2,7 @@ import { Link, NavLink, Navigate, Route, Routes, useParams } from 'react-router-
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { holeTreff } from '../../treffs/api';
-import { rolleInTreff, type RolleInTreff } from '../../lib/rollen';
+import { einzigerTreff, rolleInTreff, type RolleInTreff } from '../../lib/rollen';
 import { Alert, Badge, EmptyState, Spinner } from '../../components/ui';
 import { TreffUebersicht } from './TreffUebersicht';
 import { DienstplanTab } from './DienstplanTab';
@@ -42,7 +42,7 @@ export function TreffDetail() {
 
   return (
     <>
-      <p><Link to="/treffs">← Alle Treffs</Link></p>
+      {!einzigerTreff(rollen) && <p><Link to="/treffs">← Alle Treffs</Link></p>}
       <div className="page-header">
         <div>
           <h1 style={{ marginBottom: 'var(--space-2)' }}>{d.name}</h1>

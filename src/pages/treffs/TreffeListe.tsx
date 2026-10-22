@@ -1,9 +1,9 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth-kontext';
 import { useLaden } from '../../lib/laden';
 import { listeTreffs, type TreffZeile } from '../../treffs/api';
 import { wochentagKuerzel } from '../../treffs/logik';
-import { rolleInTreff, type Rollen } from '../../lib/rollen';
+import { einzigerTreff, rolleInTreff, type Rollen } from '../../lib/rollen';
 import { Alert, Badge, EmptyState, PageHeader, Spinner } from '../../components/ui';
 
 function TreffListe({ treffs, rollen, beschriftung }: { treffs: TreffZeile[]; rollen: Rollen; beschriftung?: string }) {
@@ -32,11 +32,14 @@ function TreffListe({ treffs, rollen, beschriftung }: { treffs: TreffZeile[]; ro
 /**
  * Liste der Treffs: die Koordination sieht alle, alle anderen ihre eigenen (die Datenbank liefert nur diese).
  * Ist die Treffkoordination selbst in Treffs eingeteilt, stehen diese oben unter „Meine Treffs“.
+ * Wer nur einem Treff zugeordnet ist, landet direkt auf dessen Seite.
  */
 export function TreffeListe() {
   const { rollen } = useAuth();
+  const einziger = rollen ? einzigerTreff(rollen) : null;
   const liste = useLaden(listeTreffs, 'treffs');
   if (!rollen) return null;
+  if (einziger) return <Navigate to={`/treffs/${einziger}`} replace />;
   const alle = liste.daten ?? [];
   const meineIds = new Set([...rollen.treffleitungen, ...rollen.betreuerTreffs]);
   const meine = alle.filter((t) => meineIds.has(t.id));

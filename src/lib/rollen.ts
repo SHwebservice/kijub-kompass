@@ -63,6 +63,13 @@ export function berechneRollen(
   };
 }
 
+/** Der einzige Treff einer Person, die genau einem Treff zugeordnet ist und keine Treffkoordination hat; sonst null. */
+export function einzigerTreff(r: Rollen): string | null {
+  if (r.treffkoordination) return null;
+  const ids = new Set([...r.treffleitungen, ...r.betreuerTreffs]);
+  return ids.size === 1 ? [...ids][0] ?? null : null;
+}
+
 export interface NavEintrag { pfad: string; label: string; icon: string }
 
 /** Hauptnavigation (mobil: untere Leiste, höchstens 5 Einträge). */

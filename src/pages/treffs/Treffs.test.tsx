@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router-dom';
 import * as api from '../../treffs/api';
 import * as fzApi from '../../freizeiten/api';
 import * as zuordnungApi from '../../zuordnung/api';
@@ -57,13 +58,24 @@ beforeEach(() => {
 
 describe('Treffs: Liste', () => {
   it('zeigt Treffs mit Öffnungstagen und eigener Rolle', async () => {
-    renderMitAuth(<TreffeListe />, leitung);
+    renderMitAuth(<TreffeListe />, { ...leitung, treffs: [{ treff_id: 't1', rolle: 'treffleitung' }, { treff_id: 't2', rolle: 'betreuerin' }] });
     const t1 = await screen.findByRole('link', { name: 'Treff Nord' });
     expect(t1).toHaveAttribute('href', '/treffs/t1');
     expect(screen.getByText('Di, Do')).toBeInTheDocument();
     expect(screen.getByText('Keine Öffnungstage')).toBeInTheDocument();
     expect(screen.getByText('Treffleitung')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Neuer Treff' })).not.toBeInTheDocument();
+  });
+
+  it('nur einem Treff zugeordnet: direkt auf die Seite des Treffs', async () => {
+    renderMitAuth(<Routes><Route path="/treffs" element={<TreffeListe />} /><Route path="/treffs/:id/*" element={<TreffDetail />} /></Routes>, { ...betreuerin, pfad: '/treffs' });
+    expect(await screen.findByRole('heading', { name: 'Treff Nord' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '← Alle Treffs' })).not.toBeInTheDocument();
+  });
+
+  it('mehreren Treffs zugeordnet: Liste', async () => {
+    renderMitAuth(<TreffeListe />, { ich: { kategorie: 'TZK' }, treffs: [{ treff_id: 't1', rolle: 'betreuerin' }, { treff_id: 't2', rolle: 'betreuerin' }] });
+    expect(await screen.findByRole('link', { name: 'Treff Süd' })).toBeInTheDocument();
   });
 
   it('Koordination kann einen Treff anlegen', async () => {
@@ -73,7 +85,7 @@ describe('Treffs: Liste', () => {
 
   it('leer: Hinweis je Rolle', async () => {
     vi.mocked(api.listeTreffs).mockResolvedValue([]);
-    renderMitAuth(<TreffeListe />, betreuerin);
+    renderMitAuth(<TreffeListe />, { ich: { kategorie: 'TZK' } });
     expect(await screen.findByText('Du bist noch keinem Treff zugeordnet')).toBeInTheDocument();
   });
 });
