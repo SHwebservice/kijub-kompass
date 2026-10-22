@@ -7,8 +7,13 @@ import { sendePush } from '../../mitteilungen/senden';
 import { FreizeitenListe } from './FreizeitenListe';
 import { renderMitAuth } from '../../test-utils';
 import { freizeit, inTagen } from '../../test-daten';
+import * as heuteApi from '../../heute/api';
+import * as checklisteApi from '../../checkliste/api';
+import { leererStand } from '../../test-heute';
 
 vi.mock('../../freizeiten/api');
+vi.mock('../../heute/api');
+vi.mock('../../checkliste/api');
 
 const liste = [
   freizeit({ id: 'meine', name: 'Meine Sommerfreizeit', ferienzeitraum: 'sommer', ferienwoche: 1, ort_name: 'Mörscher Au' }),
@@ -27,6 +32,8 @@ beforeEach(() => {
   vi.mocked(api.bewerben).mockResolvedValue(undefined);
   vi.mocked(api.bewerbungZurueckziehen).mockResolvedValue(undefined);
   vi.mocked(api.meineZeitraumBewerbungen).mockResolvedValue([]);
+  vi.mocked(heuteApi.ladeHeute).mockResolvedValue(leererStand());
+  vi.mocked(checklisteApi.ladeCheckliste).mockResolvedValue([]);
 });
 
 const teamerMitZuordnung = { freizeiten: [{ freizeit_id: 'meine', rolle: 'teamer' as const }, { freizeit_id: 'alt', rolle: 'teamer' as const }] };
@@ -136,13 +143,44 @@ describe('Freizeiten-Liste: andere Rollen', () => {
     expect(screen.queryByRole('link', { name: 'Neue Freizeit' })).not.toBeInTheDocument();
   });
 
-  it('Koordination sieht alle Freizeiten, den Knopf „Neue Freizeit" und kann sich nicht bewerben', async () => {
+  it('Koordination sieht alle Freizeiten, die Knöpfe „Bewerbungen" und „Neue Freizeit" und kann sich nicht bewerben', async () => {
     renderMitAuth(<FreizeitenListe />, { ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } });
+    await screen.findByRole('heading', { name: 'Saison-Überblick' });
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Saison', 'Alle kommenden', 'Vergangene']);
+    await userEvent.click(screen.getByRole('tab', { name: 'Alle kommenden' }));
     expect(await screen.findByText('Fremde Freizeit')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Bewerbungen' })).toHaveAttribute('href', '/bewerbungen');
     expect(screen.getByRole('link', { name: 'Neue Freizeit' })).toHaveAttribute('href', '/freizeiten/neu');
     expect(screen.queryByRole('button', { name: 'Bewerben' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('tab', { name: 'Vergangene' }));
     expect(screen.getByText('Alte Freizeit')).toBeInTheDocument();
+  });
+
+  it('Saison: aktuelle Freizeiten nach Ferienzeit, Warnung bei fehlender Leitung, Stand der Vorbereitung', async () => {
+    vi.mocked(heuteApi.ladeHeute).mockResolvedValue({ ...leererStand(), team: [{ freizeit_id: 'laeuft', person_id: 'lea', rolle: 'leitung' }] });
+    vi.mocked(checklisteApi.ladeCheckliste).mockResolvedValue([
+      { freizeit_id: 'bald', art: 'vorlage', id: 'p1', titel: 'x', beschreibung: '', faellig: inTagen(-1), ziel: null, automatik: null, auto_erfuellt: false, status: 'offen', notiz: '', geaendert_von: null, geaendert_am: null },
+    ] as never);
+    renderMitAuth(<FreizeitenListe />, { ich: { ist_freizeitkoordination: true, kategorie: 'Hauptamtliche*r' } });
+    const zahlen = await screen.findByRole('list', { name: 'Zusammenfassung' });
+    expect(within(zahlen).getByText('2 Freizeiten')).toBeInTheDocument();
+    expect(within(zahlen).getByText('1 läuft')).toBeInTheDocument();
+    expect(within(zahlen).getByText('1 ohne Leitung')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Laufende Freizeit' })).toBeInTheDocument();
+    expect(screen.getByText('Leitung 1 · Team 0')).toBeInTheDocument();
+    expect(screen.getByText('Keine Leitung')).toBeInTheDocument();
+    expect(screen.getByText('Vorbereitung 0/1 · 1 überfällig').closest('a')).toHaveAttribute('href', '/freizeiten/bald/vorbereitung');
+    expect(screen.queryByRole('link', { name: 'Fremde Freizeit' })).not.toBeInTheDocument();           // liegt weit in der Zukunft
+    expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ teamFreizeiten: ['laeuft', 'bald'] }));
+    expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.not.objectContaining({ besuch: true }));       // kein Besuch vermerkt
+  });
+
+  it('TeamerInnen haben keinen Reiter „Saison“ und laden nichts dafür', async () => {
+    renderMitAuth(<FreizeitenListe />, teamerMitZuordnung);
+    await screen.findByText('Meine Sommerfreizeit');
+    expect(screen.queryByRole('tab', { name: 'Saison' })).not.toBeInTheDocument();
+    expect(heuteApi.ladeHeute).not.toHaveBeenCalled();
+    expect(screen.queryByRole('link', { name: 'Bewerbungen' })).not.toBeInTheDocument();
   });
 
   it('zeigt Ladefehler', async () => {
@@ -209,6 +247,7 @@ describe('Freizeiten-Liste: voll und Bewerbung für eine Ferienzeit (0030)', () 
 
   it('die Freizeitenkoordination sieht den Bereich nicht', async () => {
     renderMitAuth(<FreizeitenListe />, { ich: { ist_freizeitkoordination: true, kategorie: 'Hauptamtliche*r' } });
+    await userEvent.click(await screen.findByRole('tab', { name: 'Alle kommenden' }));
     await screen.findByText('Meine Sommerfreizeit');
     expect(screen.queryByText('Für eine Ferienzeit bewerben')).not.toBeInTheDocument();
   });

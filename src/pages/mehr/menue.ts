@@ -6,8 +6,8 @@ export interface MenueGruppe { id: string; titel: string; eintraege: MenueEintra
 const e = (pfad: string, icon: string, label: string, text: string): MenueEintrag => ({ pfad, icon, label, text });
 
 /**
- * Was unter „Mehr“ steht: alles, was nicht schon in der unteren Navigation ist, nach Themen geordnet.
- * Die Verwaltung der Koordination ist in kleine Gruppen unterteilt.
+ * Was unter „Mehr“ steht: Nachschlagen, eigene Dienste und die Verwaltung der Koordination.
+ * Was zu einem Bereich der Navigation gehört (Bewerbungen bei den Freizeiten, Vorschläge im Katalog), steht dort und nicht hier.
  */
 export function baueMenue(r: Rollen | null): MenueGruppe[] {
   const gruppen: MenueGruppe[] = [{
@@ -17,7 +17,6 @@ export function baueMenue(r: Rollen | null): MenueGruppe[] {
       ...(r?.darfTreffmappe ? [e('/treffmappe', '📒', 'Treffmappe', 'Handbuch und Regeln für die Treffs')] : []),
       e('/formulare', '📝', 'Formulare', 'Zum Ausfüllen, Speichern und Drucken'),
       e('/quiz', '❓', 'Quiz', 'Das eigene Wissen testen'),
-      ...(r && !r.koordination ? [e('/katalog/vorschlagen', '💡', 'Programmpunkt vorschlagen', 'Eine Idee für den Katalog einreichen')] : []),
     ],
   }];
 
@@ -29,22 +28,18 @@ export function baueMenue(r: Rollen | null): MenueGruppe[] {
   if (r?.koordination) {
     const fk = r.freizeitkoordination; const tk = r.treffkoordination;
     gruppen.push(
-      { id: 'personen', titel: 'Personen', eintraege: [
-        ...(fk ? [e('/bewerbungen', '📥', 'Bewerbungen', 'Bewerbungen auf Freizeiten annehmen oder ablehnen')] : []),
+      { id: 'personen', titel: 'Personen & Orte', eintraege: [
         e('/personen', '🪪', 'Personen & Zugänge', 'Personen anlegen, Zugänge und Zuordnungen verwalten'),
+        e('/orte', '📍', 'Orte', 'Orte und Adressen pflegen'),
       ] },
       { id: 'planung', titel: 'Planung', eintraege: [
         ...(fk ? [e('/freizeiten/neu', '➕', 'Neue Freizeit', 'Eine Freizeit anlegen')] : []),
         ...(fk ? [e('/checkliste', '✅', 'Checkliste für Freizeiten', 'Standardpunkte der Vorbereitung pflegen')] : []),
         ...(tk ? [e('/treffs/neu', '🏗️', 'Neuer Treff', 'Einen Treff mit Öffnungszeiten anlegen')] : []),
-        e('/orte', '📍', 'Orte', 'Orte und Adressen pflegen'),
       ] },
-      { id: 'inhalte', titel: 'Inhalte', eintraege: [
-        e('/katalog/vorschlaege', '💡', 'Katalog-Vorschläge', 'Eingereichte Ideen prüfen'),
-        e('/quiz/verwalten', '🧠', 'Quiz-Fragen', 'Fragen anlegen und ändern'),
-      ] },
-      { id: 'kommunikation', titel: 'Mitteilungen & Daten', eintraege: [
+      { id: 'daten', titel: 'Mitteilungen & Daten', eintraege: [
         e('/mitteilungen', '📢', 'Mitteilung senden', 'An alle oder an eine Gruppe'),
+        e('/quiz/verwalten', '🧠', 'Quiz-Fragen', 'Fragen anlegen und ändern'),
         ...(fk ? [e('/import', '🔄', 'KiJuKo-Import', 'Daten aus KiJuKo übernehmen')] : []),
         e('/fehler', '🐞', 'Fehlermeldungen', 'Was die App selbst als Fehler gemeldet hat'),
       ] },

@@ -74,17 +74,17 @@ describe('Heute: Checkliste der Vorbereitung (0029)', () => {
 
   it('TeamerIn: keine Abfrage der Checkliste', async () => {
     zeige(teamer);
-    await screen.findByRole('list', { name: 'Meine Freizeiten' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(checklisteApi.ladeCheckliste).not.toHaveBeenCalledWith(['f1']);
     expect(screen.queryByText(/Vorbereitung:/)).not.toBeInTheDocument();
   });
 
-  it('Freizeitenkoordination: Stand je Freizeit im Saison-Überblick', async () => {
-    vi.mocked(checklisteApi.ladeCheckliste).mockResolvedValue([punkt('f2', inTagen(-3)), punkt('f2', inTagen(1), { status: 'erledigt' })]);
+  it('Freizeitenkoordination: kein Stand fremder Freizeiten auf der Startseite (der steht in der Saison unter „Freizeiten“)', async () => {
     zeige(koord);
-    const badge = await screen.findByText('Vorbereitung 1/2 · 1 überfällig');
-    expect(badge.closest('a')).toHaveAttribute('href', '/freizeiten/f2/vorbereitung');
-    expect(screen.queryByRole('link', { name: /Vorbereitung: 1 Punkt ist überfällig/ })).not.toBeInTheDocument();     // keine Feed-Karte für fremde Freizeiten
+    await screen.findByRole('list', { name: 'Überblick der Koordination' });
+    await waitFor(() => expect(heuteApi.ladeHeute).toHaveBeenCalled());
+    expect(checklisteApi.ladeCheckliste).not.toHaveBeenCalledWith(expect.arrayContaining(['f2']));
+    expect(screen.queryByText(/Vorbereitung \d|Vorbereitung:/)).not.toBeInTheDocument();
   });
 });
 
@@ -109,7 +109,7 @@ describe('Heute: TeamerIn', () => {
     expect(screen.getByText(/Eine Bewerbung von dir wartet/)).toBeInTheDocument();
   });
 
-  it('in einer laufenden Freizeit: „Heute“ mit Tagesprogramm, „Meine Freizeiten“, nichts zum Bewerben für die eigene', async () => {
+  it('in einer laufenden Freizeit: „Heute“ mit Tagesprogramm, unter „Als Nächstes“ keine weitere, nichts zum Bewerben für die eigene', async () => {
     stand.plan = [
       { id: '1', freizeit_id: 'f1', titel: 'Schwimmen', slot: 'Nachmittag', position: 2 }, { id: '2', freizeit_id: 'f1', titel: 'Fangen', slot: 'Vormittag', position: 1 },
     ];
@@ -119,8 +119,7 @@ describe('Heute: TeamerIn', () => {
     const plan = await within(heute).findByRole('list', { name: 'Tagesprogramm Sommer-Sause läuft' });
     expect(within(plan).getAllByRole('listitem').map((l) => l.textContent)).toEqual(['Vormittag: Fangen', 'Nachmittag: Schwimmen']);
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ planFreizeiten: ['f1'], heute: inTagen(0) }));
-    const meine = screen.getByRole('list', { name: 'Meine Freizeiten' });
-    expect(within(meine).getByText('Läuft')).toBeInTheDocument();
+    expect(await screen.findByText('Keine kommende Freizeit.')).toBeInTheDocument();
     expect(screen.queryByText('Willkommen im KiJuB-Kompass')).not.toBeInTheDocument();
   });
 
@@ -156,22 +155,22 @@ describe('Heute: TeamerIn', () => {
   });
 });
 
-describe('Heute: Meine Freizeiten und Willkommen', () => {
-  it('zeigt nur eigene, laufende oder kommende, nicht abgesagte Freizeiten', async () => {
+describe('Heute: Als Nächstes und Willkommen', () => {
+  it('zeigt die nächste eigene, kommende, nicht abgesagte Freizeit – laufende stehen unter „Heute“', async () => {
     vi.mocked(fzApi.listeFreizeiten).mockResolvedValue([
+      freizeit({ id: 'spaeter', name: 'Meine Spätere', start_datum: inTagen(40), ende_datum: inTagen(44) }),
       freizeit({ id: 'mein', name: 'Meine Kommende' }),
       freizeit({ id: 'lauf', name: 'Meine Laufende', start_datum: inTagen(-1), ende_datum: inTagen(3) }),
       freizeit({ id: 'alt', name: 'Meine Alte', start_datum: inTagen(-30), ende_datum: inTagen(-26) }),
-      freizeit({ id: 'ab', name: 'Meine Abgesagte', status: 'abgesagt' }),
-      freizeit({ id: 'fremd', name: 'Nicht meine' }),
+      freizeit({ id: 'ab', name: 'Meine Abgesagte', status: 'abgesagt', start_datum: inTagen(2), ende_datum: inTagen(5) }),
+      freizeit({ id: 'fremd', name: 'Nicht meine', start_datum: inTagen(2), ende_datum: inTagen(5) }),
     ]);
-    zeige({ freizeiten: ['mein', 'lauf', 'alt', 'ab'].map((id) => ({ freizeit_id: id, rolle: 'teamer' as const })) });
-    const meine = await screen.findByRole('list', { name: 'Meine Freizeiten' });
-    expect(within(meine).getByText('Meine Kommende')).toBeInTheDocument();
-    expect(within(meine).getByText('Meine Laufende')).toBeInTheDocument();
-    expect(within(meine).getByText('Läuft')).toBeInTheDocument();
-    expect(within(meine).getByText('in 30 Tagen')).toBeInTheDocument();
-    for (const n of ['Meine Alte', 'Meine Abgesagte', 'Nicht meine']) expect(within(meine).queryByText(n)).not.toBeInTheDocument();
+    zeige({ freizeiten: ['spaeter', 'mein', 'lauf', 'alt', 'ab'].map((id) => ({ freizeit_id: id, rolle: 'teamer' as const })) });
+    const naechste = await screen.findByRole('list', { name: 'Nächste Freizeit' });
+    expect(within(naechste).getByRole('link', { name: 'Meine Kommende' })).toHaveAttribute('href', '/freizeiten/mein');
+    expect(within(naechste).getByText('in 30 Tagen')).toBeInTheDocument();
+    for (const n of ['Meine Spätere', 'Meine Laufende', 'Meine Alte', 'Meine Abgesagte', 'Nicht meine']) expect(within(naechste).queryByText(n)).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Meine Freizeiten' })).not.toBeInTheDocument();
   });
 
   it('ohne Zuordnung: Willkommenstext mit Hinweis auf die Bewerbung', async () => {
@@ -190,12 +189,12 @@ describe('Heute: Meine Freizeiten und Willkommen', () => {
 describe('Heute: Treffs', () => {
   const dienst = (id: string, datum: string, o: object = {}) => ({ id, datum, von: '15:00', bis: '19:00', ist_sonder: false, bezeichnung: null, treff_id: 't1', treff_name: 'Kindertreff', ...o });
 
-  it('Dienste von heute stehen oben, die späteren in „Meine nächsten Dienste“', async () => {
+  it('Dienste von heute stehen oben, die späteren in „Als Nächstes“', async () => {
     vi.mocked(treffApi.listeMeineDienste).mockResolvedValue([dienst('d1', inTagen(0)), dienst('d2', inTagen(3), { ist_sonder: true, bezeichnung: 'Sommerfest' })]);
     zeige(tzk);
     const heute = await screen.findByRole('list', { name: 'Heute' });
     expect(within(heute).getByRole('link')).toHaveTextContent('Dienst heute · 15:00–19:00 Uhr');
-    const spaeter = await screen.findByRole('list', { name: 'Meine Dienste' });
+    const spaeter = await screen.findByRole('list', { name: 'Meine nächsten Dienste' });
     const eintraege = within(spaeter).getAllByRole('listitem');
     expect(eintraege).toHaveLength(1);
     expect(eintraege[0]).toHaveTextContent(formatKurz(inTagen(3)));
@@ -211,7 +210,7 @@ describe('Heute: Treffs', () => {
 
   it('ohne Dienste: Hinweis', async () => {
     zeige(tzk);
-    expect(await screen.findByText('Keine Dienste eingeteilt.')).toBeInTheDocument();
+    expect(await screen.findByText('Keine Dienste in den nächsten 14 Tagen.')).toBeInTheDocument();
   });
 
   it('offene Treff-Absprachen warten auf die Bestätigung', async () => {
@@ -232,7 +231,7 @@ describe('Heute: Treffs', () => {
     unmount();
     vi.mocked(heuteApi.ladeHeute).mockClear();
     zeige(tzk);
-    await screen.findByRole('list', { name: 'Meine Treffs' });
+    await screen.findByRole('list', { name: 'Meine nächsten Dienste' });
     await waitFor(() => expect(heuteApi.ladeHeute).toHaveBeenCalled());
     expect(screen.queryByText('Dienstwünsche warten')).not.toBeInTheDocument();
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.not.objectContaining({ wuensche: expect.anything() }));          // Wünsche werden gar nicht erst angefragt
@@ -297,29 +296,19 @@ describe('Heute: Koordination', () => {
     expect(within(raster).getByRole('link', { name: /Katalog-Vorschläge\s*0\s*keine offen/ })).toBeInTheDocument();
   });
 
-  it('Saison-Überblick: aktuelle Freizeiten nach Ferienzeit, Warnung bei fehlender Leitung', async () => {
-    stand.team = [{ freizeit_id: 'f1', person_id: 'lea', rolle: 'leitung' }];
+  it('der Saison-Überblick steht nicht mehr auf der Startseite (sondern unter „Freizeiten“)', async () => {
     zeige(koord);
-    const sommer = await screen.findByRole('region', { name: 'Sommer' });
-    expect(within(sommer).getByRole('link', { name: 'Sommer-Sause' })).toBeInTheDocument();
-    expect(within(sommer).getByRole('link', { name: 'Sommer-Sause 2' })).toBeInTheDocument();
-    const zahlen = await screen.findByRole('list', { name: 'Zusammenfassung' });
-    expect(within(zahlen).getByText('2 Freizeiten')).toBeInTheDocument();
-    expect(within(zahlen).getByText('1 läuft')).toBeInTheDocument();
-    expect(within(zahlen).getByText('1 ohne Leitung')).toBeInTheDocument();
-    expect(within(sommer).getByText('Keine Leitung')).toBeInTheDocument();
-    expect(within(sommer).getByText('Läuft')).toBeInTheDocument();
-    expect(within(sommer).getByText('Leitung 1 · Team 0')).toBeInTheDocument();
-    expect(within(sommer).getByText('in 6 Tagen')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Herbstfahrt' })).not.toBeInTheDocument();           // liegt weit in der Zukunft
+    await screen.findByRole('list', { name: 'Überblick der Koordination' });
+    expect(screen.queryByRole('heading', { name: 'Saison-Überblick' })).not.toBeInTheDocument();
   });
 
-  it('die Koordination sieht laufende Freizeiten aller, keine „Freizeiten zum Bewerben“, aber Lebensmittel', async () => {
+  it('die Koordination sieht laufende Freizeiten aller, keine „Freizeiten zum Bewerben“; knappe Lebensmittel zählt der Überblick', async () => {
     stand.bestand = [{ ort_id: 'o2', name: 'Brot', einheit: null, rest: 0, status: 'leer' }];
     zeige(koord);
     const laufend = await screen.findByRole('list', { name: 'Heute' });
     expect(within(laufend).getByRole('link', { name: 'Sommer-Sause läuft' })).toBeInTheDocument();
-    expect(await screen.findByRole('link', { name: 'Lebensmittel werden knapp' })).toBeInTheDocument();
+    expect(await within(screen.getByRole('list', { name: 'Überblick der Koordination' })).findByRole('link', { name: /Lebensmittels*1s*knapp oder leer/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Lebensmittel werden knapp' })).not.toBeInTheDocument();
     expect(screen.queryByText('Freizeiten zum Bewerben')).not.toBeInTheDocument();
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.objectContaining({ wuensche: 'alle' }));                  // alle Treffs
   });
@@ -429,13 +418,13 @@ describe('Heute: Neu seit deinem letzten Besuch', () => {
 });
 
 describe('Heute: Fehlermeldungen der App (Koordination)', () => {
-  it('Kachel „Fehlermeldungen“ mit der Zahl offener Fehler – nur für die Koordination', async () => {
+  it('Überblick „Fehlermeldungen“ mit der Zahl offener Fehler – nur für die Koordination', async () => {
     stand.fehler = 3;
     const { unmount } = zeige(koord);
-    expect(await screen.findByRole('link', { name: /Fehlermeldungen\s*Offen:\s*3/ })).toHaveAttribute('href', '/fehler');
+    expect(await within(await screen.findByRole('list', { name: 'Überblick der Koordination' })).findByRole('link', { name: /Fehlermeldungens*3s*in der App aufgetreten/ })).toHaveAttribute('href', '/fehler');
     unmount();
     zeige(teamer);
-    await screen.findByRole('navigation', { name: 'Schnellzugriff' });
+    await screen.findByRole('list', { name: 'Heute' });
     expect(screen.queryByRole('link', { name: /Fehlermeldungen/ })).not.toBeInTheDocument();
   });
 });

@@ -1,20 +1,42 @@
 import { Link } from 'react-router-dom';
 import type { FreizeitZeile } from '../../freizeiten/api';
 import { formatMonatKurz, gruppiereNachFerien, phase, tageBisStart, zeitraumText } from '../../freizeiten/logik';
-import { ohneLeitung, personenText, type TeamZeile } from '../../heute/logik';
-import type { Stand } from '../../checkliste/logik';
-import { Badge, Card } from '../../components/ui';
+import { aktuelleFreizeiten, ohneLeitung, personenText, type TeamZeile } from '../../heute/logik';
+import { ladeHeute } from '../../heute/api';
+import { ladeCheckliste } from '../../checkliste/api';
+import { standJeFreizeit, type Stand } from '../../checkliste/logik';
+import { useLaden } from '../../lib/laden';
+import { Alert, Badge, Card, EmptyState, Spinner } from '../../components/ui';
 import { fzStreifen } from '../../components/FreizeitFarbe';
 
+/** Tab „Saison“ der Freizeitenkoordination: lädt Team und Checkliste der aktuellen Freizeiten und zeigt den Überblick. */
+export function SaisonTab({ freizeiten, heute, laedt }: { freizeiten: FreizeitZeile[]; heute: string; laedt: boolean }) {
+  const aktuelle = aktuelleFreizeiten(freizeiten, heute);
+  const ids = aktuelle.map((f) => f.id);
+  const team = useLaden(async () => (ids.length ? (await ladeHeute({
+    heute, notizFreizeiten: [], notizTreffs: [], teamFreizeiten: ids, planFreizeiten: [], kachelTreffs: [], protokollTreffs: [],
+  })).team : []), `saison-team-${heute}-${ids.join(',')}`);
+  const checkliste = useLaden(async () => (ids.length ? ladeCheckliste(ids) : []), `saison-checkliste-${ids.join(',')}`);
+
+  if (laedt || team.laedt) return <Spinner />;
+  if (aktuelle.length === 0) return <EmptyState icon="⛺" titel="Gerade keine Saison">Keine Freizeit läuft oder beginnt in den nächsten zwei Wochen.</EmptyState>;
+  return (
+    <>
+      {(team.fehler ?? checkliste.fehler) && <Alert ton="error">{team.fehler ?? checkliste.fehler}</Alert>}
+      <SaisonUeberblick aktuelle={aktuelle} team={team.daten ?? []} heute={heute} vorbereitung={standJeFreizeit(checkliste.daten ?? [], heute)} />
+    </>
+  );
+}
+
 interface Props {
-  freizeiten: boolean; aktuelle: FreizeitZeile[]; team: TeamZeile[]; heute: string;
+  aktuelle: FreizeitZeile[]; team: TeamZeile[]; heute: string;
   /** Stand der Checkliste je Freizeit (Migration 0029). */
   vorbereitung?: Record<string, Stand>;
 }
 
 /** Koordination: die aktuelle Saison auf einen Blick – oben die Zahlen, darunter je Ferienzeit kompakte Karten mit Datum, Status und Teamstand. */
-export function KoordSicht({ freizeiten, aktuelle, team, heute, vorbereitung = {} }: Props) {
-  if (!freizeiten || aktuelle.length === 0) return null;
+export function SaisonUeberblick({ aktuelle, team, heute, vorbereitung = {} }: Props) {
+  if (aktuelle.length === 0) return null;
   const ohne = new Set(ohneLeitung(aktuelle, team).map((f) => f.id));
   const laufen = aktuelle.filter((f) => phase(f, heute) === 'laufend').length;
   const imTeam = (id: string, rolle: TeamZeile['rolle']) => team.filter((t) => t.freizeit_id === id && t.rolle === rolle).length;

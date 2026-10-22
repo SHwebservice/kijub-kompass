@@ -292,7 +292,6 @@ a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
 .kachel__ziele a { display: block; padding: var(--space-2); border-radius: var(--radius-sm); min-height: 36px; font-size: var(--fs-sm); }
 .kachel__ziele a:hover { background: var(--accent-bg); }
 .kachel__alle { color: var(--text-muted); }
-.kacheln__gruppe > summary { cursor: pointer; margin-bottom: var(--space-2); }
 .kacheln > li:has(> details[open]) { grid-column: span 2; }
 
 /* Tagesprotokoll und Notizen der Treffs */

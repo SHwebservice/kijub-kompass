@@ -1,30 +1,19 @@
 import { useDarstellung, type Darstellung } from '../theme/darstellung';
 
-const WAHL: { wert: Darstellung; label: string }[] = [
-  { wert: 'system', label: 'Wie Gerät' },
-  { wert: 'hell', label: 'Hell' },
-  { wert: 'dunkel', label: 'Dunkel' },
-];
+const STUFEN: Record<Darstellung, { label: string; icon: string; naechste: Darstellung }> = {
+  system: { label: 'Wie Gerät', icon: '🌗', naechste: 'hell' },
+  hell: { label: 'Hell', icon: '☀️', naechste: 'dunkel' },
+  dunkel: { label: 'Dunkel', icon: '🌙', naechste: 'system' },
+};
 
-/** Drei Knöpfe für „Mehr“: dem Gerät folgen, immer hell, immer dunkel. */
-export function DarstellungsUmschalter() {
-  const { wahl, setze } = useDarstellung();
-  return (
-    <div className="darstellung" role="group" aria-label="Darstellung">
-      {WAHL.map((w) => (
-        <button key={w.wert} type="button" className="darstellung__knopf" aria-pressed={wahl === w.wert} onClick={() => setze(w.wert)}>{w.label}</button>
-      ))}
-    </div>
-  );
-}
-
-/** Schneller Wechsel im Kopf: zeigt, wohin umgeschaltet wird (Sonne im Dunkeln, Mond im Hellen). */
+/** Der einzige Schalter für die Darstellung, im Kopf: wechselt reihum „Wie Gerät“ → „Hell“ → „Dunkel“ und zeigt die aktuelle Wahl. */
 export function DarstellungsKnopf() {
-  const { dunkel, setze } = useDarstellung();
+  const { wahl, setze } = useDarstellung();
+  const s = STUFEN[wahl];
+  const text = `Darstellung: ${s.label}. Wechseln zu ${STUFEN[s.naechste].label}`;
   return (
-    <button type="button" className="icon-knopf" onClick={() => setze(dunkel ? 'hell' : 'dunkel')}
-      aria-label={dunkel ? 'Helle Darstellung einschalten' : 'Dunkle Darstellung einschalten'}>
-      <span aria-hidden="true">{dunkel ? '☀️' : '🌙'}</span>
+    <button type="button" className="icon-knopf" onClick={() => setze(s.naechste)} aria-label={text} title={text}>
+      <span aria-hidden="true">{s.icon}</span>
     </button>
   );
 }

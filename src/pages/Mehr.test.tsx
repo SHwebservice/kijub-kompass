@@ -16,10 +16,10 @@ describe('Menü unter „Mehr“: Inhalt je Rolle', () => {
   const ids = (g: ReturnType<typeof baueMenue>) => g.map((x) => x.id);
   const pfade = (g: ReturnType<typeof baueMenue>) => g.flatMap((x) => x.eintraege.map((y) => y.pfad));
 
-  it('TeamerIn: Wissen & Material, mit Vorschlagen, ohne Treffmappe und ohne Verwaltung', () => {
+  it('TeamerIn: Wissen & Material, ohne Treffmappe und ohne Verwaltung (Vorschlagen steht im Katalog)', () => {
     const g = baueMenue(rollenVon({}));
     expect(ids(g)).toEqual(['wissen']);
-    expect(pfade(g)).toEqual(['/teamermappe', '/formulare', '/quiz', '/katalog/vorschlagen']);
+    expect(pfade(g)).toEqual(['/teamermappe', '/formulare', '/quiz']);
   });
   it('TZK im Treff bekommt zusätzlich die Treffmappe', () => {
     expect(pfade(baueMenue(rollenVon({ kategorie: 'TZK' }, [{ treff_id: 't', rolle: 'betreuerin' }])))).toContain('/treffmappe');
@@ -30,23 +30,24 @@ describe('Menü unter „Mehr“: Inhalt je Rolle', () => {
     expect(pfade(g)).toContain('/dienste');
     expect(pfade(baueMenue(rollenVon({})))).not.toContain('/dienste');
   });
-  it('Koordination (beide Bereiche): Verwaltung in vier Gruppen, ohne „Programmpunkt vorschlagen“', () => {
+  it('Koordination (beide Bereiche): Verwaltung in drei Gruppen; Bewerbungen und Katalog-Vorschläge stehen in ihren Bereichen', () => {
     const g = baueMenue(rollenVon({ ...BEIDE, kategorie: 'Hauptamtliche*r' }));
-    expect(ids(g)).toEqual(['wissen', 'personen', 'planung', 'inhalte', 'kommunikation']);
-    expect(pfade(g)).toEqual(expect.arrayContaining(['/bewerbungen', '/personen', '/freizeiten/neu', '/treffs/neu', '/orte', '/katalog/vorschlaege', '/quiz/verwalten', '/mitteilungen', '/import', '/fehler']));
+    expect(ids(g)).toEqual(['wissen', 'personen', 'planung', 'daten']);
+    expect(pfade(g)).toEqual(expect.arrayContaining(['/personen', '/freizeiten/neu', '/checkliste', '/treffs/neu', '/orte', '/quiz/verwalten', '/mitteilungen', '/import', '/fehler']));
+    for (const weg of ['/bewerbungen', '/katalog/vorschlaege']) expect(pfade(g)).not.toContain(weg);
     expect(pfade(g)).not.toContain('/katalog/vorschlagen');
     expect(pfade(g)).toContain('/treffmappe');
   });
-  it('Freizeitenkoordination: Bewerbungen, Neue Freizeit und KiJuKo – aber nicht „Neuer Treff“', () => {
+  it('Freizeitenkoordination: Neue Freizeit, Checkliste und KiJuKo – aber nicht „Neuer Treff“', () => {
     const p = pfade(baueMenue(rollenVon({ ist_koordination: true, ist_freizeitkoordination: true, kategorie: 'Hauptamtliche*r' })));
-    expect(p).toEqual(expect.arrayContaining(['/bewerbungen', '/freizeiten/neu', '/import', '/personen', '/orte', '/mitteilungen', '/quiz/verwalten']));
+    expect(p).toEqual(expect.arrayContaining(['/freizeiten/neu', '/checkliste', '/import', '/personen', '/orte', '/mitteilungen', '/quiz/verwalten']));
     expect(p).not.toContain('/treffs/neu');
     expect(p).not.toContain('/treffmappe');
   });
-  it('Treffkoordination: Neuer Treff und Treffmappe – aber keine Bewerbungen, Neue Freizeit, KiJuKo', () => {
+  it('Treffkoordination: Neuer Treff und Treffmappe – aber keine Neue Freizeit, Checkliste, KiJuKo', () => {
     const p = pfade(baueMenue(rollenVon({ ist_koordination: true, ist_treffkoordination: true, kategorie: 'Hauptamtliche*r' })));
     expect(p).toEqual(expect.arrayContaining(['/treffs/neu', '/treffmappe', '/personen', '/orte', '/mitteilungen', '/quiz/verwalten']));
-    for (const weg of ['/bewerbungen', '/freizeiten/neu', '/import']) expect(p).not.toContain(weg);
+    for (const weg of ['/checkliste', '/freizeiten/neu', '/import']) expect(p).not.toContain(weg);
   });
   it('kein Eintrag doppelt, jeder mit Text', () => {
     const g = baueMenue(rollenVon({ ...BEIDE, kategorie: 'Hauptamtliche*r' }));
@@ -83,24 +84,23 @@ describe('Seite „Mehr“', () => {
 
   it('Gruppen mit Namen und Kurzbeschreibung; die Links führen an die richtigen Orte', async () => {
     zeige({ ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } });      // alter Schreibweise: beide Bereiche
-    const personen = (await screen.findByRole('heading', { name: 'Personen' })).closest('section')!;
+    const personen = (await screen.findByRole('heading', { name: 'Personen & Orte' })).closest('section')!;
     const link = within(personen).getByRole('link', { name: /Personen & Zugänge/ });
     expect(link).toHaveAttribute('href', '/personen');
     expect(link).toHaveTextContent('Personen anlegen, Zugänge und Zuordnungen verwalten');
     expect(screen.getByRole('heading', { name: 'Planung' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Inhalte' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Mitteilungen & Daten' })).toBeInTheDocument();
   });
 
   it('TeamerIn sieht keine Verwaltung', async () => {
     zeige({ ich: { kategorie: 'TeamerIn' } });
     await screen.findByRole('heading', { name: 'Wissen & Material' });
-    expect(screen.queryByRole('heading', { name: 'Personen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Personen & Orte' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Personen & Zugänge/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Programmpunkt vorschlagen/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Programmpunkt vorschlagen/ })).not.toBeInTheDocument();
   });
 
-  it('Mein Konto: Mitteilungen, Passwort ändern (eingeklappt), Abmelden, Impressum und Datenschutz', async () => {
+  it('Mein Konto: Mitteilungen, Passwort ändern (eingeklappt), Abmelden, Impressum und Datenschutz – Darstellung nur im Kopf', async () => {
     zeige({ ich: { kategorie: 'TeamerIn' } });
     const konto = (await screen.findByRole('heading', { name: 'Mein Konto' })).closest('section')!;
     expect(within(konto).getByRole('button', { name: 'Abmelden' })).toBeInTheDocument();
@@ -108,5 +108,6 @@ describe('Seite „Mehr“', () => {
     expect(konto.querySelector('summary')).toHaveTextContent('Passwort ändern');
     expect(screen.getByRole('link', { name: 'Impressum' })).toHaveAttribute('href', '/impressum');
     expect(screen.getByRole('link', { name: 'Datenschutz' })).toHaveAttribute('href', '/datenschutz');
+    expect(screen.queryByRole('group', { name: 'Darstellung' })).not.toBeInTheDocument();
   });
 });

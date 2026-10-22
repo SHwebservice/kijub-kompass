@@ -110,7 +110,7 @@ describe('Barrierefreiheit (axe): keine Verstöße gegen gängige Regeln', () =>
 
   it('„Mehr“ (Koordination)', async () => {
     const { container } = renderMitAuth(<Mehr />, koord);
-    await screen.findByRole('heading', { name: 'Personen' });
+    await screen.findByRole('heading', { name: 'Personen & Orte' });
     expect(await axeVerstoesse(container)).toEqual([]);
   });
 

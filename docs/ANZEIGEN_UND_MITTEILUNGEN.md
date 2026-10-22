@@ -9,21 +9,23 @@ Rollen: **Koordination**, **Freizeitleitung**, **TeamerIn**, **Treffleitung**, *
 | Bereich | Koordination | Freizeitleitung | TeamerIn | Treffleitung | BetreuerIn | Bewerbende |
 |---|---|---|---|---|---|---|
 | Kacheln Freizeiten (Wochenplan, Hinweise, Team) | alle aktuellen | eigene | eigene | – | – | – |
-| Kachel Lebensmittel | ja, Zahl knapper Artikel | ja, mit Zahl | – | – | – | – |
-| Kacheln Treffs (Tagesprotokoll, Notizen, Dienstplan, Absprachen → Notizen gefiltert, Team) | alle | – | – | eigene | eigene | – |
-| Nachweis | Zahl eingereichter | – | – | Zahl eingereichter | nur TZK, ohne Zahl | – |
-| Dienstwünsche, Monatsplan, Abwesenheit & Feiertage | ja | – | – | ja | – | – |
-| Verwaltung (Bewerbungen, Personen, Planung, Inhalte …) | ja, mit Zahlen | – | – | – | – | – |
+| Kacheln Lebensmittel, Vorbereitung | ja | ja | – | – | – | – |
+| Kacheln Treffs (Tagesprotokoll, Notizen mit Zahl offener, Dienstplan) | alle | – | – | eigene | eigene | – |
+| Kachel Nachweis | ohne Zahl (Zahl im Kachelraster) | – | – | Zahl eingereichter | nur TZK, ohne Zahl | – |
+| Kachel Abwesenheit & Feiertage | ja | – | – | ja | – | – |
+| Karte „Als Nächstes“ (nächste eigene kommende Freizeit, nächste 3 Dienste, Link „Meine Dienste“) | wenn eingeteilt | ja | ja | ja | ja | – |
 | Karte „Heute“ (Tagesprogramm, Dienste) | ja | ja | ja | ja | ja | – |
 | „Das wartet auf dich“ (Hinweise/Absprachen bestätigen) | ja | ja | Hinweise | ja | ja | – |
 | Karte „Tagesprotokoll fehlt“ (Treff heute geöffnet, nichts geschrieben; nicht an Feiertagen und in Schließzeiten) | nur in Treffs, in deren Team sie ist (seit 0026) | – | – | ja | ja | – |
-| Leitungs-Karte (knappe Lebensmittel, nicht gesehene Hinweise) | ja | ja | – | – | – | – |
-| Karte „Vorbereitung: … überfällig / bald fällig“ (Checkliste, seit 0029) | Freizeitenkoordination: Stand je Freizeit im Saison-Überblick | ja, eigene Freizeiten | – | – | – | – |
-| Treffleitungs-Karte (offene Dienstwünsche) | ja | – | – | ja | – | – |
-| Koordinations-Karte (Bewerbungen, Vorschläge, Freizeit ohne Leitung) | ja | – | – | – | – | – |
+| Leitungs-Karte (knappe Lebensmittel, nicht gesehene Hinweise) | nicht gesehene Hinweise; knappe Lebensmittel zählt das Kachelraster | ja | – | – | – | – |
+| Karte „Vorbereitung: … überfällig / bald fällig“ (Checkliste, seit 0029) | eigene Freizeiten als Leitung; Stand aller im Reiter *Freizeiten → Saison* | ja, eigene Freizeiten | – | – | – | – |
+| Treffleitungs-Karte (offene Dienstwünsche) | Treffkoordination: Zahl im Kachelraster | – | – | ja | – | – |
+| Kachelraster der Koordination (Bewerbungen, Vorschläge, Lebensmittel, Freizeit ohne Leitung, Dienstwünsche, Nachweise, Fehlermeldungen) | ja | – | – | – | – | – |
 | Freizeiten zum Bewerben | – | – | wenn bewerbend | – | – | ja |
 
 *Die Spalte „Koordination“ gilt seit Migration 0018 je Bereich (Abschnitt 3): Freizeiten, Lebensmittel und Bewerbungen für die Freizeitenkoordination, Treffs, Protokolle und Nachweise für die Treffkoordination.*
+
+**Seit 2026-10-21 gilt: jede Funktion an einem Ort, jede Zahl an einer Stelle.** Die Startseite enthält nur, was jetzt Aufmerksamkeit braucht, und Direktlinks in die eigenen Freizeiten und Treffs. Nachschlagen (Teamermappe, Treffmappe, Formulare, Quiz) und die Verwaltung der Koordination stehen nur unter „Mehr“. Bewerbungen und die Saison stehen im Reiter *Freizeiten*, Katalog-Vorschläge und „Programmpunkt vorschlagen“ im *Katalog*. Hell/Dunkel stellt man nur noch über den Knopf im Kopf ein; er wechselt reihum zwischen „Wie Gerät“, „Hell“ und „Dunkel“.
 
 Tagesprotokolle darf die Koordination **lesen und bearbeiten**; sie bekommt dazu aber **keine Mitteilungen** (weder wenn eines geschrieben wurde, noch wenn eines fehlt). Seit Migration 0026 zeigt ihr auch die Startseite nicht an, wo ein Protokoll fehlt oder geschrieben wurde (kein Hinweis im Kachelraster, keine Zahl an der Kachel, nichts unter „Neu seit deinem letzten Besuch“) – außer in Treffs, in deren Team sie selbst ist. Bei Bedarf liest sie es im Treff nach (Reiter „Tagesprotokoll“).
 
@@ -61,9 +63,9 @@ Freizeitenkoordination und Treffkoordination; eine Person kann beides sein. Was 
 
 | | Freizeitenkoordination | Treffkoordination |
 |---|---|---|
-| Kacheln und Karten | Freizeiten, Lebensmittel, Bewerbungen, Saison-Überblick, „Freizeit ohne Leitung“ | Treffs, Nachweise, Dienstwünsche (Tagesprotokolle nur als Weg in die Treffs, ohne „fehlt“) |
-| Verwaltung (Kacheln/„Mehr“) | Bewerbungen, Neue Freizeit, KiJuKo-Import | Neuer Treff |
-| Gemeinsame Verwaltung | Personen, Orte, Katalog (Vorschläge, Import), Quiz-Fragen, Mitteilung senden | dasselbe |
+| Kacheln und Karten | Freizeiten, Lebensmittel, Bewerbungen, „Freizeit ohne Leitung“; Saison im Reiter *Freizeiten* | Treffs, Nachweise, Dienstwünsche (Tagesprotokolle nur als Weg in die Treffs, ohne „fehlt“) |
+| Verwaltung | unter „Mehr“: Neue Freizeit, Checkliste für Freizeiten, KiJuKo-Import; Bewerbungen im Reiter *Freizeiten* | unter „Mehr“: Neuer Treff |
+| Gemeinsame Verwaltung | unter „Mehr“: Personen, Orte, Quiz-Fragen, Mitteilung senden, Fehlermeldungen; Katalog-Vorschläge und Import im *Katalog* | dasselbe |
 | Mitteilungen | neue Bewerbung, Absprache in einer Freizeit, Lebensmittel knapp/leer | Nachweis eingereicht (wenn ein Treff keine Treffleitung hat) |
 | Mitteilung senden an … | alle, Koordination, Leitungen, TeamerInnen/BetreuerInnen, **eine Freizeit** | alle, Koordination, Leitungen, TeamerInnen/BetreuerInnen, **einen Treff** |
 | Protokolle | – | lesen und bearbeiten (keine Mitteilung) |

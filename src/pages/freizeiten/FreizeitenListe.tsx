@@ -14,11 +14,12 @@ import { rolleInFreizeit } from '../../lib/rollen';
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../../components/ui';
 import { fzStreifen } from '../../components/FreizeitFarbe';
 import { ZeitraumBewerben } from './ZeitraumBewerben';
+import { SaisonTab } from './SaisonUeberblick';
 
-type Tab = 'meine' | 'alle' | 'vergangen';
-const TAB_LABEL: Record<Tab, string> = { meine: 'Meine', alle: 'Alle kommenden', vergangen: 'Vergangene' };
+type Tab = 'saison' | 'meine' | 'alle' | 'vergangen';
+const TAB_LABEL: Record<Tab, string> = { saison: 'Saison', meine: 'Meine', alle: 'Alle kommenden', vergangen: 'Vergangene' };
 
-/** Liste der Freizeiten: eigene, alle kommenden (mit Bewerbung für TeamerInnen) und vergangene. */
+/** Liste der Freizeiten: Saison-Überblick (Freizeitenkoordination), eigene, alle kommenden (mit Bewerbung für TeamerInnen) und vergangene. */
 export function FreizeitenListe() {
   const { rollen, ich } = useAuth();
   const liste = useLaden(listeFreizeiten, 'liste');
@@ -34,14 +35,14 @@ export function FreizeitenListe() {
   const heute = heuteIso();
   const meineIds = new Set([...rollen.leitungFreizeiten, ...rollen.teamerFreizeiten]);
   const darfAlle = rollen.freizeitkoordination || rollen.bewerbend;
-  const tabs: Tab[] = [...(meineIds.size > 0 || !darfAlle ? ['meine' as const] : []), ...(darfAlle ? ['alle' as const] : []), 'vergangen'];
+  const tabs: Tab[] = [...(rollen.freizeitkoordination ? ['saison' as const] : []), ...(meineIds.size > 0 || !darfAlle ? ['meine' as const] : []), ...(darfAlle ? ['alle' as const] : []), 'vergangen'];
   const tab: Tab = gewaehlt && tabs.includes(gewaehlt) ? gewaehlt : tabs[0]!;
 
   const alle = liste.daten ?? [];
   const sichtbar = alle.filter((f) => {
     const p = phase(f, heute);
     if (tab === 'vergangen') return p === 'vergangen' && (rollen.freizeitkoordination || meineIds.has(f.id));
-    if (p === 'vergangen') return false;
+    if (tab === 'saison' || p === 'vergangen') return false;
     return tab === 'alle' ? true : meineIds.has(f.id);
   });
   const status = new Map((bewerbungen.daten ?? []).map((b) => [b.freizeit_id, b.status]));
@@ -75,6 +76,7 @@ export function FreizeitenListe() {
   return (
     <>
       <PageHeader titel="Freizeiten">
+        {rollen.freizeitkoordination && <Link className="btn" to="/bewerbungen">Bewerbungen</Link>}
         {rollen.freizeitkoordination && <Link className="btn" to="/freizeiten/aufraeumen">Aufräumen</Link>}
         {rollen.freizeitkoordination && <Link className="btn btn--primary" to="/freizeiten/neu">Neue Freizeit</Link>}
       </PageHeader>
@@ -105,8 +107,10 @@ export function FreizeitenListe() {
 
       {tab === 'alle' && rollen.bewerbend && !rollen.freizeitkoordination && <ZeitraumBewerben freizeiten={alle} />}
 
-      {liste.laedt && <Spinner />}
-      {!liste.laedt && sichtbar.length === 0 && (
+      {tab === 'saison' && <SaisonTab freizeiten={alle} heute={heute} laedt={liste.laedt} />}
+
+      {liste.laedt && tab !== 'saison' && <Spinner />}
+      {!liste.laedt && tab !== 'saison' && sichtbar.length === 0 && (
         <EmptyState icon="⛺" titel={tab === 'meine' ? 'Du bist noch keiner Freizeit zugeordnet' : tab === 'vergangen' ? 'Keine vergangenen Freizeiten' : 'Keine kommenden Freizeiten'}>
           {tab === 'meine' && darfAlle ? 'Unter „Alle kommenden" kannst du dich bewerben.' : undefined}
         </EmptyState>

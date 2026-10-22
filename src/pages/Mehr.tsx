@@ -6,9 +6,8 @@ import { PasswortAendern } from './PasswortAendern';
 import { VERSION } from '../version';
 import { MitteilungenKarte } from './MitteilungenKarte';
 import { baueMenue, initialen } from './mehr/menue';
-import { DarstellungsUmschalter } from '../components/DarstellungsUmschalter';
 
-/** „Mehr“: Profil, Wissen und Material, Verwaltung (Koordination), Mitteilungen und Konto. */
+/** „Mehr“: Profil, Wissen und Material, Verwaltung (Koordination), Mitteilungen und Konto. Hell/dunkel schaltet der Knopf im Kopf. */
 export function Mehr() {
   const { ich, rollen, abmelden, passwortAendern } = useAuth();
   const gruppen = baueMenue(rollen);
@@ -52,11 +51,6 @@ export function Mehr() {
         <section aria-labelledby="menue-konto">
           <h2 id="menue-konto" className="menue__titel">Mein Konto</h2>
           <div className="stack">
-            <Card>
-              <strong id="darstellung-titel">Darstellung</strong>
-              <p className="field__hint">Hell, dunkel oder wie dein Gerät. Gilt nur in diesem Browser.</p>
-              <DarstellungsUmschalter />
-            </Card>
             <MitteilungenKarte />
             <details className="menue__details">
               <summary>Passwort ändern</summary>

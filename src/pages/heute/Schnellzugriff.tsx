@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { summeBadges, type Kachel, type KachelGruppe } from '../../heute/kacheln';
+import type { Kachel, KachelGruppe } from '../../heute/kacheln';
 import { Badge } from '../../components/ui';
 
 function Inhalt({ k }: { k: Kachel }) {
@@ -29,27 +29,21 @@ function KachelEintrag({ k }: { k: Kachel }) {
 }
 
 /**
- * Schnellzugriff: alle wichtigen Funktionen der Rollen der Person als Kacheln, nach Bereichen gruppiert.
- * Die Verwaltung der Koordination ist eingeklappt und zeigt die Zahl offener Aufgaben.
+ * Schnellzugriff: Direktlinks in die eigenen Freizeiten und Treffs, nach Bereichen gruppiert.
+ * Alles Übrige erreicht man über die Navigation und „Mehr“.
  */
 export function Schnellzugriff({ gruppen }: { gruppen: KachelGruppe[] }) {
+  if (gruppen.length === 0) return null;
   return (
     <nav aria-label="Schnellzugriff" className="stack">
-      {gruppen.map((g) => {
-        const liste = (
+      {gruppen.map((g) => (
+        <section key={g.id}>
+          <h2 className="kacheln__titel">{g.titel}</h2>
           <ul className="kacheln" aria-label={g.titel}>
             {g.kacheln.map((k) => <KachelEintrag key={k.id} k={k} />)}
           </ul>
-        );
-        if (g.id !== 'verwaltung') return <section key={g.id}><h2 className="kacheln__titel">{g.titel}</h2>{liste}</section>;
-        const offen = summeBadges(g);
-        return (
-          <details key={g.id} className="kacheln__gruppe" open={offen > 0}>
-            <summary><span aria-hidden="true">⚙️ </span><h2 className="kacheln__titel" style={{ display: 'inline' }}>{g.titel}</h2>{offen > 0 && <> <Badge ton="warning">{offen} offen</Badge></>}</summary>
-            {liste}
-          </details>
-        );
-      })}
+        </section>
+      ))}
     </nav>
   );
 }

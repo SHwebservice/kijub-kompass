@@ -3,7 +3,6 @@ import { Alert, Badge, Card, EmptyState, PageHeader, Spinner } from '../componen
 import { fzStreifen } from '../components/FreizeitFarbe';
 import { useAuth } from '../lib/auth-kontext';
 import { useLaden } from '../lib/laden';
-import { rollenBezeichnungen } from '../lib/rollen';
 import { listeFreizeiten } from '../freizeiten/api';
 import { formatKurz, heuteIso, phase, tageBisStart, zeitraumText } from '../freizeiten/logik';
 import { ladeHeute, quittiereBesuch } from '../heute/api';
@@ -22,15 +21,17 @@ import { useLetzterBesuchDienste } from './dienste/gesehen';
 import { Bewerben } from './heute/Bewerben';
 import { Bento } from './heute/Bento';
 import { Feed } from './heute/Feed';
-import { KoordSicht } from './heute/KoordSicht';
 import { MitteilungsHinweis } from './heute/MitteilungsHinweis';
 import { Schnellzugriff } from './heute/Schnellzugriff';
 
 const DIENSTE_TAGE = 14;
+/** So viele kommende Dienste zeigt „Als Nächstes“; alle stehen unter „Meine Dienste“. */
+const NAECHSTE_DIENSTE = 3;
 
 /**
- * Startseite: die Koordination sieht oben das Kachelraster mit Zahlen („Überblick“). Für alle folgt der Feed: Zu erledigen, Heute,
- * Neu seit dem letzten Besuch. Darunter der Schnellzugriff (Kacheln für alle Funktionen der eigenen Rollen), die Saison der Koordination und die eigenen Freizeiten und Treffs.
+ * Startseite – nur „Was braucht mich jetzt?“: die Koordination sieht oben das Kachelraster mit Zahlen („Überblick“). Für alle folgt der Feed:
+ * Zu erledigen, Heute, Neu seit dem letzten Besuch. Darunter „Als Nächstes“ (nächste eigene Freizeit, nächste Dienste) und der Schnellzugriff
+ * in die eigenen Freizeiten und Treffs. Jede Zahl steht nur an einer Stelle; Listen und die Saison stehen in den Bereichen Freizeiten und Treffs.
  */
 export function Heute() {
   const { ich, rollen } = useAuth();
@@ -72,9 +73,9 @@ export function Heute() {
   };
   const stand = useLaden(async () => (bereit ? ladeHeute(anfrage) : null), `heute-stand-${bereit}-${JSON.stringify(anfrage)}`);
 
-  // Checkliste der Vorbereitung: eigene kommende Freizeiten als Leitung (Karten im Feed), für die Freizeitenkoordination die aktuellen (Saison-Überblick)
+  // Checkliste der Vorbereitung: eigene kommende Freizeiten als Leitung (Karten im Feed; den Stand aller zeigt die Saison unter „Freizeiten“)
   const eigeneLeitung = alle.filter((f) => rollen?.leitungFreizeiten.includes(f.id) && f.status === 'geplant' && phase(f, heute) !== 'vergangen');
-  const checklisteIds = [...new Set([...eigeneLeitung.map((f) => f.id), ...(fk ? aktuelle.map((f) => f.id) : [])])].sort();
+  const checklisteIds = eigeneLeitung.map((f) => f.id).sort();
   const checkliste = useLaden(async () => (bereit ? ladeCheckliste(checklisteIds) : []), `heute-checkliste-${bereit}-${checklisteIds.join(',')}`);
   // Ungelesene Teamprotokolle der eigenen Treffs (die letzten 60 Tage)
   const teamprotokolle = useLaden(async () => (meineTreffIds.length ? listeNeueTeamprotokolle(meineTreffIds, addTage(heute, -60)) : []), `heute-teamprotokolle-${meineTreffIds.join(',')}`);
@@ -109,9 +110,10 @@ export function Heute() {
   const eintraege = baueFeed({
     ohneProtokoll: ohneProtokoll.map((t) => ({ id: t.id, name: t.name })),
     offene: offeneGruppen,
-    knapp: istLeitung ? knappJeOrt.map((o) => ({ ort: o, freizeitId: freizeitAmOrt(o.ort_id)?.id ?? null, name: d?.orte[o.ort_id] ?? freizeitAmOrt(o.ort_id)?.name ?? 'Ort' })) : [],
+    // Lebensmittel (Freizeitenkoordination) und Dienstwünsche (Treffkoordination) zählt bei der Koordination schon der Überblick oben
+    knapp: istLeitung && !fk ? knappJeOrt.map((o) => ({ ort: o, freizeitId: freizeitAmOrt(o.ort_id)?.id ?? null, name: d?.orte[o.ort_id] ?? freizeitAmOrt(o.ort_id)?.name ?? 'Ort' })) : [],
     nichtGesehen: istLeitung ? nichtGeseheneImTeam(d?.notizen ?? [], d?.team ?? [], leitungFreizeiten.map((f) => f.id), heute) : [],
-    wuensche: wuenscheJe.map((w) => ({ treff: w, name: d?.treffNamen[w.treff_id] ?? 'Treff' })),
+    wuensche: tk ? [] : wuenscheJe.map((w) => ({ treff: w, name: d?.treffNamen[w.treff_id] ?? 'Treff' })),
     teamprotokolle: Object.entries(ungeleseneJeTreff(teamprotokolle.daten ?? [], ich.id))
       .map(([treffId, anzahl]) => ({ treffId, anzahl, name: (treffs.daten ?? []).find((t) => t.id === treffId)?.name ?? 'Treff' })),
     vorbereitung: eigeneLeitung.filter((f) => vorbereitung[f.id]).map((f) => ({ id: f.id, name: f.name, ueberfaellig: vorbereitung[f.id]!.ueberfaellig, bald: vorbereitung[f.id]!.bald })),
@@ -121,7 +123,7 @@ export function Heute() {
   });
 
   const kacheln = baueKacheln({
-    freizeitkoordination: fk, treffkoordination: tk, bewerbend: rollen.bewerbend, darfTreffmappe: rollen.darfTreffmappe,
+    freizeitkoordination: fk, treffkoordination: tk,
     leitung: rollen.leitungFreizeiten.length > 0, treffleitung: rollen.treffleitungen.length > 0,
     freizeitTeam: meineIds.size > 0, treffTeam: hatTreffs, kategorie: ich.kategorie,
     freizeiten: (fk ? aktuelle : meine).map((f) => ({ id: f.id, name: f.name })),
@@ -133,7 +135,6 @@ export function Heute() {
       protokollFehlt: ohneProtokoll.length, offeneNotizen: Object.values(d?.offeneNotizen ?? {}).reduce((n, x) => n + x, 0), fehler: d?.fehler ?? 0,
     },
   });
-  const bezeichnungen = rollenBezeichnungen(rollen);
   const bento = koord ? baueBento({
     freizeitkoordination: fk, treffkoordination: tk, heute, zaehler: {
       hinweise: 0, treffAbsprachen: 0, knapp, wuensche: d?.wuensche.length ?? 0, bewerbungen: d?.bewerbungen ?? 0, vorschlaege: d?.vorschlaege ?? 0,
@@ -143,13 +144,13 @@ export function Heute() {
     ohneLeitung: fk ? ohneLeitung(aktuelle, d?.team ?? []).length : 0, wunschTreffId: wuenscheJe[0]?.treff_id ?? null, erstesTreffId: kachelTreffs[0]?.id ?? null,
   }) : [];
 
+  // „Als Nächstes“: die nächste eigene Freizeit, die noch nicht läuft (laufende stehen im Feed unter „Heute“), und die nächsten Dienste
+  const naechsteFreizeit = meine.find((f) => phase(f, heute) === 'kommend');
+  const naechsteDienste = kommendeDienste.slice(0, NAECHSTE_DIENSTE);
+
   return (
     <>
       <PageHeader titel={`Hallo ${ich.vorname}`} />
-      <p className="row" style={{ gap: 'var(--space-2)' }}>
-        {bezeichnungen.map((b) => <Badge key={b} ton="accent">{b}</Badge>)}
-        <Badge>{ich.kategorie}</Badge>
-      </p>
 
       <div className="stack">
         <MitteilungsHinweis />
@@ -157,59 +158,45 @@ export function Heute() {
         {koord && <Bento kacheln={bento} />}
         <Feed heute={heute} eintraege={eintraege} seit={d?.seit ?? null} neuGesamt={d?.neuGesamt ?? 0} laedt={stand.laedt || freizeiten.laedt || !bereit}
           gesehen={async () => { await quittiereBesuch(); stand.neuLaden(); }} />
-        <Schnellzugriff gruppen={kacheln} />
-        {koord && <KoordSicht freizeiten={fk} aktuelle={aktuelle} team={d?.team ?? []} heute={heute} vorbereitung={vorbereitung} />}
 
-        {meineIds.size > 0 && (
+        {(meineIds.size > 0 || hatTreffs) && (
           <Card>
-            <h2>Meine Freizeiten</h2>
-            {freizeiten.laedt && <Spinner />}
-            {!freizeiten.laedt && meine.length === 0 && <p>Keine laufenden oder kommenden Freizeiten.</p>}
-            <ul className="list" aria-label="Meine Freizeiten">
-              {meine.slice(0, 6).map((f) => {
-                const laeuft = phase(f, heute) === 'laufend';
-                const bis = tageBisStart(f, heute);
-                return (
-                  <li key={f.id} className="list__item fz-streifen" style={fzStreifen(f)}>
+            <h2>Als Nächstes</h2>
+            {dienste.fehler && <Alert ton="error">{dienste.fehler}</Alert>}
+            {(freizeiten.laedt || dienste.laedt) && <Spinner />}
+            {meineIds.size > 0 && !freizeiten.laedt && (
+              naechsteFreizeit ? (
+                <ul className="list" aria-label="Nächste Freizeit">
+                  <li className="list__item fz-streifen" style={fzStreifen(naechsteFreizeit)}>
                     <div className="list__main">
-                      <Link className="list__title" to={`/freizeiten/${f.id}`}>{f.name}</Link>
-                      <div className="list__meta"><span>{zeitraumText(f.start_datum, f.ende_datum)}</span></div>
+                      <Link className="list__title" to={`/freizeiten/${naechsteFreizeit.id}`}>{naechsteFreizeit.name}</Link>
+                      <div className="list__meta"><span>{zeitraumText(naechsteFreizeit.start_datum, naechsteFreizeit.ende_datum)}</span></div>
                     </div>
-                    {laeuft ? <Badge ton="success">Läuft</Badge> : <Badge ton={bis <= 7 ? 'warning' : 'neutral'}>in {bis} {bis === 1 ? 'Tag' : 'Tagen'}</Badge>}
+                    {(() => { const bis = tageBisStart(naechsteFreizeit, heute); return <Badge ton={bis <= 7 ? 'warning' : 'neutral'}>in {bis} {bis === 1 ? 'Tag' : 'Tagen'}</Badge>; })()}
                   </li>
-                );
-              })}
-            </ul>
+                </ul>
+              ) : <p>Keine kommende Freizeit.</p>
+            )}
+            {hatTreffs && !dienste.laedt && (
+              <>
+                {naechsteDienste.length === 0 && <p>{diensteHeute > 0 ? 'Nach heute sind keine Dienste eingeteilt.' : `Keine Dienste in den nächsten ${DIENSTE_TAGE} Tagen.`}</p>}
+                <ul className="list" aria-label="Meine nächsten Dienste">
+                  {naechsteDienste.map((x) => (
+                    <li key={x.id} className="list__item">
+                      <div className="list__main">
+                        <Link className="list__title" to={`/treffs/${x.treff_id}/dienstplan?datum=${x.datum}`}>{formatKurz(x.datum)}{dienstZeit(x) ? ` · ${dienstZeit(x)} Uhr` : ''}</Link>
+                        <div className="list__meta"><span>{x.treff_name}</span>{x.ist_sonder && <Badge ton="warning">Sonderdienst: {x.bezeichnung}</Badge>}{istNeu(x.eingeteilt_am, letzterBesuchDienste) && <Badge ton="accent">neu</Badge>}</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <p><Link to="/dienste">Alle meine Dienste und Kalender-Abo →</Link></p>
+              </>
+            )}
           </Card>
         )}
 
-        {hatTreffs && (
-          <Card>
-            <h2>Meine Treffs</h2>
-            {(dienste.fehler || treffs.fehler) && <Alert ton="error">{dienste.fehler ?? treffs.fehler}</Alert>}
-            {(dienste.laedt || treffs.laedt) && <Spinner />}
-            <ul className="list" aria-label="Meine Treffs">
-              {(treffs.daten ?? []).filter((t) => meineTreffIds.includes(t.id)).map((t) => (
-                <li key={t.id} className="list__item">
-                  <div className="list__main"><Link className="list__title" to={`/treffs/${t.id}`}>{t.name}</Link></div>
-                </li>
-              ))}
-            </ul>
-            <h3>Meine nächsten Dienste ({DIENSTE_TAGE} Tage)</h3>
-            {!dienste.laedt && kommendeDienste.length === 0 && <p>{diensteHeute > 0 ? 'Nach heute sind keine Dienste eingeteilt.' : 'Keine Dienste eingeteilt.'}</p>}
-            <ul className="list" aria-label="Meine Dienste">
-              {kommendeDienste.map((d) => (
-                <li key={d.id} className="list__item">
-                  <div className="list__main">
-                    <Link className="list__title" to={`/treffs/${d.treff_id}/dienstplan?datum=${d.datum}`}>{formatKurz(d.datum)}{dienstZeit(d) ? ` · ${dienstZeit(d)} Uhr` : ''}</Link>
-                    <div className="list__meta"><span>{d.treff_name}</span>{d.ist_sonder && <Badge ton="warning">Sonderdienst: {d.bezeichnung}</Badge>}{istNeu(d.eingeteilt_am, letzterBesuchDienste) && <Badge ton="accent">neu</Badge>}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <p><Link to="/dienste">Alle meine Dienste und Kalender-Abo →</Link></p>
-          </Card>
-        )}
+        <Schnellzugriff gruppen={kacheln} />
 
         {rollen.bewerbend && !fk && <Bewerben heute={heute} freizeiten={alle} meineIds={meineIds} />}
 

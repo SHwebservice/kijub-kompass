@@ -521,3 +521,12 @@ Die 77 Programmpunkte des alten KiJuB Kompass wurden einmalig übernommen: direk
 - **Dienstplan:** In der Tabelle steht **A** (beim Darüberfahren und für Hilfsmittel die Notiz), im Tagesfenster und beim Zuteilen die Notiz („Ben Baum: Fortbildung“). Beim Füllen, Ziehen, Muster und Übernehmen wird dort wie bei Urlaub nicht eingeteilt.
 - **Monatsplan (PDF):** Zelle **A**, im Hinweis „Vorname: Fortbildung“.
 - **Stundennachweis:** Die Zeile heißt „Sonstiges – Fortbildung“ und zählt wie Urlaub die üblichen Stunden der Öffnungszeit; die Zeile lässt sich wie bisher ändern. Nebenbei behoben: `fn_nachweis_befuellen` hätte jede andere Art als Urlaub als „Krank“ beschriftet.
+
+## Übersichtlichere Startseite und „Mehr“ (2026-10-21)
+
+**Umgesetzt und getestet.** Grundsatz: jede Funktion hat einen festen Ort, jede Zahl steht an einer Stelle.
+- **Startseite:** Kachelraster (Koordination), Feed (*Zu erledigen*, *Heute*, *Neu*), neue Karte **„Als Nächstes“** (nächste eigene kommende Freizeit, die nächsten drei Dienste, Link zu „Meine Dienste“) und ein kurzer **Schnellzugriff** nur mit Direktlinks in die eigenen Freizeiten und Treffs. Entfallen: die Rollen-Schilder unter der Begrüßung, die Kachelgruppen „Wissen & Konto“ und „Verwaltung“, „Alle Freizeiten“/„Alle Treffs“, die Kacheln „Dienstwünsche“, „Monatsplan“ und „Absprachen“ (alles über den Dienstplan bzw. die Notizen erreichbar), die Listen „Meine Freizeiten“ und „Meine Treffs“ und der Saison-Überblick.
+- **Zahlen nur einmal:** Kacheln tragen nur noch Zahlen, die sonst nirgends stehen (offene Notizen; eingereichte Nachweise für die Treffleitung). Knappe Lebensmittel (Freizeitenkoordination) und Dienstwünsche (Treffkoordination) zählt das Kachelraster, nicht zusätzlich der Feed.
+- **Freizeiten:** neuer Reiter **„Saison“** für die Freizeitenkoordination (der frühere Saison-Überblick mit Teamstand und Stand der Vorbereitung, `src/pages/freizeiten/SaisonUeberblick.tsx`) und Knopf **„Bewerbungen“** im Kopf.
+- **Treffs:** Ist die Treffkoordination selbst in Treffs eingeteilt, stehen diese oben unter „Meine Treffs“.
+- **„Mehr“:** Wissen & Material, Meine Dienste, Verwaltung in drei Gruppen (*Personen & Orte*, *Planung* mit Neue Freizeit, Checkliste und Neuer Treff, *Mitteilungen & Daten*) und Konto. Bewerbungen, Katalog-Vorschläge und „Programmpunkt vorschlagen“ stehen nur noch in ihrem Bereich. Die Karte „Darstellung“ entfällt; der Knopf im Kopf wechselt jetzt reihum „Wie Gerät → Hell → Dunkel“.
