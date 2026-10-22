@@ -71,7 +71,7 @@ Quellen-Kürzel: `mt` = mitarbeitende.js, `fz` = freizeiten-zugaenge.js, `tf` = 
 
 | ID | Was der Altcode tut | Quelle | Entscheidung |
 |---|---|---|---|
-| D1 | Stammdaten: Name, Ort (ein Ort gehört höchstens einem Treff), Adresse, Öffnungstage (Mo–So), **Öffnungszeit je Tag als Freitext** („15:00–19:00 Uhr"). | `tf` | **Neu** → Öffnungszeit strukturiert (von/bis), weil Stunden daraus berechnet werden. |
+| D1 | Stammdaten: Name, Ort (seit 0040 kann ein Ort für mehrere Treffs genutzt werden, z. B. Kinder- und Jugendtreff), Adresse, Öffnungstage (Mo–So), **Öffnungszeit je Tag als Freitext** („15:00–19:00 Uhr"). | `tf` | **Neu** → Öffnungszeit strukturiert (von/bis), weil Stunden daraus berechnet werden. |
 | D2 | Wochenprogramm: **ein** Programmpunkt pro Öffnungstag (Katalog oder Freitext), Notiz; wiederkehrend (nicht datiert). | `tf` | **Geändert** (2026-10-21, Migration 0038): nur noch Freitext je Öffnungstag (kein Katalog, keine Notiz); steht direkt bei den Öffnungszeiten des Tages. |
 | D3 | Absprachen (nur Treffleitung legt an; BetreuerInnen bestätigen), optional an ein Datum gekoppelt (Badge im Dienstplan). Keine Hinweise-vs.-Absprachen-Trennung. Absprachen-Bereich startet eingeklappt. | `tf` | **Behalten**. |
 | D4 | „Neu seit letztem Besuch" (Punkt am Reiter Dienstplan / bei Absprachen) – rein lokal per Zeitstempel. | `tf` | **Neu** → serverseitiger „gelesen bis"-Stand je Person (funktioniert geräteübergreifend). |
@@ -514,6 +514,12 @@ Die 77 Programmpunkte des alten KiJuB Kompass wurden einmalig übernommen: direk
 - **Monatsplan drucken oder als PDF speichern** (nur Monatsansicht, für alle im Treff): Eine Seite DIN A4 quer. Links stehen alle Kalendertage mit Öffnungszeit, oben die Mitarbeitenden (Treffleitung zuerst). In den Zellen: X = Dienst, S = Sonderdienst, U = Urlaub, K = krank (farbig hinterlegt). Tage ohne Öffnung sind hellgrau, Schließzeiten und Feiertage dunkler grau, ihr Grund steht in der Spalte „Hinweis“ (dort auch die Sonderdienste mit Zeit). Unten stehen je Person die Dienste und Stunden des Monats, Wochen sind durch kräftigere Linien getrennt. Monate in Planung tragen „(vorläufig)“ im Titel. „Kann nicht“ wird bewusst nicht gedruckt.
   Das PDF wird als Text gezeichnet (scharf, durchsuchbar; `src/treffs/dienstplanPdf.ts`). Schrift und Zeilenhöhe passen sich an, damit 31 Tage und auch viele Mitarbeitende auf eine Seite passen. „Drucken“ öffnet das PDF mit Druckdialog in einem neuen Fenster; der Dateiname lautet `Dienstplan_<Treff>_JJJJ-MM.pdf`. Mitarbeitende sehen im Ausdruck nur die Abwesenheiten, die sie auch sonst sehen dürfen (die eigenen).
 - **Schließzeiten direkt im Dienstplan:** Treffleitung und Treffkoordination tragen Schließzeiten über „Schließzeiten …“ über der Tabelle ein und löschen sie dort. Im Tagesfenster belegt „Treff an diesem Tag schließen …“ den Tag vor. Der Reiter „Abwesenheit & Feiertage“ enthält keine Schließzeiten mehr, nur noch einen Hinweis mit Link (keine Datenbankänderung).
+
+## Ein Ort für mehrere Treffs (2026-10-22)
+
+**Umgesetzt und getestet** (Migration `0040`):
+- Ein Ort kann jetzt von mehreren Treffs genutzt werden, z. B. ein Jugendhaus für den Kindertreff und den Jugendtreff. Die Eindeutigkeit auf `treffs.ort_id` entfällt; ein Ort, den noch ein Treff nutzt, lässt sich weiterhin nicht löschen.
+- **Treff anlegen/bearbeiten:** Die Auswahl „Ort“ bietet alle Orte an; schon genutzte erscheinen als „Jugendhaus (auch von 1 anderem Treff genutzt)“. Unter „Mehr → Orte“ steht wie bisher die Zahl der Treffs je Ort.
 
 ## Abwesenheit „Sonstiges“ (2026-10-21)
 

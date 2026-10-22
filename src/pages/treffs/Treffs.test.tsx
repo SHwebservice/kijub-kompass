@@ -228,11 +228,14 @@ describe('Treff-Formular', () => {
     expect(await screen.findByTestId('andere-seite')).toBeInTheDocument();
   });
 
-  it('bietet nur freie Orte an, bei der Bearbeitung zusätzlich den eigenen', async () => {
+  it('bietet alle Orte an, auch solche, die schon ein anderer Treff nutzt (0040)', async () => {
     renderMitAuth(<TreffForm />, { ...koord, pfad: '/treffs/t1/bearbeiten', route: '/treffs/:id/bearbeiten' });
     await bereit();
-    expect(screen.getByRole('option', { name: 'Jugendhaus' })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: 'Stadtpark' })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Jugendhaus' })).toBeInTheDocument();          // der eigene Ort, sonst von niemandem genutzt
+    expect(screen.getByRole('option', { name: 'Strandbad' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Stadtpark (auch von 1 anderem Treff genutzt)' })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Ort'), 'o3');
+    expect(screen.getByLabelText('Ort')).toHaveValue('o3');
     expect(screen.getByLabelText('Dienstag')).toBeChecked();
     expect(screen.getByLabelText('Montag')).not.toBeChecked();
     expect(screen.getByLabelText('Dienstag von')).toHaveValue('15:00');

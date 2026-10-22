@@ -35,8 +35,12 @@ function FormInhalt({ id, start }: { id: string | null; start: TreffFormular }) 
   const set = <K extends keyof TreffFormular>(k: K, v: TreffFormular[K]) => setF((x) => ({ ...x, [k]: v }));
   const setTag = (w: number, teil: Partial<TreffFormular['tage'][number]>) => setF((x) => ({ ...x, tage: { ...x.tage, [w]: { ...x.tage[w]!, ...teil } } }));
 
-  // Ein Ort gehört höchstens einem Treff.
-  const freieOrte = (orte.daten ?? []).filter((o) => o.treffs === 0 || o.id === start.ort_id);
+  // Ein Ort kann für mehrere Treffs genutzt werden (seit 0040), z. B. Kindertreff und Jugendtreff; die Auswahl zeigt, wie viele andere ihn schon nutzen.
+  const andereTreffs = (o: { id: string; treffs: number }) => o.treffs - (o.id === start.ort_id ? 1 : 0);
+  const ortText = (o: { id: string; name: string; treffs: number }) => {
+    const n = andereTreffs(o);
+    return n > 0 ? `${o.name} (auch von ${n} ${n === 1 ? 'anderem Treff' : 'anderen Treffs'} genutzt)` : o.name;
+  };
 
   async function speichern(e: FormEvent) {
     e.preventDefault();
@@ -69,9 +73,9 @@ function FormInhalt({ id, start }: { id: string | null; start: TreffFormular }) 
         <Card>
           <TextField label="Name" value={f.name} onChange={(e) => set('name', e.target.value)} fehler={fehler.name} required />
           <SelectField label="Ort" value={f.ort_id} onChange={(e) => set('ort_id', e.target.value)}
-            hinweis={'Ein Ort gehört höchstens einem Treff. Neue Orte legst du unter „Mehr → Orte“ an.'}>
+            hinweis={'Mehrere Treffs können denselben Ort nutzen. Neue Orte legst du unter „Mehr → Orte“ an.'}>
             <option value="">– kein Ort –</option>
-            {freieOrte.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            {(orte.daten ?? []).map((o) => <option key={o.id} value={o.id}>{ortText(o)}</option>)}
           </SelectField>
           <TextField label="Abweichende Adresse (optional)" value={f.adresse_abw} onChange={(e) => set('adresse_abw', e.target.value)}
             hinweis="Nur nötig, wenn die Adresse des Ortes nicht passt." />

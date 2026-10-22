@@ -1,7 +1,7 @@
 -- KiJuB-Kompass · alle Migrationen in einer Datei (GENERIERT – nicht von Hand ändern)
 -- Erzeugt mit: npm run sql:bundle
 -- Nur für ein LEERES Projekt gedacht: einmal komplett im SQL Editor ausführen.
--- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql, 0014_betrieb.sql, 0015_mitteilungen.sql, 0016_tagesprotokoll.sql, 0017_mitteilungen_mehr.sql, 0018_koordination_getrennt.sql, 0019_fehlermeldungen.sql, 0020_heute.sql, 0021_bewerbung_rolle_treff_aufraeumen.sql, 0022_nachweise_erstellen.sql, 0023_ueberschneidung_akzeptiert.sql, 0024_dienstplan_anwenden.sql, 0025_wuensche_bestaetigen.sql, 0026_schliesszeiten_farbe.sql, 0027_feiertag_schliesst.sql, 0028_protokoll_vorlagen.sql, 0029_checkliste.sql, 0030_bewerbungen_mehr.sql, 0031_checkliste_termine.sql, 0032_freizeit_typ_material.sql, 0033_kijuko_kueche.sql, 0034_kijuko_lieferungen_typ.sql, 0035_teamprotokolle.sql, 0036_dienstplan_uebersicht.sql, 0037_teamprotokolle_format.sql, 0038_wochenprogramm_freitext.sql, 0039_abwesenheit_sonstiges.sql
+-- Enthalten: 0001_stammdaten.sql, 0002_freizeit_details.sql, 0003_treffs_dienste.sql, 0004_inhalte_betrieb.sql, 0005_hilfsfunktionen.sql, 0006_rls.sql, 0007_sichten_funktionen.sql, 0008_standardrechte.sql, 0009_person_entfernen.sql, 0010_kijuko_import.sql, 0011_realtime.sql, 0012_dienstplan.sql, 0013_katalog.sql, 0014_betrieb.sql, 0015_mitteilungen.sql, 0016_tagesprotokoll.sql, 0017_mitteilungen_mehr.sql, 0018_koordination_getrennt.sql, 0019_fehlermeldungen.sql, 0020_heute.sql, 0021_bewerbung_rolle_treff_aufraeumen.sql, 0022_nachweise_erstellen.sql, 0023_ueberschneidung_akzeptiert.sql, 0024_dienstplan_anwenden.sql, 0025_wuensche_bestaetigen.sql, 0026_schliesszeiten_farbe.sql, 0027_feiertag_schliesst.sql, 0028_protokoll_vorlagen.sql, 0029_checkliste.sql, 0030_bewerbungen_mehr.sql, 0031_checkliste_termine.sql, 0032_freizeit_typ_material.sql, 0033_kijuko_kueche.sql, 0034_kijuko_lieferungen_typ.sql, 0035_teamprotokolle.sql, 0036_dienstplan_uebersicht.sql, 0037_teamprotokolle_format.sql, 0038_wochenprogramm_freitext.sql, 0039_abwesenheit_sonstiges.sql, 0040_ort_mehrere_treffs.sql
 
 -- ════════ 0001_stammdaten.sql ════════
 -- KiJuB-Kompass · 0001 Stammdaten
@@ -5430,3 +5430,26 @@ begin
                          $t$case a.typ::text when 'urlaub' then 'Urlaub' when 'krank' then 'Krank' else 'Sonstiges' end$t$);
   end loop;
 end $$;
+
+-- ════════ 0040_ort_mehrere_treffs.sql ════════
+-- KiJuB-Kompass · 0040: Ein Ort für mehrere Treffs
+--
+-- Bisher gehörte ein Ort höchstens einem Treff (unique auf treffs.ort_id). Ein Ort kann aber z. B. für einen
+-- Kindertreff und einen Jugendtreff genutzt werden. Die Eindeutigkeit entfällt; ein normaler Index bleibt für die Suche.
+-- Löschen eines Ortes, der noch von einem Treff genutzt wird, verhindert weiterhin „on delete restrict“.
+
+do $$
+declare c text;
+begin
+  for c in
+    select con.conname from pg_constraint con
+      join pg_class rel on rel.oid = con.conrelid
+      join pg_namespace n on n.oid = rel.relnamespace
+     where n.nspname = 'public' and rel.relname = 'treffs' and con.contype = 'u'
+       and con.conkey = array[(select attnum from pg_attribute where attrelid = rel.oid and attname = 'ort_id')]::smallint[]
+  loop
+    execute format('alter table public.treffs drop constraint %I', c);
+  end loop;
+end $$;
+
+create index if not exists treffs_ort on treffs (ort_id);

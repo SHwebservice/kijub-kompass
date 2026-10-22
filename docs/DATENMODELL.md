@@ -208,7 +208,7 @@ create table bewerbungen (
 create table treffs (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  ort_id uuid unique references orte(id) on delete restrict,   -- ein Ort gehört höchstens einem Treff
+  ort_id uuid references orte(id) on delete restrict,          -- seit 0040: ein Ort kann für mehrere Treffs genutzt werden
   adresse_abw text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
