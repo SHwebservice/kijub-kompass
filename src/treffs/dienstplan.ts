@@ -158,6 +158,12 @@ export function dienstZeit(d: Pick<Dienst, 'von' | 'bis'>): string {
   return d.von && d.bis ? `${d.von.slice(0, 5)}–${d.bis.slice(0, 5)}` : '';
 }
 
+/** Wie `dienstZeit`, aber volle Stunden ohne „:00“: „15–19“, „15:30–19“. */
+export function dienstZeitKurz(d: Pick<Dienst, 'von' | 'bis'>): string {
+  const kurz = (t: string) => (t.slice(3, 5) === '00' ? String(Number(t.slice(0, 2))) : `${Number(t.slice(0, 2))}:${t.slice(3, 5)}`);
+  return d.von && d.bis ? `${kurz(d.von)}–${kurz(d.bis)}` : '';
+}
+
 export const dienstStunden = (d: Pick<Dienst, 'von' | 'bis'>) => (d.von && d.bis ? stunden(d.von, d.bis) : 0);
 
 /* ───── Eigene Dienste ───── */

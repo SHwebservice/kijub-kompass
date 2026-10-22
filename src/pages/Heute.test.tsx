@@ -10,7 +10,7 @@ import * as geraet from '../mitteilungen/geraet';
 import { Heute } from './Heute';
 import { renderMitAuth, type Szene } from '../test-utils';
 import { freizeit, inTagen, treff } from '../test-daten';
-import { formatKurz } from '../freizeiten/logik';
+import { formatKurz, formatTagMonat, wochentagLang } from '../freizeiten/logik';
 import type { OffeneNotiz } from '../heute/logik';
 import * as checklisteApi from '../checkliste/api';
 import * as teamprotokollApi from '../teamprotokolle/api';
@@ -166,9 +166,10 @@ describe('Heute: Als Nächstes und Willkommen', () => {
       freizeit({ id: 'fremd', name: 'Nicht meine', start_datum: inTagen(2), ende_datum: inTagen(5) }),
     ]);
     zeige({ freizeiten: ['spaeter', 'mein', 'lauf', 'alt', 'ab'].map((id) => ({ freizeit_id: id, rolle: 'teamer' as const })) });
-    const naechste = await screen.findByRole('list', { name: 'Nächste Freizeit' });
-    expect(within(naechste).getByRole('link', { name: 'Meine Kommende' })).toHaveAttribute('href', '/freizeiten/mein');
-    expect(within(naechste).getByText('in 30 Tagen')).toBeInTheDocument();
+    const naechste = await screen.findByRole('region', { name: 'Nächste Freizeit' });
+    const link = within(naechste).getByRole('link', { name: /Meine Kommende/ });
+    expect(link).toHaveAttribute('href', '/freizeiten/mein');
+    expect(link).toHaveTextContent(`in 30 Tagen · ${wochentagLang(inTagen(30))}`);
     for (const n of ['Meine Spätere', 'Meine Laufende', 'Meine Alte', 'Meine Abgesagte', 'Nicht meine']) expect(within(naechste).queryByText(n)).not.toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Meine Freizeiten' })).not.toBeInTheDocument();
   });
@@ -189,17 +190,37 @@ describe('Heute: Als Nächstes und Willkommen', () => {
 describe('Heute: Treffs', () => {
   const dienst = (id: string, datum: string, o: object = {}) => ({ id, datum, von: '15:00', bis: '19:00', ist_sonder: false, bezeichnung: null, treff_id: 't1', treff_name: 'Kindertreff', ...o });
 
-  it('Dienste von heute stehen oben, die späteren in „Als Nächstes“', async () => {
-    vi.mocked(treffApi.listeMeineDienste).mockResolvedValue([dienst('d1', inTagen(0)), dienst('d2', inTagen(3), { ist_sonder: true, bezeichnung: 'Sommerfest' })]);
+  it('Dienste von heute stehen im Feed; unter „Als Nächstes“ der nächste groß mit „Morgen“, die folgenden kompakt', async () => {
+    vi.mocked(treffApi.listeMeineDienste).mockResolvedValue([
+      dienst('d1', inTagen(0)), dienst('d2', inTagen(1)), dienst('d3', inTagen(3), { ist_sonder: true, bezeichnung: 'Sommerfest', von: '14:30' }),
+      dienst('d4', inTagen(5)), dienst('d5', inTagen(8)),
+    ]);
     zeige(tzk);
     const heute = await screen.findByRole('list', { name: 'Heute' });
     expect(within(heute).getByRole('link')).toHaveTextContent('Dienst heute · 15:00–19:00 Uhr');
-    const spaeter = await screen.findByRole('list', { name: 'Meine nächsten Dienste' });
-    const eintraege = within(spaeter).getAllByRole('listitem');
-    expect(eintraege).toHaveLength(1);
-    expect(eintraege[0]).toHaveTextContent(formatKurz(inTagen(3)));
-    expect(eintraege[0]).toHaveTextContent('Sonderdienst: Sommerfest');
+    const bereich = await screen.findByRole('region', { name: 'Meine nächsten Dienste' });
+    const naechster = within(bereich).getAllByRole('link')[0]!;
+    expect(naechster).toHaveTextContent(`Morgen · ${wochentagLang(inTagen(1))}, ${formatTagMonat(inTagen(1))}`);
+    expect(naechster).toHaveTextContent('15–19 Uhr');
+    expect(naechster).toHaveTextContent('Kindertreff');
+    expect(naechster).toHaveAttribute('href', `/treffs/t1/dienstplan?datum=${inTagen(1)}`);
+    const weitere = within(bereich).getAllByRole('listitem');
+    expect(weitere).toHaveLength(2);                                  // insgesamt höchstens drei
+    expect(weitere[0]).toHaveTextContent(formatKurz(inTagen(3)));
+    expect(weitere[0]).toHaveTextContent('in 3 Tagen');
+    expect(weitere[0]).toHaveTextContent('14:30–19 Uhr');
+    expect(weitere[0]).toHaveTextContent('Sonderdienst: Sommerfest');
+    expect(weitere[1]).toHaveTextContent('in 5 Tagen');
+    expect(screen.getByRole('heading', { name: 'Danach' })).toBeInTheDocument();
     expect(treffApi.listeMeineDienste).toHaveBeenCalledWith('ich', inTagen(0), inTagen(14));
+  });
+
+  it('nur ein kommender Dienst: groß, ohne „Danach“', async () => {
+    vi.mocked(treffApi.listeMeineDienste).mockResolvedValue([dienst('d2', inTagen(2))]);
+    zeige(tzk);
+    const bereich = await screen.findByRole('region', { name: 'Meine nächsten Dienste' });
+    expect(within(bereich).getAllByRole('link')[0]).toHaveTextContent('Übermorgen');
+    expect(screen.queryByRole('heading', { name: 'Danach' })).not.toBeInTheDocument();
   });
 
   it('nur heute ein Dienst: „Nach heute sind keine Dienste eingeteilt“', async () => {
@@ -231,7 +252,7 @@ describe('Heute: Treffs', () => {
     unmount();
     vi.mocked(heuteApi.ladeHeute).mockClear();
     zeige(tzk);
-    await screen.findByRole('list', { name: 'Meine nächsten Dienste' });
+    await screen.findByRole('region', { name: 'Meine nächsten Dienste' });
     await waitFor(() => expect(heuteApi.ladeHeute).toHaveBeenCalled());
     expect(screen.queryByText('Dienstwünsche warten')).not.toBeInTheDocument();
     expect(heuteApi.ladeHeute).toHaveBeenCalledWith(expect.not.objectContaining({ wuensche: expect.anything() }));          // Wünsche werden gar nicht erst angefragt

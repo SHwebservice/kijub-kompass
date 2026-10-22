@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Alert, Badge, Card, EmptyState, PageHeader, Spinner } from '../components/ui';
-import { fzStreifen } from '../components/FreizeitFarbe';
+import { Alert, Card, EmptyState, PageHeader, Spinner } from '../components/ui';
 import { useAuth } from '../lib/auth-kontext';
 import { useLaden } from '../lib/laden';
 import { listeFreizeiten } from '../freizeiten/api';
-import { formatKurz, heuteIso, phase, tageBisStart, zeitraumText } from '../freizeiten/logik';
+import { heuteIso, phase } from '../freizeiten/logik';
 import { ladeHeute, quittiereBesuch } from '../heute/api';
 import { baueKacheln } from '../heute/kacheln';
 import { baueBento } from '../heute/bento';
@@ -16,13 +15,14 @@ import { listeNeueTeamprotokolle } from '../teamprotokolle/api';
 import { ungeleseneJeTreff } from '../teamprotokolle/logik';
 import { standJeFreizeit } from '../checkliste/logik';
 import { protokollFaellig } from '../tagesprotokoll/logik';
-import { addTage, dienstZeit, istNeu } from '../treffs/dienstplan';
+import { addTage } from '../treffs/dienstplan';
 import { useLetzterBesuchDienste } from './dienste/gesehen';
 import { Bewerben } from './heute/Bewerben';
 import { Bento } from './heute/Bento';
 import { Feed } from './heute/Feed';
 import { MitteilungsHinweis } from './heute/MitteilungsHinweis';
 import { Schnellzugriff } from './heute/Schnellzugriff';
+import { FolgeDienste, NaechsteFreizeit, NaechsterDienst } from './heute/AlsNaechstes';
 
 const DIENSTE_TAGE = 14;
 /** So viele kommende Dienste zeigt „Als Nächstes“; alle stehen unter „Meine Dienste“. */
@@ -165,33 +165,18 @@ export function Heute() {
             {dienste.fehler && <Alert ton="error">{dienste.fehler}</Alert>}
             {(freizeiten.laedt || dienste.laedt) && <Spinner />}
             {meineIds.size > 0 && !freizeiten.laedt && (
-              naechsteFreizeit ? (
-                <ul className="list" aria-label="Nächste Freizeit">
-                  <li className="list__item fz-streifen" style={fzStreifen(naechsteFreizeit)}>
-                    <div className="list__main">
-                      <Link className="list__title" to={`/freizeiten/${naechsteFreizeit.id}`}>{naechsteFreizeit.name}</Link>
-                      <div className="list__meta"><span>{zeitraumText(naechsteFreizeit.start_datum, naechsteFreizeit.ende_datum)}</span></div>
-                    </div>
-                    {(() => { const bis = tageBisStart(naechsteFreizeit, heute); return <Badge ton={bis <= 7 ? 'warning' : 'neutral'}>in {bis} {bis === 1 ? 'Tag' : 'Tagen'}</Badge>; })()}
-                  </li>
-                </ul>
-              ) : <p>Keine kommende Freizeit.</p>
+              <section aria-label="Nächste Freizeit">
+                {naechsteFreizeit ? <NaechsteFreizeit freizeit={naechsteFreizeit} heute={heute} /> : <p>Keine kommende Freizeit.</p>}
+              </section>
             )}
             {hatTreffs && !dienste.laedt && (
-              <>
-                {naechsteDienste.length === 0 && <p>{diensteHeute > 0 ? 'Nach heute sind keine Dienste eingeteilt.' : `Keine Dienste in den nächsten ${DIENSTE_TAGE} Tagen.`}</p>}
-                <ul className="list" aria-label="Meine nächsten Dienste">
-                  {naechsteDienste.map((x) => (
-                    <li key={x.id} className="list__item">
-                      <div className="list__main">
-                        <Link className="list__title" to={`/treffs/${x.treff_id}/dienstplan?datum=${x.datum}`}>{formatKurz(x.datum)}{dienstZeit(x) ? ` · ${dienstZeit(x)} Uhr` : ''}</Link>
-                        <div className="list__meta"><span>{x.treff_name}</span>{x.ist_sonder && <Badge ton="warning">Sonderdienst: {x.bezeichnung}</Badge>}{istNeu(x.eingeteilt_am, letzterBesuchDienste) && <Badge ton="accent">neu</Badge>}</div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+              <section aria-label="Meine nächsten Dienste">
+                {naechsteDienste[0]
+                  ? <NaechsterDienst dienst={naechsteDienste[0]} heute={heute} letzterBesuch={letzterBesuchDienste} />
+                  : <p>{diensteHeute > 0 ? 'Nach heute sind keine Dienste eingeteilt.' : `Keine Dienste in den nächsten ${DIENSTE_TAGE} Tagen.`}</p>}
+                <FolgeDienste dienste={naechsteDienste.slice(1)} heute={heute} letzterBesuch={letzterBesuchDienste} />
                 <p><Link to="/dienste">Alle meine Dienste und Kalender-Abo →</Link></p>
-              </>
+              </section>
             )}
           </Card>
         )}

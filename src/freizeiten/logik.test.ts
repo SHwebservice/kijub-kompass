@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   tageVonBis, tageZwischen, wochentagKurz, wochentagLang, formatDatum, formatKurz, zeitraumText, ferienText, phase,
   gruppiereNachFerien, gruppiereNachJahr, darfBeworbenWerden, passendeFreizeiten, zeitraumWahlText, bewerbungsJahre, fruehesterBewerbungsstart, bestand, hochrechnung, sortiereTeam, heuteIso,
-  tageBisStart, freizeitFarbe, automatischeFarbe, FREIZEIT_FARBEN, formatTagLang, formatMonatKurz, type FreizeitKurz,
+  tageBisStart, freizeitFarbe, automatischeFarbe, FREIZEIT_FARBEN, formatTagLang, formatMonatKurz, relativerTag, type FreizeitKurz,
 } from './logik';
 
 const fz = (o: Partial<FreizeitKurz> & { id: string }): FreizeitKurz => ({
@@ -21,6 +21,15 @@ describe('Datum', () => {
   it('Sommerzeitwechsel verändert die Tageszahl nicht', () => {
     expect(tageZwischen('2027-03-27', '2027-03-29')).toBe(2);
     expect(tageZwischen('2027-10-30', '2027-11-01')).toBe(2);
+  });
+  it('relativer Tag in Worten, auch über den Monatswechsel', () => {
+    expect(relativerTag('2027-07-05', '2027-07-05')).toBe('Heute');
+    expect(relativerTag('2027-07-06', '2027-07-05')).toBe('Morgen');
+    expect(relativerTag('2027-07-07', '2027-07-05')).toBe('Übermorgen');
+    expect(relativerTag('2027-08-02', '2027-07-30')).toBe('in 3 Tagen');
+    expect(relativerTag('2027-07-19', '2027-07-05')).toBe('in 14 Tagen');
+    expect(relativerTag('2027-07-04', '2027-07-05')).toBe('Gestern');
+    expect(relativerTag('2027-07-02', '2027-07-05')).toBe('vor 3 Tagen');
   });
   it('Wochentage und Formate', () => {
     expect(wochentagKurz('2027-07-05')).toBe('Mo');

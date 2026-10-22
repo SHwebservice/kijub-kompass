@@ -58,6 +58,16 @@ const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'A
 /** "2027-07-05" → "Mo., 5. Juli" */
 export const formatTagLang = (d: string) => `${wochentagKurz(d)}., ${Number(d.slice(8, 10))}. ${MONATE[Number(d.slice(5, 7)) - 1]}`;
 
+/** Wie weit ein Tag von heute entfernt ist, in Worten: „Heute“, „Morgen“, „Übermorgen“, „in 5 Tagen“ (vergangene Tage: „vor 2 Tagen“). */
+export function relativerTag(datum: string, heute: string): string {
+  const n = tageZwischen(heute, datum);
+  if (n === 0) return 'Heute';
+  if (n === 1) return 'Morgen';
+  if (n === 2) return 'Übermorgen';
+  if (n === -1) return 'Gestern';
+  return n > 0 ? `in ${n} Tagen` : `vor ${-n} Tagen`;
+}
+
 export function zeitraumText(start: string, ende: string): string {
   return start === ende ? formatDatum(start) : `${formatDatum(start)} – ${formatDatum(ende)}`;
 }

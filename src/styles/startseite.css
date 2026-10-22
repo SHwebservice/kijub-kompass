@@ -55,10 +55,13 @@
 }
 .saison__karte--warnung { border-color: var(--danger); }
 .saison__karte:focus-within { box-shadow: var(--focus-ring); }
-.saison__datum { flex: none; display: grid; place-content: center; width: 54px; height: 54px; border-radius: 14px; background: var(--accent-bg); color: var(--accent); text-align: center; line-height: 1.1; }
-.saison__tag { display: block; font-size: 1.25rem; font-weight: 700; }
-.saison__monat { display: block; font-size: 0.72rem; font-weight: 600; }
 .saison__inhalt { min-width: 0; flex: 1; }
+/* Kalenderblatt (Saison, „Als Nächstes“) */
+.datumskachel { flex: none; display: grid; place-content: center; width: 54px; height: 54px; border-radius: 14px; background: var(--accent-bg); color: var(--accent); text-align: center; line-height: 1.1; }
+.datumskachel__tag { display: block; font-size: 1.25rem; font-weight: 700; }
+.datumskachel__monat { display: block; font-size: 0.72rem; font-weight: 600; }
+.datumskachel--gross { width: 64px; height: 64px; }
+.datumskachel--gross .datumskachel__tag { font-size: 1.6rem; }
 .saison__titel { font-weight: 600; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
 .saison__titel::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
 .saison__titel:focus-visible { box-shadow: none; }
@@ -71,3 +74,34 @@
   .feed__karte, .bento__kachel > a, .saison__karte { background: var(--surface); }
   .bento__kachel--haupt > a { background: var(--accent); }
 }
+
+/* „Als Nächstes“: der nächste Dienst (bzw. die nächste Freizeit) groß, die folgenden Dienste kompakt */
+.naechster {
+  display: flex; gap: var(--space-3); align-items: center; padding: var(--space-3); margin-bottom: var(--space-3);
+  border: 1px solid var(--glas-rand); border-radius: var(--radius); background: var(--glas); color: var(--text); text-decoration: none;
+}
+.naechster:hover { border-color: var(--accent); }
+.naechster:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.naechster__inhalt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.naechster__wann { font-size: var(--fs-lg); }
+.naechster__wann strong { color: var(--accent); }
+.naechster__zeit { font-weight: 600; overflow-wrap: anywhere; }
+.naechster__ort { color: var(--text-muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.naechster__chips { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.naechster__danach { font-size: var(--fs-sm); color: var(--text-muted); margin: 0 0 var(--space-1); }
+.folgedienste { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+.folgedienst {
+  display: grid; grid-template-columns: 5.5rem 6rem auto; column-gap: var(--space-2); row-gap: 2px; align-items: baseline;
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--border); color: var(--text); text-decoration: none; font-size: var(--fs-sm);
+}
+.folgedienste li:last-child .folgedienst { border-bottom: 0; }
+.folgedienst:hover .folgedienst__datum { color: var(--accent); }
+.folgedienst:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.folgedienst__datum { font-weight: 600; }
+.folgedienst__abstand { color: var(--text-muted); }
+.folgedienst__ort { grid-column: 1 / -1; color: var(--text-muted); overflow-wrap: anywhere; }
+@media (min-width: 560px) {
+  .folgedienst { grid-template-columns: 5.5rem 6rem 6rem minmax(0, 1fr); }
+  .folgedienst__ort { grid-column: auto; }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .naechster { background: var(--surface); } }

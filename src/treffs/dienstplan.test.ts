@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  abwesendeAm, abwesenheitsBloecke, addTage, darfWuenschen, dienstStunden, dienstZeit, eigenerWunsch, feiertagAm, isoWochentag, kalenderwoche, monatErster, monatTage, monatText,
+  abwesendeAm, abwesenheitsBloecke, addTage, darfWuenschen, dienstStunden, dienstZeit, dienstZeitKurz, eigenerWunsch, feiertagAm, isoWochentag, kalenderwoche, monatErster, monatTage, monatText,
   monatVersatz, montagVon, musterAlsJson, musterTage, offeneWuensche, tageImZeitraum, tageskarten, validiereAbwesenheit, validiereSonderdienst, wochenTage, wochenText, zuteilungsAenderung,
   type Dienst, type Tageskarte,
 } from './dienstplan';
@@ -73,6 +73,9 @@ describe('Dienstzeit', () => {
   it('formatiert und rechnet', () => {
     expect(dienstZeit({ von: '15:00:00', bis: '19:00:00' })).toBe('15:00–19:00');
     expect(dienstZeit({ von: null, bis: null })).toBe('');
+    expect(dienstZeitKurz({ von: '15:00:00', bis: '19:00:00' })).toBe('15–19');
+    expect(dienstZeitKurz({ von: '09:30', bis: '13:00' })).toBe('9:30–13');
+    expect(dienstZeitKurz({ von: null, bis: null })).toBe('');
     expect(dienstStunden({ von: '14:00', bis: '17:30' })).toBe(3.5);
     expect(dienstStunden({ von: null, bis: null })).toBe(0);
   });

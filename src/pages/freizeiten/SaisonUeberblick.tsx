@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { FreizeitZeile } from '../../freizeiten/api';
-import { formatMonatKurz, gruppiereNachFerien, phase, tageBisStart, zeitraumText } from '../../freizeiten/logik';
+import { gruppiereNachFerien, phase, tageBisStart, zeitraumText } from '../../freizeiten/logik';
 import { aktuelleFreizeiten, ohneLeitung, personenText, type TeamZeile } from '../../heute/logik';
 import { ladeHeute } from '../../heute/api';
 import { ladeCheckliste } from '../../checkliste/api';
@@ -8,6 +8,7 @@ import { standJeFreizeit, type Stand } from '../../checkliste/logik';
 import { useLaden } from '../../lib/laden';
 import { Alert, Badge, Card, EmptyState, Spinner } from '../../components/ui';
 import { fzStreifen } from '../../components/FreizeitFarbe';
+import { DatumsKachel } from '../../components/DatumsKachel';
 
 /** Tab „Saison“ der Freizeitenkoordination: lädt Team und Checkliste der aktuellen Freizeiten und zeigt den Überblick. */
 export function SaisonTab({ freizeiten, heute, laedt }: { freizeiten: FreizeitZeile[]; heute: string; laedt: boolean }) {
@@ -62,7 +63,7 @@ export function SaisonUeberblick({ aktuelle, team, heute, vorbereitung = {} }: P
               const teamer = imTeam(f.id, 'teamer');
               return (
                 <li key={f.id} className={`saison__karte fz-streifen${keine ? ' saison__karte--warnung' : ''}`} style={fzStreifen(f)}>
-                  <span className="saison__datum" aria-hidden="true"><span className="saison__tag">{Number(f.start_datum.slice(8, 10))}</span><span className="saison__monat">{formatMonatKurz(f.start_datum)}</span></span>
+                  <DatumsKachel datum={f.start_datum} />
                   <div className="saison__inhalt">
                     <Link className="saison__titel" to={`/freizeiten/${f.id}`}>{f.name}</Link>
                     <div className="saison__meta">{zeitraumText(f.start_datum, f.ende_datum)}{f.ort_name ? ` · ${f.ort_name}` : ''}</div>
