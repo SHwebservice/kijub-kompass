@@ -13,7 +13,8 @@ import {
 } from '../../tagesprotokoll/logik';
 import { monatText } from '../../treffs/dienstplan';
 import type { RolleInTreff } from '../../lib/rollen';
-import { Alert, Badge, Button, Card, EmptyState, Spinner } from '../../components/ui';
+import { baueProtokollSammlung, protokollPdfName, speichereProtokollPdf } from '../../tagesprotokoll/protokollPdf';
+import { Alert, Badge, Button, Card, EmptyState, Spinner, TextField } from '../../components/ui';
 import { ProtokollSheet } from './ProtokollSheet';
 import { ProtokollVorlagen } from './ProtokollVorlagen';
 
@@ -68,6 +69,43 @@ function Auswertung({ treff }: { treff: TreffDetailDaten }) {
         </div>
       )}
       {summe.gesamt > 0 && <p className="field__hint">Anteile {jahr}: männlich {anteil(summe.m, summe.gesamt)} %, weiblich {anteil(summe.w, summe.gesamt)} %, divers {anteil(summe.d, summe.gesamt)} %. „Tage“ sind die Tage mit Protokoll.</p>}
+    </Card>
+  );
+}
+
+/** Sammlung der Tagesprotokolle eines frei wählbaren Zeitraums als PDF (Treffleitung und Koordination). */
+function PdfExport({ treff }: { treff: TreffDetailDaten }) {
+  const heute = heuteIso();
+  const [von, setVon] = useState(`${heute.slice(0, 7)}-01`);
+  const [bis, setBis] = useState(heute);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [arbeitet, setArbeitet] = useState(false);
+  const ungueltig = !von || !bis || von > bis;
+
+  async function exportieren() {
+    setFehler(null); setArbeitet(true);
+    try {
+      const l = await listeProtokolleImZeitraum(treff.id, von, bis);
+      if (l.length === 0) { setFehler('In diesem Zeitraum gibt es keine Protokolle.'); return; }
+      const ids = [...new Set(l.map((p) => p.bearbeitet_von).filter((x): x is string => !!x))];
+      const namen = await holeNamen(ids);
+      await speichereProtokollPdf(baueProtokollSammlung({ treffName: treff.name, von, bis, protokolle: l, namen }), protokollPdfName(treff.name, von, bis));
+    } catch (e) { setFehler(fehlerText(e, 'Das PDF konnte nicht erstellt werden.')); } finally { setArbeitet(false); }
+  }
+
+  return (
+    <Card>
+      <h2>Protokolle als PDF</h2>
+      <p>Alle Tagesprotokolle eines Zeitraums in einem Dokument – zum Ablegen, Weitergeben oder Drucken.</p>
+      <div className="row">
+        <div style={{ flex: '1 1 150px' }}><TextField label="Von" type="date" value={von} max={bis || undefined} onChange={(e) => setVon(e.target.value)} /></div>
+        <div style={{ flex: '1 1 150px' }}><TextField label="Bis" type="date" value={bis} min={von || undefined} onChange={(e) => setBis(e.target.value)}
+          fehler={von && bis && von > bis ? '„Bis“ muss nach „Von“ liegen.' : undefined} /></div>
+      </div>
+      <div className="row">
+        <Button klein disabled={arbeitet || ungueltig} laedt={arbeitet} onClick={() => void exportieren()}>Als PDF speichern</Button>
+      </div>
+      {fehler && <Alert ton="error">{fehler}</Alert>}
     </Card>
   );
 }
@@ -145,6 +183,7 @@ export function ProtokollTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
       </Card>
 
       {leitung && <Auswertung treff={t} />}
+      {leitung && <PdfExport treff={t} />}
       {leitung && !vorlagen.laedt && (
         <ProtokollVorlagen treffId={t.id} oeffnungszeiten={t.oeffnungszeiten} vorlagen={vorlagen.daten ?? []} geaendert={() => vorlagen.neuLaden()} />
       )}

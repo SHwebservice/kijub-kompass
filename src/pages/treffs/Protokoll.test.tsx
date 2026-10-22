@@ -5,6 +5,7 @@ import * as treffApi from '../../treffs/api';
 import * as fzApi from '../../freizeiten/api';
 import * as api from '../../tagesprotokoll/api';
 import * as datei from '../../lib/datei';
+import * as pdf from '../../tagesprotokoll/protokollPdf';
 import { ProtokollTab } from './ProtokollTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff } from '../../test-daten';
@@ -16,6 +17,7 @@ vi.mock('../../treffs/api');
 vi.mock('../../freizeiten/api');
 vi.mock('../../tagesprotokoll/api');
 vi.mock('../../lib/datei');
+vi.mock('../../tagesprotokoll/protokollPdf', async (orig) => ({ ...(await orig<typeof import('../../tagesprotokoll/protokollPdf')>()), speichereProtokollPdf: vi.fn() }));
 
 const heute = heuteIso();
 const taeglich = [1, 2, 3, 4, 5, 6, 7].map((wochentag) => ({ wochentag, von: '15:00', bis: '19:00' }));
@@ -343,5 +345,47 @@ describe('Tagesprotokoll: Auswertung', () => {
     expect(name).toBe(`Tagesprotokolle-Treff-Nord-${jahr}.csv`);
     expect(inhalt).toContain('Treff Nord;');
     expect(inhalt).toContain('"Basteln; Malen"');
+  });
+});
+
+describe('Tagesprotokoll: Sammlung als PDF', () => {
+  const monatsanfang = `${heute.slice(0, 7)}-01`;
+
+  it('BetreuerInnen sehen den PDF-Export nicht', async () => {
+    zeige(tzk);
+    await screen.findByRole('heading', { name: 'Tagesprotokoll' });
+    expect(screen.queryByRole('heading', { name: 'Protokolle als PDF' })).not.toBeInTheDocument();
+  });
+
+  it('Treffleitung: Zeitraum (Standard: dieser Monat) als PDF speichern, mit Namen', async () => {
+    vi.mocked(api.listeProtokolleImZeitraum).mockResolvedValue([protokoll({ datum: monatsanfang, vorkommnisse: 'Streit am Kicker' })]);
+    const u = userEvent.setup();
+    zeige(leitung, 'treffleitung');
+    await u.click(await screen.findByRole('button', { name: 'Als PDF speichern' }));
+    expect(api.listeProtokolleImZeitraum).toHaveBeenLastCalledWith('t1', monatsanfang, heute);
+    expect(fzApi.holeNamen).toHaveBeenLastCalledWith(['ben']);
+    expect(pdf.speichereProtokollPdf).toHaveBeenCalledTimes(1);
+    const [sammlung, name] = vi.mocked(pdf.speichereProtokollPdf).mock.calls[0]!;
+    expect(name).toBe(`Tagesprotokolle_Treff_Nord_${monatsanfang}_bis_${heute}.pdf`);
+    expect(sammlung.eintraege).toHaveLength(1);
+    expect(sammlung.eintraege[0]).toMatchObject({ vorkommnisse: 'Streit am Kicker', bearbeitet: 'Ben Baum' });
+  });
+
+  it('ohne Protokolle im Zeitraum: Hinweis statt leerem PDF', async () => {
+    const u = userEvent.setup();
+    zeige({ ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } }, 'koordination');
+    await u.click(await screen.findByRole('button', { name: 'Als PDF speichern' }));
+    expect(await screen.findByText('In diesem Zeitraum gibt es keine Protokolle.')).toBeInTheDocument();
+    expect(pdf.speichereProtokollPdf).not.toHaveBeenCalled();
+  });
+
+  it('„Bis“ vor „Von“: Hinweis, Knopf gesperrt', async () => {
+    const u = userEvent.setup();
+    zeige(leitung, 'treffleitung');
+    const bis = await screen.findByLabelText('Bis');
+    await u.clear(bis);
+    await u.type(bis, addTage(monatsanfang, -1));
+    expect(screen.getByText('„Bis“ muss nach „Von“ liegen.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Als PDF speichern' })).toBeDisabled();
   });
 });
