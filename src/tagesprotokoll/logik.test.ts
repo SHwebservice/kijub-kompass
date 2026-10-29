@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  verlaufBeiTagwechsel, vorlageFuer, aendereAnzahl, anteil, auswertungNachMonat, csvFeld, csvProtokolle, eingabeAus, fehlendeTage, protokollFaellig, fuerMich, gesamt, hatFaelligkeit, hatZustaendig, imArchiv, istLeer,
+  verlaufBeiTagwechsel, vorlageFuer, aendereAnzahl, anteil, auswertungNachMonat, eingabeAus, fehlendeTage, protokollFaellig, fuerMich, gesamt, hatFaelligkeit, hatZustaendig, imArchiv, istLeer,
   istUeberfaellig, leeresProtokoll, liesAnzahl, oeffnungstage, sortiereAufgaben, summeAuswertung, validiereAufgabe, validiereProtokoll, waehlbareTage, zaehleJeArt,
   ortszeit, type Aufgabe, type Protokoll,
 } from './logik';
@@ -113,59 +113,6 @@ describe('Auswertung', () => {
   it('Anteil in Prozent', () => {
     expect(anteil(1, 3)).toBe(33);
     expect(anteil(0, 0)).toBe(0);
-  });
-});
-
-describe('CSV', () => {
-  it('Felder mit Semikolon, Anführungszeichen und Zeilenumbruch werden gequotet', () => {
-    expect(csvFeld('a;b')).toBe('"a;b"');
-    expect(csvFeld('sagt "hi"')).toBe('"sagt ""hi"""');
-    expect(csvFeld('eins\nzwei')).toBe('"eins\nzwei"');
-    expect(csvFeld(5)).toBe('5');
-  });
-  it('schützt vor Formeln in Excel', () => {
-    expect(csvFeld('=SUMME(A1)')).toBe("'=SUMME(A1)");
-    expect(csvFeld('+49 6233')).toBe("'+49 6233");
-    expect(csvFeld('@cmd')).toBe("'@cmd");
-  });
-  describe('Datei für Excel', () => {
-    const csv = csvProtokolle([
-      { datum: '2027-03-03', anz_m: 1, anz_w: 2, anz_d: 0, verlauf: 'Kicker', vorkommnisse: '' },
-      { datum: '2027-03-01', anz_m: 4, anz_w: 5, anz_d: 1, verlauf: 'Basteln; Malen', vorkommnisse: 'Streit' },
-      { datum: '2027-04-07', anz_m: 2, anz_w: 2, anz_d: 0 },
-    ], 'Kindertreff', { zeitraum: '2027', erstellt: new Date(2027, 4, 2) });
-    const zeilen = csv.split('\r\n');
-    const ab = (titel: string) => zeilen.slice(zeilen.indexOf(titel) + 1);
-
-    it('BOM, Kopf mit Treff, Zeitraum und Erstellungsdatum, Zeilenende CRLF', () => {
-      expect(csv.startsWith('﻿Tagesprotokolle Kindertreff – 2027\r\nErstellt am 02.05.2027\r\n')).toBe(true);
-      expect(csv.endsWith('\r\n')).toBe(true);
-    });
-
-    it('Monatsübersicht: Kinder gesamt im Monat, Ø je Tag (mit Komma), höchste Zahl; Summe und Anteile', () => {
-      const t = ab('Monatsübersicht');
-      expect(t[0]).toBe('Monat;Tage mit Protokoll;männlich;weiblich;divers;Kinder gesamt;Ø Kinder je Tag;Höchste Zahl an einem Tag');
-      expect(t[1]).toBe('März 2027;2;5;7;1;13;6,5;10');
-      expect(t[2]).toBe('April 2027;1;2;2;0;4;4;4');
-      expect(t[3]).toBe('Summe 2027;3;7;9;1;17;5,7;10');
-      expect(t[4]).toBe('Anteile;;41 %;53 %;6 %');
-    });
-
-    it('Tage im Einzelnen: nach Monaten, deutsches Datum mit Wochentag, je Monat eine Summenzeile', () => {
-      const t = ab('Tage im Einzelnen');
-      expect(t[0]).toBe('Monat;Datum;Wochentag;männlich;weiblich;divers;Gesamt;Verlauf;Vorkommnisse');
-      expect(t[1]).toBe('März 2027;01.03.2027;Mo;4;5;1;10;"Basteln; Malen";Streit');
-      expect(t[2]).toBe('März 2027;03.03.2027;Mi;1;2;0;3;Kicker;');
-      expect(t[3]).toBe('Summe März 2027;2 Tage;;5;7;1;13;Ø 6,5 Kinder je Tag');
-      expect(t[4]).toBe('April 2027;07.04.2027;Mi;2;2;0;4;;');
-      expect(t[5]).toBe('Summe April 2027;1 Tag;;2;2;0;4;Ø 4 Kinder je Tag');
-    });
-
-    it('ohne Protokolle: Kopf und leere Tabellen, keine Anteile', () => {
-      const leer = csvProtokolle([], 'Kindertreff', { zeitraum: '2027' });
-      expect(leer).toContain('Summe 2027;0;0;0;0;0;0;0');
-      expect(leer).not.toContain('Anteile');
-    });
   });
 });
 

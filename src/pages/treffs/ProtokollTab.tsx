@@ -2,17 +2,18 @@ import { useState } from 'react';
 import { useLaden } from '../../lib/laden';
 import { useLive } from '../../lib/live';
 import { fehlerText } from '../../lib/fehler';
-import { ladeHerunter, dateiName } from '../../lib/datei';
+import { dateiName } from '../../lib/datei';
 import { formatDatum, formatKurz, heuteIso, wochentagLang } from '../../freizeiten/logik';
 import { holeNamen } from '../../freizeiten/api';
 import { listeFeiertage, listeSchliesszeiten, type TreffDetailDaten } from '../../treffs/api';
 import { addTage, tageImZeitraum } from '../../treffs/dienstplan';
 import { listeProtokolle, listeProtokolleImZeitraum, listeProtokollZahlen, listeVorlagen } from '../../tagesprotokoll/api';
 import {
-  anteil, auswertungNachMonat, csvProtokolle, fehlendeTage, gesamt, hatOeffnung, summeAuswertung, type Protokoll,
+  anteil, auswertungNachMonat, fehlendeTage, gesamt, hatOeffnung, summeAuswertung, type Protokoll,
 } from '../../tagesprotokoll/logik';
 import { monatText } from '../../treffs/dienstplan';
 import type { RolleInTreff } from '../../lib/rollen';
+import { excelDateiName, ladeExcel } from '../../tagesprotokoll/excel';
 import { baueProtokollSammlung, protokollPdfName, speichereProtokollPdf } from '../../tagesprotokoll/protokollPdf';
 import { Alert, Badge, Button, Card, EmptyState, Spinner, TextField } from '../../components/ui';
 import { ProtokollSheet } from './ProtokollSheet';
@@ -20,7 +21,7 @@ import { ProtokollVorlagen } from './ProtokollVorlagen';
 
 const auszug = (t: string, n = 110) => (t.length > n ? `${t.slice(0, n).trimEnd()} …` : t);
 
-/** Auswertung für Treffleitung und Koordination: Kinder je Monat nach m/w/d, dazu der Export als CSV. */
+/** Auswertung für Treffleitung und Koordination: Kinder je Monat nach m/w/d, dazu der Export als Excel-Datei (Übersicht mit Diagramm und alle Tage). */
 function Auswertung({ treff }: { treff: TreffDetailDaten }) {
   const jetzt = new Date().getFullYear();
   const [jahr, setJahr] = useState(jetzt);
@@ -28,15 +29,16 @@ function Auswertung({ treff }: { treff: TreffDetailDaten }) {
   const zahlen = useLaden(() => listeProtokollZahlen(treff.id, von, bis), `protokoll-zahlen-${treff.id}-${jahr}`);
   useLive(['treff_protokolle'], () => zahlen.neuLaden());
   const [fehler, setFehler] = useState<string | null>(null);
+  const [exportiert, setExportiert] = useState(false);
   const zeilen = auswertungNachMonat(zahlen.daten ?? []);
   const summe = summeAuswertung(zahlen.daten ?? []);
 
   async function exportieren() {
-    setFehler(null);
+    setFehler(null); setExportiert(true);
     try {
       const l = await listeProtokolleImZeitraum(treff.id, von, bis);
-      ladeHerunter(`Tagesprotokolle-${dateiName(treff.name)}-${jahr}.csv`, csvProtokolle(l, treff.name, { zeitraum: String(jahr), erstellt: new Date() }));
-    } catch (e) { setFehler(fehlerText(e, 'Der Export ist fehlgeschlagen.')); }
+      await ladeExcel({ treffName: treff.name, jahr, protokolle: l, erstellt: new Date() }, excelDateiName(treff.name, jahr, dateiName));
+    } catch (e) { setFehler(fehlerText(e, 'Der Export ist fehlgeschlagen.')); } finally { setExportiert(false); }
   }
 
   return (
@@ -46,7 +48,7 @@ function Auswertung({ treff }: { treff: TreffDetailDaten }) {
         <Button klein onClick={() => setJahr(jahr - 1)} aria-label="Vorheriges Jahr">←</Button>
         <strong aria-live="polite">{jahr}</strong>
         <Button klein onClick={() => setJahr(jahr + 1)} disabled={jahr >= jetzt} aria-label="Nächstes Jahr">→</Button>
-        <Button klein onClick={() => void exportieren()}>Als CSV exportieren</Button>
+        <Button klein laedt={exportiert} onClick={() => void exportieren()}>Als Excel exportieren</Button>
       </div>
       {fehler && <Alert ton="error">{fehler}</Alert>}
       {zahlen.fehler && <Alert ton="error">{zahlen.fehler}</Alert>}
