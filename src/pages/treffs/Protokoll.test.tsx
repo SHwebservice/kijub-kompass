@@ -343,7 +343,9 @@ describe('Tagesprotokoll: Auswertung', () => {
     expect(datei.ladeHerunter).toHaveBeenCalledTimes(1);
     const [name, inhalt] = vi.mocked(datei.ladeHerunter).mock.calls[0]!;
     expect(name).toBe(`Tagesprotokolle-Treff-Nord-${jahr}.csv`);
-    expect(inhalt).toContain('Treff Nord;');
+    expect(inhalt).toContain(`Tagesprotokolle Treff Nord – ${jahr}`);
+    expect(inhalt).toContain('Monatsübersicht');
+    expect(inhalt).toContain(`Januar ${jahr};1;4;5;1;10;10;10`);              // Kinder gesamt und Ø je Tag
     expect(inhalt).toContain('"Basteln; Malen"');
   });
 });

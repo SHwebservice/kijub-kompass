@@ -35,7 +35,7 @@ function Auswertung({ treff }: { treff: TreffDetailDaten }) {
     setFehler(null);
     try {
       const l = await listeProtokolleImZeitraum(treff.id, von, bis);
-      ladeHerunter(`Tagesprotokolle-${dateiName(treff.name)}-${jahr}.csv`, csvProtokolle(l, treff.name));
+      ladeHerunter(`Tagesprotokolle-${dateiName(treff.name)}-${jahr}.csv`, csvProtokolle(l, treff.name, { zeitraum: String(jahr), erstellt: new Date() }));
     } catch (e) { setFehler(fehlerText(e, 'Der Export ist fehlgeschlagen.')); }
   }
 
