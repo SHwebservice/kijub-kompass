@@ -5,6 +5,7 @@ import * as treffApi from '../../treffs/api';
 import * as fzApi from '../../freizeiten/api';
 import * as api from '../../tagesprotokoll/api';
 import * as datei from '../../lib/datei';
+import * as excel from '../../tagesprotokoll/excel';
 import * as pdf from '../../tagesprotokoll/protokollPdf';
 import { ProtokollTab } from './ProtokollTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
@@ -17,6 +18,7 @@ vi.mock('../../treffs/api');
 vi.mock('../../freizeiten/api');
 vi.mock('../../tagesprotokoll/api');
 vi.mock('../../lib/datei');
+vi.mock('../../tagesprotokoll/excel', async (orig) => ({ ...(await orig<typeof import('../../tagesprotokoll/excel')>()), ladeExcel: vi.fn() }));
 vi.mock('../../tagesprotokoll/protokollPdf', async (orig) => ({ ...(await orig<typeof import('../../tagesprotokoll/protokollPdf')>()), speichereProtokollPdf: vi.fn() }));
 
 const heute = heuteIso();
@@ -333,20 +335,20 @@ describe('Tagesprotokoll: Auswertung', () => {
     expect(api.listeProtokollZahlen).toHaveBeenLastCalledWith('t1', `${jahr}-01-01`, `${jahr}-12-31`);
   });
 
-  it('CSV-Export lädt die vollständigen Protokolle des Jahres als Datei', async () => {
-    vi.mocked(api.listeProtokolleImZeitraum).mockResolvedValue([protokoll({ datum: `${new Date().getFullYear()}-01-06`, verlauf: 'Basteln; Malen' })]);
+  it('Excel-Export lädt die vollständigen Protokolle des Jahres und speichert sie als .xlsx', async () => {
+    const l = [protokoll({ datum: `${new Date().getFullYear()}-01-06`, verlauf: 'Basteln; Malen' })];
+    vi.mocked(api.listeProtokolleImZeitraum).mockResolvedValue(l);
     vi.mocked(datei.dateiName).mockReturnValue('Treff-Nord');
+    vi.mocked(excel.ladeExcel).mockResolvedValue(undefined);
     const u = userEvent.setup();
     zeige(leitung, 'treffleitung');
-    await u.click(await screen.findByRole('button', { name: 'Als CSV exportieren' }));
+    expect(screen.queryByRole('button', { name: /CSV/ })).not.toBeInTheDocument();
+    await u.click(await screen.findByRole('button', { name: 'Als Excel exportieren' }));
     const jahr = new Date().getFullYear();
-    expect(datei.ladeHerunter).toHaveBeenCalledTimes(1);
-    const [name, inhalt] = vi.mocked(datei.ladeHerunter).mock.calls[0]!;
-    expect(name).toBe(`Tagesprotokolle-Treff-Nord-${jahr}.csv`);
-    expect(inhalt).toContain(`Tagesprotokolle Treff Nord – ${jahr}`);
-    expect(inhalt).toContain('Monatsübersicht');
-    expect(inhalt).toContain(`Januar ${jahr};1;4;5;1;10;10;10`);              // Kinder gesamt und Ø je Tag
-    expect(inhalt).toContain('"Basteln; Malen"');
+    expect(api.listeProtokolleImZeitraum).toHaveBeenCalledWith('t1', `${jahr}-01-01`, `${jahr}-12-31`);
+    const [eingabe, name] = vi.mocked(excel.ladeExcel).mock.calls[0]!;
+    expect(name).toBe(`Tagesprotokolle-Treff-Nord-${jahr}.xlsx`);
+    expect(eingabe).toMatchObject({ treffName: 'Treff Nord', jahr, protokolle: l });
   });
 });
 

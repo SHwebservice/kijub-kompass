@@ -565,10 +565,18 @@ Die 77 Programmpunkte des alten KiJuB Kompass wurden einmalig übernommen: direk
 - Der Treff hat einen Reiter weniger. Alte Links auf `/treffs/…/verwaltung` und die Startseiten-Kachel (jetzt „**Abwesenheiten**“) öffnen den Dienstplan im Monat mit der Übersicht der Abwesenheiten (`?zeige=abwesenheiten`).
 - Keine Datenbankänderung.
 
-## Tagesprotokoll: CSV-Export übersichtlicher (2026-10-29)
+## Tagesprotokoll: CSV-Export übersichtlicher (2026-10-29) – ersetzt durch den Excel-Export (siehe unten)
 
 - „Als CSV exportieren“ (Auswertung, Treffleitung und Koordination) liefert jetzt eine gegliederte Datei für Excel:
   1. **Kopf:** Treff, Jahr, „Erstellt am“ und eine kurze Erklärung der Zahlen.
   2. **Monatsübersicht:** je Monat Tage mit Protokoll, männlich, weiblich, divers, **Kinder gesamt im Monat**, **Ø Kinder je Tag** und die höchste Zahl an einem Tag; darunter die **Summe des Jahres** und die **Anteile** m/w/d.
   3. **Tage im Einzelnen:** nach Monaten gegliedert, Datum im deutschen Format mit Wochentag, Verlauf und Vorkommnisse; nach jedem Monat eine **Summenzeile** („Summe März 2027 · 2 Tage · … · Ø 6,5 Kinder je Tag“).
 - „Kinder gesamt“ ist die Summe aller Tage (Besuche) – wer an drei Tagen kommt, zählt dreimal, da keine Namen erfasst werden. Der Durchschnitt bezieht sich auf die Tage mit Protokoll. Zahlen mit Komma, damit deutsches Excel damit rechnet.
+
+## Tagesprotokoll: Export als Excel-Datei mit Diagramm (2026-10-29)
+
+- In der Auswertung (Treffleitung, Koordination) gibt es nur noch „**Als Excel exportieren**“ (.xlsx, ein Jahr). Der CSV-Export entfällt, eine Weiterverarbeitung in anderen Programmen ist nicht nötig.
+- **Blatt „Übersicht“:** Titel mit Treff und Jahr, „Erstellt am …“, kurze Erklärung der Zahlen. Darunter eine Tabelle mit allen zwölf Monaten: Tage mit Protokoll, männlich, weiblich, divers, **Kinder gesamt**, **Ø Kinder je Tag** (eine Nachkommastelle), höchste Zahl an einem Tag. Es folgen die Jahressumme (hervorgehoben) und die Anteile m/w/d in Prozent. Darunter das **Diagramm „Kinder je Monat“**: gestapelte Säulen m/w/d mit der Gesamtzahl darüber und dem Ø je Tag unter jedem Monat.
+- **Blatt „Tage“:** alle Protokolle nach Monaten, jeder Monat lässt sich links mit +/− auf- und zuklappen. Echtes Datum (TT.MM.JJJJ) mit Wochentag, Verlauf und Vorkommnisse mit Zeilenumbruch. Tage mit Vorkommnissen sind orange hinterlegt, Wochenenden grau. Nach jedem Monat steht eine Summenzeile mit Tagen, Ø je Tag und höchster Zahl.
+- **Beide Blätter:** feste Kopfzeile beim Scrollen, Druck auf DIN A4 quer in Seitenbreite, Fußzeile mit Treff und Seitenzahl, echte Zahlen zum Weiterrechnen.
+- Technik: ExcelJS (wird erst beim Klick geladen), das Diagramm wird als Bild gezeichnet (Canvas), damit es in Excel, LibreOffice und Google Tabellen gleich aussieht. Logik und Aufbau in `src/tagesprotokoll/excel.ts` (mit Tests, die die Datei wieder einlesen).

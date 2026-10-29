@@ -25,7 +25,7 @@ export async function listeProtokollZahlen(treffId: string, von: string, bis: st
     .eq('treff_id', treffId).gte('datum', von).lte('datum', bis).order('datum').limit(1000)) as Zahlen[];
 }
 
-/** Komplette Protokolle eines Zeitraums für den CSV-Export. */
+/** Komplette Protokolle eines Zeitraums für den Excel-Export. */
 export async function listeProtokolleImZeitraum(treffId: string, von: string, bis: string): Promise<Protokoll[]> {
   return pruefe(await supabase.from('treff_protokolle').select(PROTOKOLL)
     .eq('treff_id', treffId).gte('datum', von).lte('datum', bis).order('datum').limit(1000)) as Protokoll[];
