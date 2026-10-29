@@ -4,7 +4,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
 import { ApiFehler } from '../../lib/fehler';
-import { sendePush } from '../../mitteilungen/senden';
+import { sendeMitteilung, sendePush } from '../../mitteilungen/senden';
 import { DienstplanTab } from './DienstplanTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
@@ -104,7 +104,7 @@ describe('Dienstplan: Anzeige', () => {
     await userEvent.click(within(montag).getByRole('button', { name: 'Schließen' }));
     const mittwoch = await tag(mi);
     expect(within(mittwoch).getByText('Schlüssel')).toBeInTheDocument();
-    expect(within(mittwoch).getByText('Ben Baum: Urlaub')).toBeInTheDocument();
+    expect(within(mittwoch).getByRole('button', { name: 'Abwesenheit von Ben Baum ändern (Urlaub)' })).toBeInTheDocument();
   });
 
   it('Sonderdienst erscheint auch an einem Schließtag (eigene Spalte, im Tagesfenster mit Zeit)', async () => {
@@ -171,7 +171,7 @@ describe('Dienstplan: veröffentlichen', () => {
     vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([]);
     await zeige(leitung, 'treffleitung');
     const dialog = await tag(mi);
-    await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Ben Baum/ }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     await vi.waitFor(() => expect(api.setzeZuteilung).toHaveBeenCalled());
     expect(sendePush).not.toHaveBeenCalled();
@@ -266,8 +266,8 @@ describe('Dienstplan: Treffleitung', () => {
   it('teilt an einem Tag ohne Dienst zu: der Dienst wird erst beim Speichern angelegt', async () => {
     await zeige(leitung, 'treffleitung');
     const dialog = await tag(mi);
-    await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
-    await userEvent.click(within(dialog).getByLabelText(/Lea Leitner/));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Ben Baum/ }));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Lea Leitner/ }));
     expect(api.dienstSicherstellen).not.toHaveBeenCalled();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(api.dienstSicherstellen).toHaveBeenCalledWith('t1', mi);
@@ -278,9 +278,9 @@ describe('Dienstplan: Treffleitung', () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea', 'ben'] })]);
     await zeige(leitung, 'treffleitung');
     const dialog = await tag(mo);
-    expect(within(dialog).getByLabelText(/Ben Baum/)).toBeChecked();
-    await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
-    await userEvent.click(within(dialog).getByLabelText(/Anna Adler/));
+    expect(within(dialog).getByRole('checkbox', { name: /Ben Baum/ })).toBeChecked();
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Ben Baum/ }));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Anna Adler/ }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(api.dienstSicherstellen).not.toHaveBeenCalled();
     expect(api.setzeZuteilung).toHaveBeenCalledWith('d1', ['ich'], ['ben']);
@@ -307,7 +307,7 @@ describe('Dienstplan: Treffleitung', () => {
     vi.mocked(api.setzeZuteilung).mockRejectedValue(new ApiFehler({ code: '23514', message: 'Die Person gehört nicht zu diesem Treff' }));
     await zeige(leitung, 'treffleitung');
     const dialog = await tag(mo);
-    await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Ben Baum/ }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(await within(dialog).findByText(/gehört nicht zu diesem Treff/)).toBeInTheDocument();
   });
@@ -320,7 +320,7 @@ describe('Dienstplan: Treffleitung', () => {
     expect(within(dialog).getByText('Bitte eine Bezeichnung angeben.')).toBeInTheDocument();
     expect(api.speichereSonderdienst).not.toHaveBeenCalled();
     await userEvent.type(within(dialog).getByLabelText('Bezeichnung'), 'Sommerfest');
-    await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Ben Baum/ }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Speichern' }));
     expect(api.speichereSonderdienst).toHaveBeenCalledTimes(1);
     const [treffId, id, w, personen, alt] = vi.mocked(api.speichereSonderdienst).mock.calls[0]!;
@@ -424,8 +424,8 @@ describe('Dienstplan: Mitteilungen werden ausgelöst', () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['lea', 'ben'] })]);
     await zeige(leitung, 'treffleitung');
     const dialog = await tag(mo);
-    await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));          // heraus
-    await userEvent.click(within(dialog).getByLabelText(/Anna Adler/));        // neu
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Ben Baum/ }));          // heraus
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Anna Adler/ }));        // neu
     await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ich', 'ben'] }));
   });
@@ -445,7 +445,7 @@ describe('Dienstplan: Mitteilungen werden ausgelöst', () => {
     await userEvent.clear(within(neu).getByLabelText('Datum'));
     await userEvent.type(within(neu).getByLabelText('Datum'), mi);
     await userEvent.type(within(neu).getByLabelText('Bezeichnung'), 'Aufbau');
-    await userEvent.click(within(neu).getByLabelText(/Anna Adler/));
+    await userEvent.click(within(neu).getByRole('checkbox', { name: /Anna Adler/ }));
     await userEvent.click(within(neu).getByRole('button', { name: 'Speichern' }));
     await vi.waitFor(() => expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ich'] }));
 
@@ -519,5 +519,83 @@ describe('Dienstplan: Schließzeiten direkt eintragen', () => {
     await zeige(betreuerin);
     expect(screen.queryByRole('button', { name: 'Schließzeiten …' })).not.toBeInTheDocument();
     expect(within(await tag(mi)).queryByRole('button', { name: /Treff an diesem Tag schließen/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('Dienstplan: Abwesenheiten und Ersatz', () => {
+  it('Name oben antippen: Abwesenheit für diese Person eintragen; betroffene Dienste herausnehmen; danach „Ersatz gesucht“', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['ben', 'lea'] }), dienst({ id: 'd2', datum: mi, personen: ['ben'] })]);
+    vi.mocked(api.speichereAbwesenheit).mockResolvedValue(undefined);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(screen.getByRole('button', { name: 'Ben Baum: Abwesenheit eintragen' }));
+    const f = await screen.findByRole('dialog', { name: 'Abwesenheit eintragen' });
+    expect(within(f).getByLabelText('Person')).toHaveValue('ben');
+    await userEvent.click(within(f).getByRole('button', { name: 'Krank' }));
+    await userEvent.clear(within(f).getByLabelText('Von'));
+    await userEvent.type(within(f).getByLabelText('Von'), mo);
+    await userEvent.clear(within(f).getByLabelText('Bis'));
+    await userEvent.type(within(f).getByLabelText('Bis'), mi);
+    await within(f).findByRole('group', { name: /Ben Baum ist in diesem Zeitraum eingeteilt/ });
+    await userEvent.click(within(f).getByRole('button', { name: 'Speichern und aus 2 Diensten herausnehmen' }));
+    expect(api.speichereAbwesenheit).toHaveBeenCalledWith('ben', [mo, addTage(mo, 1), mi], 'krank', '');
+    expect(api.setzeZuteilung).toHaveBeenCalledWith('d1', [], ['ben']);
+    expect(api.setzeZuteilung).toHaveBeenCalledWith('d2', [], ['ben']);
+    const hinweis = await screen.findByText('Ersatz gesucht');
+    expect(hinweis).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: `Mi ${mi.slice(8, 10)}.${mi.slice(5, 7)}.` }));
+    expect(await screen.findByRole('dialog', { name: new RegExp(esc(formatDatum(mi))) })).toBeInTheDocument();
+  });
+
+  it('Tagesfenster: Abwesende antippen ändert die Abwesenheit (ganzer Zeitraum wird geladen)', async () => {
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([
+      { id: 'a1', person_id: 'ben', datum: mo, typ: 'urlaub', notiz: null },
+      { id: 'a2', person_id: 'ben', datum: addTage(mo, 1), typ: 'urlaub', notiz: null },
+    ]);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(within(await tag(mo)).getByRole('button', { name: 'Abwesenheit von Ben Baum ändern (Urlaub)' }));
+    const f = await screen.findByRole('dialog', { name: 'Abwesenheit ändern' });
+    expect(within(f).getByLabelText('Von')).toHaveValue(mo);
+    expect(within(f).getByLabelText('Bis')).toHaveValue(addTage(mo, 1));
+  });
+
+  it('„Ersatz gesucht“ unter der Mindestbesetzung: freie Personen mit einem Klick einteilen, Abwesende fehlen', async () => {
+    vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mi, personen: ['lea'] })]);
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: 'x', person_id: 'ich', datum: mi, typ: 'krank', notiz: null }]);
+    vi.mocked(api.setzeMindestbesetzung).mockResolvedValue(undefined);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.selectOptions(screen.getByLabelText('Mindestens'), '2');
+    const k = await tag(mi);
+    const bereich = within(k).getByRole('region', { name: 'Wer ist frei?' });
+    expect(within(bereich).getByText('Ersatz gesucht')).toBeInTheDocument();
+    const freie = within(bereich).getByRole('list', { name: 'Freie Personen' });
+    expect(within(freie).getAllByRole('listitem').map((li) => li.querySelector('strong')?.textContent)).toEqual(['Ben Baum']);
+    await userEvent.click(within(freie).getByRole('button', { name: 'Ben Baum einteilen' }));
+    expect(api.setzeZuteilung).toHaveBeenCalledWith('d1', ['ben'], []);
+  });
+
+  it('„Freie per Mitteilung fragen“ schickt „Ersatz gesucht“ und meldet, wie viele gefragt wurden', async () => {
+    vi.mocked(sendeMitteilung).mockResolvedValue({ empfaenger: 2, geraete: 2, gesendet: 2, entfernt: 0, fehlgeschlagen: 0 });
+    await zeige(leitung, 'treffleitung');
+    const k = await tag(mi);
+    await userEvent.click(within(k).getByRole('button', { name: 'Freie per Mitteilung fragen' }));
+    expect(sendeMitteilung).toHaveBeenCalledWith('ersatz_gesucht', 't1', { datum: mi });
+    expect(await within(k).findByText(/2 Personen gefragt/)).toBeInTheDocument();
+  });
+
+  it('„Abwesenheiten …“ über der Tabelle zeigt die Übersicht; „+ Abwesenheit eintragen“ öffnet das Fenster', async () => {
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: 'a', person_id: 'ben', datum: addTage(mo, 2), typ: 'sonstiges', notiz: 'Fortbildung' }]);
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(screen.getByRole('button', { name: 'Abwesenheiten …' }));
+    const uebersicht = await screen.findByRole('dialog', { name: 'Abwesenheiten' });
+    expect(await within(uebersicht).findByText('Fortbildung')).toBeInTheDocument();
+    await userEvent.click(within(uebersicht).getByRole('button', { name: '+ Abwesenheit eintragen' }));
+    expect(await screen.findByRole('dialog', { name: 'Abwesenheit eintragen' })).toBeInTheDocument();
+  });
+
+  it('BetreuerInnen: Namen sind keine Knöpfe, keine Abwesenheiten-Werkzeuge, kein „Wer ist frei?“', async () => {
+    await zeige(betreuerin);
+    expect(screen.queryByRole('button', { name: /Abwesenheit eintragen/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Abwesenheiten …' })).not.toBeInTheDocument();
+    expect(within(await tag(mi)).queryByRole('region', { name: 'Wer ist frei?' })).not.toBeInTheDocument();
   });
 });

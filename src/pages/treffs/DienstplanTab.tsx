@@ -26,10 +26,15 @@ import { PlanStatus } from './PlanStatus';
 import { TagSheet } from './TagSheet';
 import { SchliesszeitenSheet } from './SchliesszeitenSheet';
 import { MonatsplanDruck } from './MonatsplanDruck';
+import { AbwesenheitBearbeiten, AbwesenheitSheet, type AbwesenheitErgebnis } from './AbwesenheitSheet';
+import { AbwesenheitenListe } from './AbwesenheitenListe';
+import { kurzTag, type Block } from '../../treffs/abwesenheit';
+import { Sheet } from '../../components/Sheet';
 import { useLetzterBesuchDienste } from '../dienste/gesehen';
 
 type Ansicht = 'woche' | 'monat';
-type Ziel = { art: 'tag'; datum: string } | { art: 'sonder'; dienst: Dienst | null; datum: string } | { art: 'schliess'; datum?: string };
+type Ziel = { art: 'tag'; datum: string } | { art: 'sonder'; dienst: Dienst | null; datum: string } | { art: 'schliess'; datum?: string }
+  | { art: 'abwesenheit'; person?: string; datum?: string; block?: Block | null; bearbeiten?: boolean } | { art: 'abwesenheiten' };
 
 const datumZeit = (iso: string) => `${formatDatum(iso.slice(0, 10))} ${iso.slice(11, 16)}`;
 const istDatum = (d: string | null): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -67,13 +72,15 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
   });
 
   const [ziel, setZiel] = useState<Ziel | null>(null);
-  const schliessen = useCallback(() => setZiel(null), []);
+  const schliessen = useCallback(() => setZiel(null), [setZiel]);
   const [bearbeiten, setBearbeiten] = useState(false);
   const [entwurf, setEntwurf] = useState<Entwurf>(LEERER_ENTWURF);
   const [mindest, setMindest] = useState(t.mindestbesetzung ?? 1);
   const [nurIch, setNurIch] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [kommentarText, setKommentarText] = useState('');
+  /** Nach dem Eintragen einer Abwesenheit: Tage, an denen die Person herausgenommen wurde – dort wird Ersatz gesucht. */
+  const [ersatz, setErsatz] = useState<{ person: string; tage: string[] } | null>(null);
   if (!ich) return null;
 
   const verwaltung = darfTreffVerwalten(rolle);
@@ -92,6 +99,15 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
   const zeitraumText = ansicht === 'woche' ? 'in dieser Woche' : `im ${monatText(monat)}`;
 
   const neuLaden = () => { dienste.neuLaden(); };
+  const abwesenheitGespeichert = (e: AbwesenheitErgebnis) => {
+    abwesenheiten.neuLaden(); dienste.neuLaden();
+    setErsatz(e.herausgenommen.length ? { person: e.person, tage: e.herausgenommen } : null);
+  };
+  /** Tagesfenster öffnen – liegt der Tag nicht im angezeigten Zeitraum, wird dorthin geblättert. */
+  const tagZeigen = (datum: string) => {
+    if (!tage.includes(datum)) { if (!entwurfVerwerfen()) return; setFokus(datum); }
+    setZiel({ art: 'tag', datum });
+  };
 
   // Ein Entwurf gilt nur für seinen Monat: Beim Blättern oder Umschalten geht er (nach Rückfrage) verloren.
   const entwurfVerwerfen = () => {
@@ -117,7 +133,9 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
   const zelleKlickbar = (datum: string, person: string) => {
     const k = karten.find((x) => x.datum === datum);
     if (!k) return false;
-    if (verwaltung) return k.regulaer?.wuensche.some((w) => w.person_id === person && w.status === 'offen') ?? false;
+    // Treffleitung: offene Wünsche und Abwesende (im Tagesfenster lässt sich die Abwesenheit ändern)
+    if (verwaltung) return (k.regulaer?.wuensche.some((w) => w.person_id === person && w.status === 'offen') ?? false)
+      || abw.some((a) => a.datum === datum && a.person_id === person && a.typ !== 'verhindert');
     return person === ich.id && (!!k.oeffnung || k.sonder.some((s) => s.personen.includes(ich.id)));
   };
 
@@ -173,6 +191,14 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
         </Alert>
       )}
 
+      {verwaltung && ersatz && (
+        <Alert ton="warning">
+          <strong>Ersatz gesucht</strong> für {name(ersatz.person)}:{' '}
+          {ersatz.tage.map((d) => <Button key={d} klein onClick={() => tagZeigen(d)}>{kurzTag(d)}</Button>)}
+          {' '}<Button klein variante="ghost" onClick={() => setErsatz(null)}>Ausblenden</Button>
+        </Alert>
+      )}
+
       {laedt && <Spinner />}
       {!laedt && karten.length === 0 && (
         <Card><p>{t.oeffnungszeiten.length === 0 ? 'Der Treff hat noch keine Öffnungstage.' : `${ansicht === 'woche' ? 'In dieser Woche' : 'In diesem Monat'} gibt es keinen Dienst.`}</p></Card>
@@ -190,12 +216,13 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
           nurIch={nurIch && !verwaltung}
           bearbeiten={editierend ? { gespeichert: karten, entwurf, aendern: (f) => setEntwurf(f) } : undefined}
           tagOeffnen={editierend ? undefined : (datum) => setZiel({ art: 'tag', datum })} zelleKlickbar={zelleKlickbar}
+          personOeffnen={verwaltung && !editierend ? (person) => setZiel({ art: 'abwesenheit', person, datum: tage.includes(heute) ? heute : von }) : undefined}
           kopf={verwaltung ? (
             <MatrixLeiste treffId={t.id} ansicht={ansicht} monat={monat} karten={karten} team={mitglieder} oeffnungszeiten={t.oeffnungszeiten}
               abwesenheiten={abw} feiertage={feiertage.daten ?? []} veroeffentlicht={fest} mindestbesetzung={mindest} mindestbesetzungGeaendert={setMindest}
               bearbeiten={editierend} setBearbeiten={setBearbeiten} entwurf={entwurf} setEntwurf={setEntwurf}
               neuerSonderdienst={() => setZiel({ art: 'sonder', dienst: null, datum: tage.includes(heute) ? heute : von })}
-              schliesszeitenOeffnen={() => setZiel({ art: 'schliess' })} geaendert={neuLaden} />
+              schliesszeitenOeffnen={() => setZiel({ art: 'schliess' })} abwesenheitenOeffnen={() => setZiel({ art: 'abwesenheiten' })} geaendert={neuLaden} />
           ) : undefined} />
       )}
 
@@ -229,12 +256,23 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
       {tagKarte && (
         <TagSheet treffId={t.id} rolle={rolle} karte={tagKarte} team={mitglieder} abwesenheiten={abw} feiertag={feiertagAm(tagKarte.datum, feiertage.daten ?? [], t.id)}
           absprachen={(absprachen.daten ?? []).filter((n) => n.datum === tagKarte.datum)} ichId={ich.id} heute={heute} veroeffentlicht={fest}
+          karten={karten} mindestbesetzung={mindest}
+          abwesenheit={(person, aendern) => setZiel({ art: 'abwesenheit', person, datum: tagKarte.datum, bearbeiten: aendern })}
           sonderdienst={(d) => setZiel({ art: 'sonder', dienst: d, datum: tagKarte.datum })} schliesszeit={() => setZiel({ art: 'schliess', datum: tagKarte.datum })} geaendert={neuLaden}
           verhinderungGeaendert={() => verhinderungen.neuLaden()} schliessen={schliessen} />
       )}
       {ziel?.art === 'sonder' && (
         <SonderdienstSheet treffId={t.id} dienst={ziel.dienst} startDatum={ziel.datum} team={mitglieder} abwesenheiten={abw}
           veroeffentlicht={fest} schliessen={schliessen} geaendert={neuLaden} />
+      )}
+      {ziel?.art === 'abwesenheit' && (ziel.bearbeiten && ziel.person && ziel.datum
+        ? <AbwesenheitBearbeiten treffId={t.id} team={mitglieder} heute={heute} person={ziel.person} datum={ziel.datum} gespeichert={abwesenheitGespeichert} schliessen={schliessen} />
+        : <AbwesenheitSheet treffId={t.id} team={mitglieder} heute={heute} person={ziel.person} datum={ziel.datum} block={ziel.block ?? null}
+            gespeichert={abwesenheitGespeichert} schliessen={schliessen} />)}
+      {ziel?.art === 'abwesenheiten' && (
+        <Sheet titel="Abwesenheiten" schliessen={schliessen}>
+          <AbwesenheitenListe treffId={t.id} team={mitglieder} heute={heute} oeffnen={(block) => setZiel({ art: 'abwesenheit', block })} />
+        </Sheet>
       )}
       {ziel?.art === 'schliess' && (
         <SchliesszeitenSheet treffId={t.id} startDatum={ziel.datum} schliessen={schliessen} geaendert={() => { schliesszeiten.neuLaden(); dienste.neuLaden(); }} />

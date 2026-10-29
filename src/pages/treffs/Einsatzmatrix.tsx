@@ -42,6 +42,8 @@ interface Props {
   zelleKlickbar?: (datum: string, personId: string) => boolean;
   /** Zusätzlicher Inhalt unter der Überschrift (z. B. Knöpfe zum Bearbeiten). */
   kopf?: ReactNode;
+  /** Klick auf einen Namen oben (außerhalb des Bearbeitens): z. B. Abwesenheit für diese Person eintragen. */
+  personOeffnen?: (personId: string) => void;
 }
 
 const ZEICHEN: Record<Abwesenheit['typ'], string> = { urlaub: 'U', krank: 'K', sonstiges: 'A', verhindert: '✕' };
@@ -54,7 +56,7 @@ const ZEICHEN: Record<Abwesenheit['typ'], string> = { urlaub: 'U', krank: 'K', s
  */
 export function Einsatzmatrix({
   karten, mitglieder, abwesenheiten, feiertage, treffId, ichId, heute, mitWuenschen, zeitraum, mindestbesetzung = 1, letzterBesuch = null,
-  stunden, nurIch = false, bearbeiten, tagOeffnen, zelleKlickbar, kopf,
+  stunden, nurIch = false, bearbeiten, tagOeffnen, zelleKlickbar, kopf, personOeffnen,
 }: Props) {
   const [hinweis, setHinweis] = useState<string | null>(null);
   const ziehen = useRef<{ wert: boolean } | null>(null);
@@ -137,8 +139,12 @@ export function Einsatzmatrix({
                         title="Ganze Spalte einteilen oder leeren" aria-label={`${z.name}: an allen Öffnungstagen einteilen oder herausnehmen`}>
                         {name}
                       </button>
-                    ) : <span className="sr-only">{z.name}</span>}
-                    {!b && <span aria-hidden="true">{name}</span>}
+                    ) : !personOeffnen && <span className="sr-only">{z.name}</span>}
+                    {!b && personOeffnen && (
+                      <button type="button" className="einsatz__zeilenknopf einsatz__namensknopf" onClick={() => personOeffnen(z.person_id)}
+                        title="Abwesenheit eintragen" aria-label={`${z.name}: Abwesenheit eintragen`}><span aria-hidden="true">{name}</span></button>
+                    )}
+                    {!b && !personOeffnen && <span aria-hidden="true">{name}</span>}
                     {z.leitung && <span className="einsatz__rolle">Leitung</span>}
                     {ich && <span className="einsatz__rolle">du</span>}
                   </th>

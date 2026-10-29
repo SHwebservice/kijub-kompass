@@ -105,7 +105,7 @@ describe('Dienstplan: Zuteilen in der Monatsansicht', () => {
     await imMonat(leitung, 'treffleitung');
     await userEvent.click(await tagKnopf(montag));
     const dialog = await screen.findByRole('dialog');
-    await userEvent.click(within(dialog).getByLabelText(/Ben Baum/));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Ben Baum/ }));
     expect(api.dienstSicherstellen).not.toHaveBeenCalled();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(api.dienstSicherstellen).toHaveBeenCalledWith('t1', montag);
@@ -117,8 +117,8 @@ describe('Dienstplan: Zuteilen in der Monatsansicht', () => {
     await imMonat(leitung, 'treffleitung');
     await userEvent.click(await tagKnopf(montag));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByLabelText(/Lea Leitner/)).toBeChecked();
-    await userEvent.click(within(dialog).getByLabelText(/Anna Adler/));
+    expect(within(dialog).getByRole('checkbox', { name: /Lea Leitner/ })).toBeChecked();
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /Anna Adler/ }));
     const dienstAufrufe = vi.mocked(api.listeDienste).mock.calls.length;
     await userEvent.click(within(dialog).getByRole('button', { name: 'Zuteilung speichern' }));
     expect(api.setzeZuteilung).toHaveBeenCalledWith('d1', ['ich'], []);      // nur die Differenz

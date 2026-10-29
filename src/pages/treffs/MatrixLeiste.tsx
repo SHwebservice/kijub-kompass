@@ -30,6 +30,7 @@ interface Props {
   setEntwurf: (e: Entwurf) => void;
   neuerSonderdienst: () => void;
   schliesszeitenOeffnen: () => void;
+  abwesenheitenOeffnen?: () => void;
   /** Nach dem Speichern: Dienste neu laden. */
   geaendert: () => void;
 }
@@ -114,6 +115,7 @@ export function MatrixLeiste(p: Props) {
         <div className="row">
           {ansicht === 'monat' && <Button klein variante="primary" onClick={() => { setErfolg(null); setBearbeiten(true); }}>In der Tabelle einteilen</Button>}
           <Button klein onClick={p.neuerSonderdienst}>+ Sonderdienst</Button>
+          {p.abwesenheitenOeffnen && <Button klein onClick={p.abwesenheitenOeffnen}>Abwesenheiten …</Button>}
           <Button klein onClick={p.schliesszeitenOeffnen}>Schließzeiten …</Button>
           <span className="row einsatz__mindest">
             <label htmlFor={`mindest-${treffId}`}>Mindestens</label>

@@ -3,53 +3,29 @@ import { Link } from 'react-router-dom';
 import { useLaden } from '../../lib/laden';
 import { fehlerText } from '../../lib/fehler';
 import { formatDatum, heuteIso } from '../../freizeiten/logik';
-import {
-  holeTreffTeam, listeAbwesenheiten, listeFeiertage, loescheAbwesenheiten, loescheFeiertag,
-  speichereAbwesenheit, speichereFeiertag, type TreffDetailDaten,
-} from '../../treffs/api';
-import { abwesenheitsBloecke, addTage, tageImZeitraum, validiereAbwesenheit, type Abwesenheit } from '../../treffs/dienstplan';
-import { sortiereTreffTeam } from '../../treffs/logik';
+import { holeTreffTeam, listeFeiertage, loescheFeiertag, speichereFeiertag, type TreffDetailDaten } from '../../treffs/api';
+import { addTage } from '../../treffs/dienstplan';
 import type { RolleInTreff } from '../../lib/rollen';
-import { Alert, Badge, Button, Card, SelectField, Spinner, TextField } from '../../components/ui';
+import { Alert, Badge, Button, Card, Spinner, TextField } from '../../components/ui';
+import { AbwesenheitenListe } from './AbwesenheitenListe';
 
-type Art = 'urlaub' | 'krank' | 'sonstiges';
-const ART_TEXT: Record<Abwesenheit['typ'], string> = { urlaub: 'Urlaub', krank: 'Krank', sonstiges: 'Sonstiges', verhindert: 'Kann nicht' };
 const ZEITRAUM_TAGE = 365;
-const zeitraum = (von: string, bis: string) => (von === bis ? formatDatum(von) : `${formatDatum(von)} – ${formatDatum(bis)}`);
 
 /** Treffleitung/Koordination: Urlaub und Krankheit der Personen und Feiertage des Treffs eintragen. Schließzeiten stehen seit 2026-10 im Dienstplan. */
 export function VerwaltungTab({ treff: t, rolle }: { treff: TreffDetailDaten; rolle: RolleInTreff }) {
   const heute = heuteIso();
   const bis = addTage(heute, ZEITRAUM_TAGE);
   const team = useLaden(() => holeTreffTeam(t.id), `treffteam-${t.id}`);
-  const abwesenheiten = useLaden(() => listeAbwesenheiten(heute, bis), `abwesenheiten-verw-${t.id}`);
   const feiertage = useLaden(() => listeFeiertage(t.id, heute, bis), `feiertage-verw-${t.id}`);
 
-  const [a, setA] = useState({ person_id: '', von: '', bis: '', typ: 'urlaub' as Art, notiz: '' });
-  const [aFehler, setAFehler] = useState<{ person?: string; zeitraum?: string; notiz?: string }>({});
   const [f, setF] = useState({ datum: '', bezeichnung: '', alle: false });
   const [fFehler, setFFehler] = useState<string | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [arbeitet, setArbeitet] = useState(false);
 
-  const mitglieder = sortiereTreffTeam(team.daten ?? []);
-  const namen = Object.fromEntries(mitglieder.map((m) => [m.person_id, `${m.vorname} ${m.nachname}`]));
-  const name = (id: string) => namen[id] ?? 'Jemand';
-  // Nur Personen dieses Treffs sind hier relevant (die Datenbank liefert ggf. auch Abwesenheiten aus anderen gemeinsamen Treffs).
-  const bloecke = abwesenheitsBloecke((abwesenheiten.daten ?? []).filter((x) => x.person_id in namen));
-
   async function aktion(fn: () => Promise<void>, danach: () => void) {
     setFehler(null); setArbeitet(true);
     try { await fn(); danach(); } catch (e) { setFehler(fehlerText(e)); } finally { setArbeitet(false); }
-  }
-
-  function abwesenheitSpeichern(e: FormEvent) {
-    e.preventDefault();
-    const probleme = validiereAbwesenheit(a);
-    setAFehler(probleme);
-    if (probleme.person || probleme.zeitraum || probleme.notiz) return;
-    void aktion(() => speichereAbwesenheit(a.person_id, tageImZeitraum(a.von, a.bis), a.typ, a.notiz),
-      () => { setA({ person_id: a.person_id, von: '', bis: '', typ: a.typ, notiz: '' }); abwesenheiten.neuLaden(); });
   }
 
   function feiertagSpeichern(e: FormEvent) {
@@ -62,49 +38,17 @@ export function VerwaltungTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
 
   return (
     <div className="stack">
-      {(team.fehler || abwesenheiten.fehler || feiertage.fehler || fehler) && (
-        <Alert ton="error">{team.fehler ?? abwesenheiten.fehler ?? feiertage.fehler ?? fehler}</Alert>
+      {(team.fehler || feiertage.fehler || fehler) && (
+        <Alert ton="error">{team.fehler ?? feiertage.fehler ?? fehler}</Alert>
       )}
 
       <Card>
         <h2>Urlaub, Krankheit und Sonstiges</h2>
-        <p className="field__hint">Abwesende werden im Dienstplan markiert und im Nachweis mit den üblichen Stunden vermerkt. Gilt für alle Treffs und Freizeiten der Person.</p>
-        <form onSubmit={abwesenheitSpeichern} noValidate>
-          <SelectField label="Person" value={a.person_id} onChange={(e) => setA({ ...a, person_id: e.target.value })} fehler={aFehler.person}>
-            <option value="">– bitte wählen –</option>
-            {mitglieder.map((m) => <option key={m.person_id} value={m.person_id}>{m.nachname}, {m.vorname}</option>)}
-          </SelectField>
-          <div className="row" style={{ alignItems: 'flex-start' }}>
-            <div style={{ flex: '1 1 150px' }}><TextField label="Von" type="date" value={a.von} onChange={(e) => setA({ ...a, von: e.target.value, bis: a.bis || e.target.value })} /></div>
-            <div style={{ flex: '1 1 150px' }}><TextField label="Bis" type="date" value={a.bis} onChange={(e) => setA({ ...a, bis: e.target.value })} fehler={aFehler.zeitraum} /></div>
-            <div style={{ flex: '1 1 130px' }}>
-              <SelectField label="Art" value={a.typ} onChange={(e) => setA({ ...a, typ: e.target.value as Art })}>
-                <option value="urlaub">Urlaub</option>
-                <option value="krank">Krank</option>
-                <option value="sonstiges">Sonstiges</option>
-              </SelectField>
-            </div>
-          </div>
-          <TextField label={a.typ === 'sonstiges' ? 'Notiz (z. B. Fortbildung)' : 'Notiz (optional)'} value={a.notiz} onChange={(e) => setA({ ...a, notiz: e.target.value })} maxLength={200}
-            fehler={aFehler.notiz} hinweis={a.typ === 'sonstiges' ? 'Steht im Dienstplan, im Ausdruck und im Stundennachweis.' : undefined} />
-          <Button variante="primary" type="submit" laedt={arbeitet}>Eintragen</Button>
-        </form>
-
-        <h3>Kommende Abwesenheiten</h3>
-        {abwesenheiten.laedt && <Spinner />}
-        {!abwesenheiten.laedt && bloecke.length === 0 && <p>Keine Abwesenheiten eingetragen.</p>}
-        <ul className="list">
-          {bloecke.map((b) => (
-            <li key={`${b.person_id}-${b.typ}-${b.von}`} className="list__item">
-              <div className="list__main">
-                <div className="list__title">{name(b.person_id)}</div>
-                <div className="list__meta"><Badge ton={b.typ === 'krank' ? 'danger' : b.typ === 'sonstiges' ? 'accent' : 'neutral'}>{ART_TEXT[b.typ]}</Badge>{b.notiz && <span>{b.notiz}</span>}<span>{zeitraum(b.von, b.bis)}</span></div>
-              </div>
-              <Button klein variante="danger" disabled={arbeitet} aria-label={`Abwesenheit von ${name(b.person_id)} (${zeitraum(b.von, b.bis)}) löschen`}
-                onClick={() => void aktion(() => loescheAbwesenheiten(b.ids), () => abwesenheiten.neuLaden())}>Löschen</Button>
-            </li>
-          ))}
-        </ul>
+        <p className="field__hint">
+          Abwesende werden im Dienstplan markiert und im Nachweis mit den üblichen Stunden vermerkt. Gilt für alle Treffs und Freizeiten der Person.
+          Eintragen und ändern geht auch direkt im <Link to={`/treffs/${t.id}/dienstplan`}>Dienstplan</Link> – dort siehst du gleich, welche Dienste betroffen sind.
+        </p>
+        <AbwesenheitenListe treffId={t.id} team={team.daten ?? []} heute={heute} />
       </Card>
 
       <Card>

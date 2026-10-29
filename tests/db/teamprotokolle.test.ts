@@ -170,7 +170,7 @@ describe('Migration 0037 wiederholbar', () => {
     await db.exec(readFileSync(join(__dirname, '../../supabase/migrations/0037_teamprotokolle_format.sql'), 'utf8'));
     expect(await zeile(id)).toEqual(vorher);
     expect((await q(`select 1 from treff_teamprotokoll_gelesen where protokoll_id = $1 and person_id = $2`, [id, betr.id])).rows).toHaveLength(1);
-    expect((await q(`select count(*)::int as n from pg_proc where proname like 'fn_push_vorbereiten%'`)).rows[0]).toEqual({ n: 3 });   // basis, vor_0037, Hülle
+    expect((await q(`select count(*)::int as n from pg_proc where proname like 'fn_push_vorbereiten%'`)).rows[0]).toEqual({ n: 4 });   // basis, vor_0037, vor_0041 (seit 0041), Hülle
     const p = (await als(db, tl, () => q<{ p: { titel: string } }>(`select fn_push_vorbereiten('teamprotokoll', $1) as p`, [id]))).rows[0]!.p;
     expect(p.titel).toBe('Neues Teamprotokoll · Kindertreff');
   });

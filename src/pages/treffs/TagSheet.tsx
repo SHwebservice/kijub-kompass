@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fehlerText } from '../../lib/fehler';
-import { sendePush } from '../../mitteilungen/senden';
+import { sendeMitteilung, sendePush } from '../../mitteilungen/senden';
+import { ersatzGesucht, freiePersonen } from '../../treffs/abwesenheit';
 import { formatDatum, wochentagLang } from '../../freizeiten/logik';
 import {
   dienstSicherstellen, entscheideWunsch, nimmVerhinderungZurueck, setzeZuteilung, trageVerhinderungEin, wuenscheDienst, wunschZuruecknehmen, type TreffTeamMitglied,
 } from '../../treffs/api';
 import {
-  abwesenheitText, abwesendeAm, darfWuenschen, dienstZeit, eigenerWunsch, istVeroeffentlicht, mitteilungFuer, schliesszeitText, zuteilungsAenderung,
+  abwesenheitText, abwesendeAm, darfWuenschen, dienstZeit, eigenerWunsch, istVeroeffentlicht, mitteilungFuer, schliesszeitText, stundenText, zuteilungsAenderung,
   type Abwesenheit, type Dienst, type Feiertag, type Tageskarte,
 } from '../../treffs/dienstplan';
 import { darfTreffVerwalten, oeffnungszeitText } from '../../treffs/logik';
@@ -39,6 +40,11 @@ interface Props {
   schliesszeit?: () => void;
   /** Nach einer Änderung an Diensten oder Wünschen. */
   geaendert: () => void;
+  /** Alle Tage des angezeigten Zeitraums (für die Stunden bei „Wer ist frei?“). */
+  karten?: Tageskarte[];
+  mindestbesetzung?: number;
+  /** Abwesenheit eintragen (ohne Person: für eine beliebige) oder – mit „bearbeiten“ – die der Person an diesem Tag ändern. */
+  abwesenheit?: (person?: string, bearbeiten?: boolean) => void;
   /** Nach einer Änderung an „kann nicht“. */
   verhinderungGeaendert: () => void;
   schliessen: () => void;
@@ -49,7 +55,7 @@ interface Props {
  * Öffnungszeit, Feiertag oder Schließzeit, Absprachen, Abwesende, Eingeteilte und Sonderdienste. Treffleitung und Koordination teilen hier ein,
  * beantworten Wünsche und legen Sonderdienste an; BetreuerInnen wünschen den Dienst oder sagen, dass sie nicht können.
  */
-export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiertag, absprachen, ichId, heute, veroeffentlicht, sonderdienst, schliesszeit, geaendert, verhinderungGeaendert, schliessen }: Props) {
+export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiertag, absprachen, ichId, heute, veroeffentlicht, sonderdienst, schliesszeit, karten = [], mindestbesetzung = 1, abwesenheit, geaendert, verhinderungGeaendert, schliessen }: Props) {
   const verwaltung = darfTreffVerwalten(rolle);
   const gespeichert = k.regulaer?.personen ?? [];
   // null = unverändert (folgt dem gespeicherten Stand, z. B. nach einem bestätigten Wunsch)
@@ -70,6 +76,11 @@ export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiert
   const zuteilbar = verwaltung && !!k.oeffnung && (!k.geschlossen || gespeichert.length > 0);
   const { hinzu, weg: heraus } = zuteilungsAenderung(gespeichert, gewaehlt);
   const vorlaeufig = kuenftig && !istVeroeffentlicht(k.datum, veroeffentlicht);
+  const mitErsatz = verwaltung && !!k.oeffnung && !k.geschlossen && kuenftig;
+  const ersatz = mitErsatz && ersatzGesucht(k, mindestbesetzung, heute);
+  const freie = mitErsatz ? freiePersonen(k, karten.length ? karten : [k], team, abwesenheiten) : [];
+  const [freieZeigen, setFreieZeigen] = useState(false);
+  const [gefragt, setGefragt] = useState<string | null>(null);
 
   async function aktion(fn: () => Promise<void>, danach: () => void = geaendert) {
     setFehler(null); setArbeitet(true);
@@ -87,6 +98,24 @@ export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiert
       setAuswahl(null);
       geaendert(); schliessen();
     } catch (e) { setFehler(fehlerText(e, 'Die Zuteilung konnte nicht gespeichert werden.')); setArbeitet(false); }
+  }
+
+  // Ersatz: eine freie Person direkt in den regulären Dienst des Tages einteilen
+  const einteilen = (person: string) => void aktion(async () => {
+    const id = k.regulaer?.id ?? await dienstSicherstellen(treffId, k.datum);
+    await setzeZuteilung(id, [person], []);
+    const empfaenger = mitteilungFuer([{ datum: k.datum, person }], veroeffentlicht);
+    if (empfaenger.length) sendePush('dienstplan', treffId, { personen: empfaenger });
+    setAuswahl(null);
+  });
+
+  async function freieFragen() {
+    setFehler(null); setGefragt(null); setArbeitet(true);
+    try {
+      const r = await sendeMitteilung('ersatz_gesucht', treffId, { datum: k.datum });
+      const wer = r.empfaenger === 1 ? 'Eine Person' : `${r.empfaenger} Personen`;
+      setGefragt(r.empfaenger === 0 ? 'Niemand ist an diesem Tag frei.' : `${wer} gefragt. Wer kann, wünscht sich den Dienst – du bestätigst ihn dann hier.`);
+    } catch (e) { setFehler(fehlerText(e, 'Die Mitteilung konnte nicht gesendet werden.')); } finally { setArbeitet(false); }
   }
 
   const entscheide = (person: string, ja: boolean) => void aktion(async () => {
@@ -119,10 +148,50 @@ export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiert
         </section>
       )}
 
-      {weg.length > 0 && (
+      {(weg.length > 0 || (verwaltung && abwesenheit)) && (
         <div className="list__meta" aria-label="Abwesend">
-          {weg.map((a) => <Badge key={a.id} ton="danger">{a.person_id === ichId ? 'Du' : name(a.person_id)}: {abwesenheitText(a)}</Badge>)}
+          {weg.map((a) => (verwaltung && abwesenheit && a.typ !== 'verhindert'
+            ? (
+              <button key={a.id} type="button" className="tag__abw" aria-label={`Abwesenheit von ${name(a.person_id)} ändern (${abwesenheitText(a)})`}
+                onClick={() => abwesenheit(a.person_id, true)}>
+                <Badge ton="danger">{name(a.person_id)}: {abwesenheitText(a)} ✎</Badge>
+              </button>
+            )
+            : <Badge key={a.id} ton="danger">{a.person_id === ichId ? 'Du' : name(a.person_id)}: {abwesenheitText(a)}</Badge>))}
+          {verwaltung && abwesenheit && <Button klein variante="ghost" onClick={() => abwesenheit()}>+ Abwesenheit eintragen</Button>}
         </div>
+      )}
+
+      {mitErsatz && (ersatz || freie.length > 0) && (
+        <section className={`tag__abschnitt${ersatz ? ' tag__ersatz' : ''}`} aria-label="Wer ist frei?">
+          <h3>{ersatz ? 'Ersatz gesucht' : 'Wer ist noch frei?'}</h3>
+          {ersatz && <p className="field__hint">Es {mindestbesetzung === 1 ? 'ist noch niemand' : `sind weniger als ${mindestbesetzung} Personen`} eingeteilt.</p>}
+          {gefragt && <Alert ton="success">{gefragt}</Alert>}
+          {freie.length === 0 && <p>Niemand ist frei – alle sind eingeteilt oder abwesend.</p>}
+          {(ersatz || freieZeigen) && freie.length > 0 && (
+            <ul className="list" aria-label="Freie Personen">
+              {freie.map((f) => (
+                <li key={f.person_id} className="list__item">
+                  <div className="list__main">
+                    <strong>{f.name}</strong>
+                    <div className="list__meta">
+                      <span>{stundenText(f.stunden)}{f.max !== null ? ` / ${stundenText(f.max)}` : ''} im Zeitraum</span>
+                      {f.wunsch && <Badge ton="accent">wünscht den Dienst</Badge>}
+                      {f.ueberMax && <Badge ton="danger">über Höchststunden</Badge>}
+                    </div>
+                  </div>
+                  <Button klein variante={f.ueberMax ? 'standard' : 'primary'} disabled={arbeitet} aria-label={`${f.name} einteilen`} onClick={() => einteilen(f.person_id)}>Einteilen</Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="row" style={{ gap: 'var(--space-2)' }}>
+            {!ersatz && freie.length > 0 && (
+              <Button klein variante="ghost" aria-expanded={freieZeigen} onClick={() => setFreieZeigen(!freieZeigen)}>{freieZeigen ? 'Ausblenden' : `${freie.length} frei – anzeigen`}</Button>
+            )}
+            {freie.length > 0 && <Button klein disabled={arbeitet} onClick={() => void freieFragen()}>Freie per Mitteilung fragen</Button>}
+          </div>
+        </section>
       )}
 
       {imTeam && !verwaltung && (k.oeffnung || ichDrin) && (

@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
 import { VerwaltungTab } from './VerwaltungTab';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
-import { addTage } from '../../treffs/dienstplan';
+import { addTage, type Dienst } from '../../treffs/dienstplan';
 import { heuteIso } from '../../freizeiten/logik';
+import { sendePush } from '../../mitteilungen/senden';
 
 vi.mock('../../treffs/api');
 
@@ -20,6 +21,8 @@ const team = [
   treffMitglied({ person_id: 'ben', vorname: 'Ben', nachname: 'Baum' }),
 ];
 const heute = heuteIso();
+const morgen = addTage(heute, 1);
+const dienst = (o: Partial<Dienst> & { id: string; datum: string }): Dienst => ({ von: '15:00', bis: '19:00', ist_sonder: false, bezeichnung: null, personen: [], wuensche: [], ...o });
 
 const leitung: Szene = { ich: { id: 'lea', kategorie: 'Hauptamtliche*r' }, treffs: [{ treff_id: 't1', rolle: 'treffleitung' }] };
 const koord: Szene = { ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } };
@@ -31,74 +34,154 @@ beforeEach(() => {
   vi.mocked(api.listeFeiertage).mockResolvedValue([]);
   vi.mocked(api.listeSchliesszeiten).mockResolvedValue([]);
   vi.mocked(api.listeAbwesenheiten).mockResolvedValue([]);
-  for (const fn of [api.speichereAbwesenheit, api.loescheAbwesenheiten, api.speichereFeiertag, api.loescheFeiertag] as const) {
+  vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([]);
+  for (const fn of [api.speichereAbwesenheit, api.loescheAbwesenheiten, api.speichereFeiertag, api.loescheFeiertag, api.setzeZuteilung] as const) {
     vi.mocked(fn as (...a: never[]) => Promise<void>).mockResolvedValue(undefined);
   }
 });
 
-describe('Abwesenheit & Feiertage', () => {
-  const morgen = addTage(heute, 1);
-  const zeige = async (szene: Szene, rolle: 'treffleitung' | 'koordination' = 'treffleitung') => {
-    renderMitAuth(<VerwaltungTab treff={nord} rolle={rolle} />, szene);
-    await screen.findByRole('option', { name: 'Baum, Ben' });
-  };
+const zeige = async (szene: Szene, rolle: 'treffleitung' | 'koordination' = 'treffleitung') => {
+  renderMitAuth(<VerwaltungTab treff={nord} rolle={rolle} />, szene);
+  await screen.findByRole('button', { name: '+ Abwesenheit eintragen' });
+};
+const neu = async () => {
+  await userEvent.click(screen.getByRole('button', { name: '+ Abwesenheit eintragen' }));
+  return screen.findByRole('dialog', { name: 'Abwesenheit eintragen' });
+};
+const datum = async (fenster: HTMLElement, label: 'Von' | 'Bis', wert: string) => {
+  await userEvent.clear(within(fenster).getByLabelText(label));
+  await userEvent.type(within(fenster).getByLabelText(label), wert);
+};
 
-  it('trägt Urlaub für einen Zeitraum ein (jeder Tag einzeln)', async () => {
+describe('Abwesenheiten eintragen', () => {
+  it('Urlaub für einen Zeitraum (jeder Tag einzeln); „Bis“ folgt einem späteren „Von“', async () => {
     await zeige(leitung);
-    await userEvent.selectOptions(screen.getByLabelText('Person'), 'ben');
-    await userEvent.type(screen.getByLabelText('Von'), morgen);
-    expect(screen.getByLabelText('Bis')).toHaveValue(morgen);      // wird mit „Von“ vorbelegt
-    await userEvent.clear(screen.getByLabelText('Bis'));
-    await userEvent.type(screen.getByLabelText('Bis'), addTage(morgen, 2));
-    await userEvent.type(screen.getByLabelText('Notiz (optional)'), 'Familienurlaub');
-    await userEvent.click(screen.getByRole('button', { name: 'Eintragen' }));
+    const f = await neu();
+    await userEvent.selectOptions(within(f).getByLabelText('Person'), 'ben');
+    await datum(f, 'Von', addTage(morgen, 5));
+    expect(within(f).getByLabelText('Bis')).toHaveValue(addTage(morgen, 5));
+    await datum(f, 'Von', morgen);
+    await datum(f, 'Bis', addTage(morgen, 2));
+    await userEvent.type(within(f).getByLabelText('Notiz (optional)'), 'Familienurlaub');
+    await userEvent.click(within(f).getByRole('button', { name: 'Speichern' }));
     expect(api.speichereAbwesenheit).toHaveBeenCalledWith('ben', [morgen, addTage(morgen, 1), addTage(morgen, 2)], 'urlaub', 'Familienurlaub');
   });
 
-  it('„Sonstiges“ mit Notiz (z. B. Fortbildung); ohne Notiz kommt ein Hinweis', async () => {
+  it('Schnellwahl: „Nur dieser Tag“ und „Ganze Woche“ setzen den Zeitraum', async () => {
     await zeige(leitung);
-    await userEvent.selectOptions(screen.getByLabelText('Person'), 'ben');
-    await userEvent.type(screen.getByLabelText('Von'), morgen);
-    await userEvent.selectOptions(screen.getByLabelText('Art'), 'sonstiges');
-    await userEvent.click(screen.getByRole('button', { name: 'Eintragen' }));
-    expect(screen.getByText('Bitte angeben, was es ist (z. B. Fortbildung).')).toBeInTheDocument();
-    expect(api.speichereAbwesenheit).not.toHaveBeenCalled();
-    await userEvent.type(screen.getByLabelText('Notiz (z. B. Fortbildung)'), 'Fortbildung');
-    await userEvent.click(screen.getByRole('button', { name: 'Eintragen' }));
-    expect(api.speichereAbwesenheit).toHaveBeenCalledWith('ben', [morgen], 'sonstiges', 'Fortbildung');
+    const f = await neu();
+    const gruppe = within(f).getByRole('group', { name: 'Zeitraum schnell wählen' });
+    await userEvent.click(within(gruppe).getByRole('button', { name: 'Ganze Woche' }));
+    const von = (within(f).getByLabelText('Von') as HTMLInputElement).value;
+    expect(new Date(`${von}T12:00:00Z`).getUTCDay()).toBe(1);                                         // ab Montag
+    expect(within(f).getByLabelText('Bis')).toHaveValue(addTage(von, 6));
+    await userEvent.click(within(gruppe).getByRole('button', { name: '+1 Tag' }));
+    expect(within(f).getByLabelText('Bis')).toHaveValue(addTage(von, 7));
   });
 
-  it('die Liste zeigt bei „Sonstiges“ die Notiz', async () => {
-    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([
-      { id: 'a', person_id: 'ben', datum: morgen, typ: 'sonstiges', notiz: 'Fortbildung' },
-      { id: 'b', person_id: 'ben', datum: addTage(morgen, 1), typ: 'sonstiges', notiz: 'Fortbildung' },
-    ]);
+  it('„Sonstiges“ verlangt eine Notiz (z. B. Fortbildung)', async () => {
     await zeige(leitung);
-    expect((await screen.findByText('Fortbildung')).closest('li')).toHaveTextContent(/SonstigesFortbildung/);
-    expect(screen.getAllByRole('button', { name: /^Abwesenheit von Ben Baum/ })).toHaveLength(1);     // zwei Tage, ein Block
+    const f = await neu();
+    await userEvent.selectOptions(within(f).getByLabelText('Person'), 'ben');
+    await datum(f, 'Von', morgen);
+    await userEvent.click(within(f).getByRole('button', { name: 'Sonstiges' }));
+    await userEvent.click(within(f).getByRole('button', { name: 'Speichern' }));
+    expect(within(f).getByText('Bitte angeben, was es ist (z. B. Fortbildung).')).toBeInTheDocument();
+    expect(api.speichereAbwesenheit).not.toHaveBeenCalled();
+    await userEvent.type(within(f).getByLabelText('Notiz (z. B. Fortbildung)'), 'Fortbildung');
+    await userEvent.click(within(f).getByRole('button', { name: 'Speichern' }));
+    expect(api.speichereAbwesenheit).toHaveBeenCalledWith('ben', [morgen], 'sonstiges', 'Fortbildung');
   });
 
   it('prüft Eingaben', async () => {
     await zeige(leitung);
-    await userEvent.click(screen.getByRole('button', { name: 'Eintragen' }));
-    expect(screen.getByText('Bitte eine Person wählen.')).toBeInTheDocument();
-    expect(screen.getByText('Bitte Beginn und Ende angeben.')).toBeInTheDocument();
+    const f = await neu();
+    await userEvent.click(within(f).getByRole('button', { name: 'Speichern' }));
+    expect(within(f).getByText('Bitte eine Person wählen.')).toBeInTheDocument();
     expect(api.speichereAbwesenheit).not.toHaveBeenCalled();
   });
 
-  it('fasst Tage zu einem Zeitraum zusammen, löscht den ganzen Block und ignoriert Fremde', async () => {
-    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([
-      { id: '1', person_id: 'ben', datum: '2030-07-05', typ: 'krank', notiz: null },
-      { id: '2', person_id: 'ben', datum: '2030-07-06', typ: 'krank', notiz: null },
-      { id: '3', person_id: 'fremd', datum: '2030-07-05', typ: 'urlaub', notiz: null },
+  it('betroffene Dienste (ab heute) werden angezeigt und beim Speichern herausgenommen – abgewählte bleiben', async () => {
+    vi.mocked(api.listeVeroeffentlicht).mockResolvedValue([{ treff_id: 't1', monat: `${morgen.slice(0, 7)}-01` }]);
+    vi.mocked(api.listeDienste).mockResolvedValue([
+      dienst({ id: 'd1', datum: morgen, personen: ['ben', 'lea'] }),
+      dienst({ id: 's1', datum: addTage(morgen, 1), ist_sonder: true, bezeichnung: 'Fest', personen: ['ben'] }),
+      dienst({ id: 'd2', datum: addTage(morgen, 1), personen: ['lea'] }),
     ]);
     await zeige(leitung);
-    expect(await screen.findByText('05.07.2030 – 06.07.2030')).toBeInTheDocument();
-    expect(screen.queryByText('Jemand')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /Abwesenheit von Ben Baum .* löschen/ }));
+    const f = await neu();
+    await userEvent.selectOptions(within(f).getByLabelText('Person'), 'ben');
+    await datum(f, 'Von', morgen);
+    await datum(f, 'Bis', addTage(morgen, 1));
+    const liste = await within(f).findByRole('group', { name: /Ben Baum ist in diesem Zeitraum eingeteilt/ });
+    expect(within(liste).getAllByRole('checkbox')).toHaveLength(2);
+    await userEvent.click(within(liste).getByRole('checkbox', { name: /Sonderdienst Fest/ }));                // Sonderdienst bleibt
+    await userEvent.click(within(f).getByRole('button', { name: 'Speichern und aus einem Dienst herausnehmen' }));
+    expect(api.speichereAbwesenheit).toHaveBeenCalledWith('ben', [morgen, addTage(morgen, 1)], 'urlaub', '');
+    expect(api.setzeZuteilung).toHaveBeenCalledTimes(1);
+    expect(api.setzeZuteilung).toHaveBeenCalledWith('d1', [], ['ben']);
+    expect(sendePush).toHaveBeenCalledWith('dienstplan', 't1', { personen: ['ben'] });
+  });
+});
+
+describe('Abwesenheiten: Übersicht und Ändern', () => {
+  it('je Person, Tage zu einem Zeitraum zusammengefasst; Fremde fehlen; Sonstiges mit Notiz', async () => {
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([
+      { id: '1', person_id: 'ben', datum: addTage(heute, 3), typ: 'krank', notiz: null },
+      { id: '2', person_id: 'ben', datum: addTage(heute, 4), typ: 'krank', notiz: null },
+      { id: '3', person_id: 'fremd', datum: addTage(heute, 3), typ: 'urlaub', notiz: null },
+      { id: '4', person_id: 'ich', datum: addTage(heute, 10), typ: 'sonstiges', notiz: 'Fortbildung' },
+    ]);
+    await zeige(leitung);
+    const ben = await screen.findByRole('region', { name: 'Abwesenheiten von Ben Baum' });
+    expect(within(ben).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(ben).getByText('Krank')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Abwesenheiten von Anna Adler' })).getByText('Fortbildung')).toBeInTheDocument();
+    expect(screen.queryByText(/fremd/i)).not.toBeInTheDocument();
+  });
+
+  it('ein Eintrag lässt sich antippen und ändern: verkürzen löscht die Tage außerhalb', async () => {
+    const t3 = addTage(heute, 3); const t4 = addTage(heute, 4); const t5 = addTage(heute, 5);
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([
+      { id: '1', person_id: 'ben', datum: t3, typ: 'krank', notiz: null },
+      { id: '2', person_id: 'ben', datum: t4, typ: 'krank', notiz: null },
+      { id: '3', person_id: 'ben', datum: t5, typ: 'krank', notiz: null },
+    ]);
+    await zeige(leitung);
+    await userEvent.click(await screen.findByRole('button', { name: /^Abwesenheit von Ben Baum .* ändern$/ }));
+    const f = await screen.findByRole('dialog', { name: 'Abwesenheit ändern' });
+    expect(within(f).getByLabelText('Person')).toHaveValue('ben');
+    expect(within(f).getByRole('button', { name: 'Krank' })).toHaveAttribute('aria-pressed', 'true');
+    await datum(f, 'Bis', t4);
+    await userEvent.click(within(f).getByRole('button', { name: 'Speichern' }));
+    expect(api.speichereAbwesenheit).toHaveBeenCalledWith('ben', [t3, t4], 'krank', '');
+    expect(api.loescheAbwesenheiten).toHaveBeenCalledWith(['3']);
+  });
+
+  it('löschen im Fenster entfernt den ganzen Zeitraum (nach Rückfrage)', async () => {
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([
+      { id: '1', person_id: 'ben', datum: addTage(heute, 3), typ: 'urlaub', notiz: null },
+      { id: '2', person_id: 'ben', datum: addTage(heute, 4), typ: 'urlaub', notiz: null },
+    ]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await zeige(leitung);
+    await userEvent.click(await screen.findByRole('button', { name: /^Abwesenheit von Ben Baum .* ändern$/ }));
+    const f = await screen.findByRole('dialog', { name: 'Abwesenheit ändern' });
+    await userEvent.click(within(f).getByRole('button', { name: 'Löschen' }));
     expect(api.loescheAbwesenheiten).toHaveBeenCalledWith(['1', '2']);
   });
 
+  it('vergangene sind eingeklappt', async () => {
+    vi.mocked(api.listeAbwesenheiten).mockResolvedValue([{ id: '1', person_id: 'ben', datum: addTage(heute, -10), typ: 'krank', notiz: null }]);
+    await zeige(leitung);
+    const knopf = await screen.findByRole('button', { name: 'Vergangene (60 Tage) anzeigen' });
+    expect(screen.queryByRole('region', { name: 'Vergangene Abwesenheiten von Ben Baum' })).not.toBeInTheDocument();
+    await userEvent.click(knopf);
+    expect(screen.getByRole('region', { name: 'Vergangene Abwesenheiten von Ben Baum' })).toBeInTheDocument();
+  });
+});
+
+describe('Feiertage', () => {
   it('Treffleitung trägt Feiertage nur für den eigenen Treff ein; Koordination auch für alle', async () => {
     await zeige(leitung);
     expect(screen.queryByLabelText('Gilt für alle Treffs')).not.toBeInTheDocument();
@@ -129,7 +212,12 @@ describe('Abwesenheit & Feiertage', () => {
     expect(api.loescheFeiertag).toHaveBeenCalledWith('b');
   });
 
-it('Schließzeiten stehen nicht mehr hier, sondern im Dienstplan (Hinweis mit Link)', async () => {    await zeige(leitung);    expect(screen.queryByLabelText('Geschlossen von')).not.toBeInTheDocument();    expect(screen.getByRole('link', { name: 'Dienstplan' })).toHaveAttribute('href', '/treffs/t1/dienstplan?ansicht=monat');  });
+  it('Schließzeiten stehen nicht hier, sondern im Dienstplan (Hinweis mit Link)', async () => {
+    await zeige(leitung);
+    expect(screen.queryByLabelText('Geschlossen von')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Dienstplan' }).map((l) => l.getAttribute('href'))).toContain('/treffs/t1/dienstplan?ansicht=monat');
+  });
+
   it('verlangt Datum und Bezeichnung für Feiertage', async () => {
     await zeige(leitung);
     await userEvent.click(screen.getByRole('button', { name: 'Feiertag eintragen' }));
