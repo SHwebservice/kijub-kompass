@@ -113,7 +113,7 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
     setParams(neu === 'monat' ? { ansicht: 'monat' } : {}, { replace: true });
   }
 
-  // Anklickbare Zellen außerhalb des Bearbeitens: die eigene Zeile (BetreuerInnen) und offene Wünsche (Treffleitung)
+  // Anklickbare Zellen außerhalb des Bearbeitens: die eigene Spalte (BetreuerInnen) und offene Wünsche (Treffleitung)
   const zelleKlickbar = (datum: string, person: string) => {
     const k = karten.find((x) => x.datum === datum);
     if (!k) return false;

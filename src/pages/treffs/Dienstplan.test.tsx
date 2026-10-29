@@ -116,15 +116,15 @@ describe('Dienstplan: Anzeige', () => {
     expect(within(k).getByText('Anna Adler')).toBeInTheDocument();
   });
 
-  it('„Deine Dienste“ zeigt die eigenen Dienste der Woche mit Stunden; die eigene Zeile steht oben', async () => {
+  it('„Deine Dienste“ zeigt die eigenen Dienste der Woche mit Stunden; die eigene Spalte steht vorn', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['ich', 'ben'] }), dienst({ id: 'd2', datum: mi, von: '14:00', bis: '18:00', personen: ['ben'] })]);
     await zeige(betreuerin);
     const mein = screen.getByRole('list', { name: 'Meine Dienste im Zeitraum' });
     expect(within(mein).getAllByRole('listitem')).toHaveLength(1);
     expect(mein).toHaveTextContent('15:00–19:00 Uhr');
     expect(screen.getByText(/Ein Dienst/).closest('span')).toHaveTextContent('Ein Dienst · 4 h');
-    const zeilen = within(screen.getByRole('region', { name: 'Einsatzplan Woche' })).getAllByRole('rowheader');
-    expect(zeilen[0]).toHaveTextContent('Anna Adler');
+    const kopf = within(screen.getByRole('region', { name: 'Einsatzplan Woche' })).getAllByRole('columnheader');
+    expect(kopf[1]).toHaveTextContent('Anna Adler');                      // die eigene Spalte steht vorn (nach „Tag“)
   });
 
   it('„nur mich zeigen“ blendet die anderen Zeilen aus', async () => {
@@ -359,8 +359,8 @@ describe('Dienstplan: Treffleitung', () => {
   it('Stunden je Person stehen für die Treffleitung immer in der Tabelle', async () => {
     vi.mocked(api.listeDienste).mockResolvedValue([dienst({ id: 'd1', datum: mo, personen: ['ben'] })]);
     await zeige(leitung, 'treffleitung');
-    expect(within(screen.getByRole('region', { name: 'Einsatzplan Woche' })).getByRole('columnheader', { name: 'Std.' })).toBeInTheDocument();
-    expect(within(screen.getByRole('row', { name: /Ben Baum/ })).getByText('4 h')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Einsatzplan Woche' })).getByRole('rowheader', { name: 'Std.' })).toBeInTheDocument();
+    expect(document.querySelector('.einsatz__stunden[data-person="ben"]')).toHaveTextContent('4 h');
   });
 });
 

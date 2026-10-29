@@ -103,8 +103,7 @@ describe('Einsatz-Matrix bearbeiten (Monat)', () => {
 
   it('zeigt die Stunden nach dem Entwurf und warnt über den Höchststunden', async () => {
     await oeffne();
-    const zeile = () => within(screen.getByRole('table', { name: /an welchen Tagen eingeteilt/ })).getByRole('row', { name: /^Ben Baum/ });
-    const stunden = () => within(zeile()).getAllByRole('cell').at(-1)!;
+    const stunden = () => document.querySelector<HTMLElement>('.einsatz__stunden[data-person="ben"]')!;
     expect(stunden()).toHaveTextContent('0 h / 10 h');
     await userEvent.click(zelle('Ben Baum', montage[0]!));
     expect(stunden()).toHaveTextContent('4 h / 10 h (+4 h)');
@@ -190,7 +189,7 @@ describe('Einsatz-Matrix bearbeiten (Monat)', () => {
   it('Schließzeit: Tage sind markiert, nicht bearbeitbar und nicht „unbesetzt“', async () => {
     vi.mocked(api.listeSchliesszeiten).mockResolvedValue([{ id: 's', treff_id: 't1', von: mittwoche[0]!, bis: mittwoche[0]!, grund: 'Fortbildung' }]);
     await oeffne();
-    expect(screen.getByRole('columnheader', { name: new RegExp(`${tagLabel(mittwoche[0]!).replace('.', '\\.')}.*Geschlossen: Fortbildung`) })).toHaveClass('einsatz__tag--zu');
+    expect(screen.getByRole('rowheader', { name: new RegExp(`${tagLabel(mittwoche[0]!).replace('.', '\\.')}.*Geschlossen: Fortbildung`) })).toHaveClass('einsatz__tag--zu');
     expect(screen.queryByRole('button', { name: new RegExp(`^Ben Baum, ${tagLabel(mittwoche[0]!).replace('.', '\\.')}`) })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Ben Baum: an allen Öffnungstagen/ }));
     expect(screen.getByText(`${montage.length + mittwoche.length - 1} neue Einteilungen`)).toBeInTheDocument();

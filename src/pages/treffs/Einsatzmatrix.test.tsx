@@ -21,14 +21,27 @@ const zeige = (dienste: Dienst[], o: { wuensche?: boolean; heute?: string } = {}
       feiertage={[]} treffId="t1" ichId="ich" heute={o.heute ?? '2027-03-02'} mitWuenschen={o.wuensche ?? false} zeitraum="Monat" />,
   );
 };
-const zeile = (name: string) => screen.getByRole('row', { name: new RegExp(name) });
+
+const ohneLeer = (t: string | null) => (t ?? '').replace(/\s/g, '');
+/** Spalte einer Person (Kopfzeile: Tag, Personen …, Besetzung). */
+const spalte = (name: string) => within(screen.getByRole('table')).getAllByRole('columnheader').findIndex((h) => ohneLeer(h.textContent).includes(ohneLeer(name)));
+/** Zeile eines Tages („Mo 1.“) oder der Summen („Tage“, „Std.“). */
+const zeile = (tag: RegExp | string) => screen.getByRole('rowheader', { name: tag }).closest('tr')!;
+const zelle = (tag: RegExp | string, name: string) => zeile(tag).children[spalte(name)] as HTMLElement;
+const besetzung = (tag: RegExp) => zeile(tag).lastElementChild as HTMLElement;
+const MO1 = /^Mo 1\./; const MI3 = /^Mi 3\./; const MO8 = /^Mo 8\./;
 
 describe('Einsatzmatrix', () => {
-  it('zeigt Personen in den Zeilen und die Tage als Spalten', () => {
+  it('Tage links in den Zeilen, Mitarbeitende oben in den Spalten (die eigene Spalte zuerst)', () => {
     zeige([]);
     const tabelle = screen.getByRole('table');
-    expect(within(tabelle).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('Mo 1.'), expect.stringContaining('Mi 3.'), expect.stringContaining('Mo 8.')]));
-    expect(within(tabelle).getAllByRole('rowheader').map((h) => h.textContent)).toEqual(['Anna Adler · du', 'Lea Leitner (Leitung)', 'Ben Baum', 'Besetzung']);      // die eigene Zeile steht oben
+    expect(within(tabelle).getAllByRole('rowheader').map((h) => ohneLeer(h.textContent).slice(0, 4))).toEqual(['Mo1.', 'Mi3.', 'Mo8.', 'Tage']);
+    const kopf = within(tabelle).getAllByRole('columnheader');
+    expect(kopf[0]).toHaveTextContent('Tag');
+    expect([spalte('Anna Adler'), spalte('Lea Leitner'), spalte('Ben Baum')]).toEqual([1, 2, 3]);
+    expect(kopf[1]).toHaveTextContent('du');
+    expect(kopf[2]).toHaveTextContent('Leitung');
+    expect(kopf.at(-1)).toHaveTextContent('Besetzung');
   });
 
   it('macht Einsätze, Sonderdienste und Abwesenheit auch für Hilfsmittel lesbar', () => {
@@ -36,36 +49,38 @@ describe('Einsatzmatrix', () => {
       dienst({ id: 'a', datum: '2027-03-01', personen: ['ich', 'lea'] }),
       dienst({ id: 's', datum: '2027-03-03', ist_sonder: true, bezeichnung: 'Kinoabend', personen: ['ben'] }),
     ]);
-    expect(within(zeile('Anna Adler')).getByText('eingeteilt')).toBeInTheDocument();
-    expect(within(zeile('Ben Baum')).getByText('Sonderdienst: Kinoabend')).toBeInTheDocument();
-    expect(within(zeile('Ben Baum')).getByText('abwesend: Urlaub')).toBeInTheDocument();
-    expect(within(zeile('Lea Leitner')).getByText('eingeteilt')).toBeInTheDocument();
+    expect(within(zelle(MO1, 'Anna Adler')).getByText('eingeteilt')).toBeInTheDocument();
+    expect(within(zelle(MI3, 'Ben Baum')).getByText('Sonderdienst: Kinoabend')).toBeInTheDocument();
+    expect(within(zelle(MO8, 'Ben Baum')).getByText('abwesend: Urlaub')).toBeInTheDocument();
+    expect(within(zelle(MO1, 'Lea Leitner')).getByText('eingeteilt')).toBeInTheDocument();
   });
 
-  it('die eigene Zeile ist hervorgehoben, Summe der Tage und Besetzung je Tag stimmen', () => {
+  it('die eigene Spalte ist hervorgehoben, Tage je Person und Besetzung je Tag stimmen', () => {
     zeige([dienst({ id: 'a', datum: '2027-03-01', personen: ['ich', 'lea'] }), dienst({ id: 'b', datum: '2027-03-03', personen: ['ich'] })]);
-    expect(zeile('Anna Adler')).toHaveClass('einsatz__ich');
-    expect(zeile('Lea Leitner')).not.toHaveClass('einsatz__ich');
-    expect(within(zeile('Anna Adler')).getAllByRole('cell').at(-1)).toHaveTextContent('2');
-    expect(within(zeile('Besetzung')).getAllByRole('cell').map((c) => c.textContent)).toEqual(['2', '1', '0', '']);
+    expect(zelle(MO1, 'Anna Adler')).toHaveClass('einsatz__zelle--ich');
+    expect(zelle(MO1, 'Lea Leitner')).not.toHaveClass('einsatz__zelle--ich');
+    expect(zelle('Tage', 'Anna Adler')).toHaveTextContent('2');
+    expect(zelle('Tage', 'Lea Leitner')).toHaveTextContent('1');
+    expect([besetzung(MO1), besetzung(MI3), besetzung(MO8)].map((c) => c.textContent)).toEqual(['2', '1', '0']);
   });
 
   it('Öffnungstage ohne Besetzung: Warnung und rote Markierung – nur heute und später', () => {
     zeige([dienst({ id: 'a', datum: '2027-03-01', personen: ['ich'] })]);          // 03.03. und 08.03. offen
     expect(screen.getByText('2 Öffnungstage sind noch nicht besetzt (rot markiert).')).toBeInTheDocument();
-    expect(within(zeile('Besetzung')).getAllByRole('cell')[1]).toHaveClass('einsatz__leer');
-    expect(within(zeile('Besetzung')).getAllByRole('cell')[0]).not.toHaveClass('einsatz__leer');
+    expect(besetzung(MI3)).toHaveClass('einsatz__leer');
+    expect(besetzung(MO1)).not.toHaveClass('einsatz__leer');
+    expect(screen.getByRole('rowheader', { name: /^Mi 3\..*noch nicht besetzt/ })).toHaveClass('einsatz__tag--leer');
   });
 
   it('der heutige Tag ist markiert', () => {
     zeige([], { heute: '2027-03-03' });
-    expect(screen.getByRole('columnheader', { name: /Mi 3\. \(heute\)/ })).toHaveClass('einsatz__tag--heute');
+    expect(screen.getByRole('rowheader', { name: /Mi 3\. \(heute\)/ })).toHaveClass('einsatz__tag--heute');
   });
 
   it('Wünsche und ihre Erklärung erscheinen nur für die Verwaltung', () => {
     const d = dienst({ id: 'a', datum: '2027-03-01', wuensche: [{ person_id: 'ben', status: 'offen' }] });
     const { unmount } = zeige([d], { wuensche: true });
-    expect(within(zeile('Ben Baum')).getByText('wünscht den Dienst')).toBeInTheDocument();
+    expect(within(zelle(MO1, 'Ben Baum')).getByText('wünscht den Dienst')).toBeInTheDocument();
     expect(screen.getByText('Wunsch offen')).toBeInTheDocument();
     unmount();
     zeige([d]);
@@ -77,27 +92,27 @@ describe('Einsatzmatrix', () => {
     const karten = tageskarten(tage, oeffnung, [dienst({ id: 'a', datum: '2027-03-03', personen: ['ich'] }), dienst({ id: 'b', datum: '2027-03-08', personen: ['ich', 'ben'] })]);
     render(<Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={[]} feiertage={[]} treffId="t1" ichId="ich" heute="2027-03-02" mitWuenschen={false} zeitraum="Monat" mindestbesetzung={2} />);
     expect(screen.getByText('Ein Öffnungstag hat weniger als 2 Personen (orange markiert).')).toBeInTheDocument();
-    expect(within(zeile('Besetzung')).getAllByRole('cell')[1]).toHaveClass('einsatz__knapp');
+    expect(besetzung(MI3)).toHaveClass('einsatz__knapp');
   });
 
   it('„kann nicht“ erscheint mit ✕ und in der Zeichenerklärung', () => {
     const karten = tageskarten(tage, oeffnung, []);
     render(<Einsatzmatrix karten={karten} mitglieder={mitglieder} abwesenheiten={[{ id: 'v', person_id: 'ben', datum: '2027-03-03', typ: 'verhindert', notiz: null }]}
       feiertage={[]} treffId="t1" ichId="ich" heute="2027-03-02" mitWuenschen zeitraum="Monat" />);
-    expect(within(zeile('Ben Baum')).getByText('kann nicht')).toBeInTheDocument();
+    expect(within(zelle(MI3, 'Ben Baum')).getByText('kann nicht')).toBeInTheDocument();
     expect(within(screen.getByRole('list', { name: 'Zeichenerklärung' })).getByText(/kann nicht/)).toBeInTheDocument();
   });
 
-  it('Stunden mit Höchststunden: rot, wenn darüber', () => {
+  it('Stunden mit Höchststunden (Zeile „Std.“ unten): rot, wenn darüber', () => {
     const team = mitglieder.map((m) => (m.person_id === 'ben' ? { ...m, tzk_max_stunden: 5 } : m));
     const karten = tageskarten(tage, oeffnung, [dienst({ id: 'a', datum: '2027-03-01', personen: ['ben'] }), dienst({ id: 'b', datum: '2027-03-03', von: '14:00', bis: '18:00', personen: ['ben'] })]);
     render(<Einsatzmatrix karten={karten} mitglieder={team} abwesenheiten={[]} feiertage={[]} treffId="t1" ichId="ich" heute="2027-03-02" mitWuenschen zeitraum="Monat" stunden={{ mitHoechst: true }} />);
-    const zelle = within(zeile('Ben Baum')).getAllByRole('cell').at(-1)!;
-    expect(zelle).toHaveTextContent('8 h / 5 h');
-    expect(zelle).toHaveClass('einsatz__zuviel');
+    const std = zelle('Std.', 'Ben Baum');
+    expect(std).toHaveTextContent('8 h / 5 h');
+    expect(std).toHaveClass('einsatz__zuviel');
   });
 
-  it('Kopfzeile: Tage sind Knöpfe, wenn ein Tagesfenster geöffnet werden kann', () => {
+  it('linke Spalte: Tage sind Knöpfe, wenn ein Tagesfenster geöffnet werden kann', () => {
     const geoeffnet: string[] = [];
     render(<Einsatzmatrix karten={tageskarten(tage, oeffnung, [])} mitglieder={mitglieder} abwesenheiten={[]} feiertage={[]} treffId="t1" ichId="ich" heute="2027-03-02"
       mitWuenschen={false} zeitraum="Monat" tagOeffnen={(d) => geoeffnet.push(d)} />);

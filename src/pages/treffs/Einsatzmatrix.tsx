@@ -20,7 +20,7 @@ interface Props {
   abwesenheiten: Abwesenheit[];
   feiertage: Feiertag[];
   treffId: string;
-  /** Die angemeldete Person (ihre Zeile steht oben und ist hervorgehoben). */
+  /** Die angemeldete Person (ihre Spalte steht vorn und ist hervorgehoben). */
   ichId: string;
   heute: string;
   /** Offene Dienstwünsche anzeigen (Treffleitung und Koordination). */
@@ -31,12 +31,12 @@ interface Props {
   mindestbesetzung?: number;
   /** Letzter Besuch: neuere Einteilungen in der eigenen Zeile sind markiert. */
   letzterBesuch?: string | null;
-  /** Spalte mit den Stunden je Person (Treffleitung und Koordination); `mitHoechst` vergleicht mit den Höchststunden im Monat. */
+  /** Zeile mit den Stunden je Person (Treffleitung und Koordination); `mitHoechst` vergleicht mit den Höchststunden im Monat. */
   stunden?: { mitHoechst: boolean };
-  /** Nur die eigene Zeile zeigen. */
+  /** Nur die eigene Spalte zeigen. */
   nurIch?: boolean;
   bearbeiten?: MatrixBearbeiten;
-  /** Klick auf einen Tag in der Kopfzeile öffnet das Tagesfenster. */
+  /** Klick auf einen Tag (linke Spalte) öffnet das Tagesfenster. */
   tagOeffnen?: (datum: string) => void;
   /** Welche Zellen außerhalb des Bearbeitens anklickbar sind (sie öffnen dann das Tagesfenster). */
   zelleKlickbar?: (datum: string, personId: string) => boolean;
@@ -47,10 +47,10 @@ interface Props {
 const ZEICHEN: Record<Abwesenheit['typ'], string> = { urlaub: 'U', krank: 'K', sonstiges: 'A', verhindert: '✕' };
 
 /**
- * „Wer arbeitet wann“: Personen mal Tage. ● Dienst, ★ Sonderdienst, U Urlaub, K krank, ✕ kann nicht, ? Wunsch; darunter die Besetzung je Tag.
- * Die eigene Zeile steht oben. Ein Klick auf einen Tag öffnet das Tagesfenster (Zuteilen, Wünsche, Sonderdienste, eigener Wunsch).
+ * „Wer arbeitet wann“: Tage in den Zeilen (links), Mitarbeitende in den Spalten (oben). ● Dienst, ★ Sonderdienst, U Urlaub, K krank, A Sonstiges,
+ * ✕ kann nicht, ? Wunsch; rechts die Besetzung je Tag, unten Tage und Stunden je Person. Die eigene Spalte steht vorn. Ein Klick auf einen Tag öffnet das Tagesfenster (Zuteilen, Wünsche, Sonderdienste, eigener Wunsch).
  * Im Bearbeiten-Modus sind die Zellen der Öffnungstage Schalter: Klick teilt ein oder nimmt heraus, mit der Maus lässt sich über
- * mehrere Tage ziehen, der Knopf am Namen füllt oder leert die ganze Zeile.
+ * mehrere Tage ziehen, der Knopf am Namen füllt oder leert die ganze Spalte.
  */
 export function Einsatzmatrix({
   karten, mitglieder, abwesenheiten, feiertage, treffId, ichId, heute, mitWuenschen, zeitraum, mindestbesetzung = 1, letzterBesuch = null,
@@ -116,55 +116,62 @@ export function Einsatzmatrix({
       <div className={`einsatz-wrap${b ? ' einsatz-wrap--bearbeiten' : ''}`} role="region" aria-label={`Einsatzplan ${zeitraum}`} tabIndex={0}
         onPointerMove={b ? (ev) => zieheUeber(ev.clientX, ev.clientY) : undefined}>
         <table className="einsatz">
-          <caption className="sr-only">Wer in diesem {zeitraum} an welchen Tagen eingeteilt ist</caption>
+          <caption className="sr-only">Wer in diesem {zeitraum} an welchen Tagen eingeteilt ist: Tage in den Zeilen, Mitarbeitende in den Spalten</caption>
           <thead>
             <tr>
-              <th scope="col" className="einsatz__person">Person</th>
-              {spalten.map((s) => {
-                const zusatz = `${s.heute ? ' (heute)' : ''}${s.feiertag ? `, Feiertag: ${s.feiertag}` : ''}${s.geschlossen ? `, ${s.geschlossen}` : ''}${s.unbesetzt ? ', noch nicht besetzt' : ''}${s.unterbesetzt ? ', unterbesetzt' : ''}`;
-                const inhalt = (
+              <th scope="col" className="einsatz__ecke">Tag</th>
+              {zeilen.map((z) => {
+                const ich = z.person_id === ichId;
+                const [vorname, ...rest] = z.name.split(' ');
+                const name = (
                   <>
-                    <span aria-hidden="true">{s.wochentag}</span>
-                    <span aria-hidden="true" className="einsatz__zahl">{s.tag}</span>
+                    <span className="einsatz__vorname">{vorname}</span>
+                    <span className="einsatz__nachname">{rest.join(' ')}</span>
                   </>
                 );
                 return (
-                  <th key={s.datum} scope="col" title={s.geschlossen ?? s.feiertag ?? undefined}
-                    className={`einsatz__tag${s.heute ? ' einsatz__tag--heute' : ''}${s.unbesetzt ? ' einsatz__tag--leer' : ''}${s.unterbesetzt ? ' einsatz__tag--knapp' : ''}${s.feiertag ? ' einsatz__tag--feiertag' : ''}${s.geschlossen || s.feiertag ? ' einsatz__tag--zu' : ''}`}>
-                    {tagOeffnen ? (
-                      <button type="button" className="einsatz__tagknopf" onClick={() => tagOeffnen(s.datum)} aria-label={`${formatKurz(s.datum)} öffnen${zusatz}`}>{inhalt}</button>
-                    ) : (
-                      <>{inhalt}<span className="sr-only">{`${s.wochentag} ${s.tag}.${zusatz}`}</span></>
-                    )}
+                  <th key={z.person_id} scope="col" className={`einsatz__kopf${ich ? ' einsatz__kopf--ich' : ''}`}
+                    title={regeltage[z.person_id] ? `Regeltage: ${regeltage[z.person_id]}` : undefined}>
+                    {b ? (
+                      <button type="button" className="einsatz__zeilenknopf" onClick={() => fuelleZeile(z.person_id, z.name)}
+                        title="Ganze Spalte einteilen oder leeren" aria-label={`${z.name}: an allen Öffnungstagen einteilen oder herausnehmen`}>
+                        {name}
+                      </button>
+                    ) : <span className="sr-only">{z.name}</span>}
+                    {!b && <span aria-hidden="true">{name}</span>}
+                    {z.leitung && <span className="einsatz__rolle">Leitung</span>}
+                    {ich && <span className="einsatz__rolle">du</span>}
                   </th>
                 );
               })}
-              <th scope="col" className="einsatz__summe">Tage</th>
-              {mitStunden && <th scope="col" className="einsatz__summe">Std.</th>}
+              <th scope="col" className="einsatz__summe">Besetzung</th>
             </tr>
           </thead>
           <tbody>
-            {zeilen.map((z) => {
-              const std = stundenVon(karten, z.person_id);
-              const vorher = b ? stundenVon(b.gespeichert, z.person_id) : std;
-              const max = stunden?.mitHoechst || b ? maxStunden[z.person_id] ?? null : null;
-              const zuViel = max !== null && std > max;
-              const ich = z.person_id === ichId;
+            {spalten.map((s, i) => {
+              const karte = karten[i]!;
+              const zusatz = `${s.heute ? ' (heute)' : ''}${s.feiertag ? `, Feiertag: ${s.feiertag}` : ''}${s.geschlossen ? `, ${s.geschlossen}` : ''}${s.unbesetzt ? ', noch nicht besetzt' : ''}${s.unterbesetzt ? ', unterbesetzt' : ''}`;
+              const tagInhalt = (
+                <>
+                  <span aria-hidden="true" className="einsatz__wt">{s.wochentag}</span>
+                  <span aria-hidden="true" className="einsatz__zahl">{s.tag}.</span>
+                </>
+              );
+              const grund = `${s.heute ? 'einsatz__zelle--heute' : ''}${s.geschlossen || s.feiertag ? ' einsatz__zelle--zu' : ''}`.trim();
               return (
-                <tr key={z.person_id} className={ich ? 'einsatz__ich' : undefined}>
-                  <th scope="row" className="einsatz__person" title={regeltage[z.person_id] ? `Regeltage: ${regeltage[z.person_id]}` : undefined}>
-                    {b ? (
-                      <button type="button" className="einsatz__zeilenknopf" onClick={() => fuelleZeile(z.person_id, z.name)}
-                        title="Ganze Zeile einteilen oder leeren" aria-label={`${z.name}: an allen Öffnungstagen einteilen oder herausnehmen`}>
-                        {z.name}
-                      </button>
-                    ) : z.name}
-                    {z.leitung && <span className="einsatz__rolle"> (Leitung)</span>}
-                    {ich && <span className="einsatz__rolle"> · du</span>}
+                <tr key={s.datum} className={`${s.heute ? 'einsatz__zeile--heute' : ''}${s.wochentag === 'Mo' ? ' einsatz__zeile--wochenanfang' : ''}`.trim() || undefined}>
+                  <th scope="row" title={s.geschlossen ?? s.feiertag ?? undefined}
+                    className={`einsatz__tag${s.heute ? ' einsatz__tag--heute' : ''}${s.unbesetzt ? ' einsatz__tag--leer' : ''}${s.unterbesetzt ? ' einsatz__tag--knapp' : ''}${s.feiertag ? ' einsatz__tag--feiertag' : ''}${s.geschlossen || s.feiertag ? ' einsatz__tag--zu' : ''}`}>
+                    {tagOeffnen ? (
+                      <button type="button" className="einsatz__tagknopf" onClick={() => tagOeffnen(s.datum)} aria-label={`${formatKurz(s.datum)} öffnen${zusatz}`}>{tagInhalt}</button>
+                    ) : (
+                      <>{tagInhalt}<span className="sr-only">{`${s.wochentag} ${s.tag}.${zusatz}`}</span></>
+                    )}
+                    {(s.feiertag || s.geschlossen) && <span className="einsatz__grund" aria-hidden="true">{s.feiertag ?? s.geschlossen!.replace(/^Geschlossen: /, '')}</span>}
                   </th>
-                  {z.zellen.map((c, i) => {
-                    const s = spalten[i]!;
-                    const karte = karten[i]!;
+                  {zeilen.map((z) => {
+                    const c = z.zellen[i]!;
+                    const ich = z.person_id === ichId;
                     const inhalt = (
                       <>
                         {c.dienst && <><span className="einsatz__dienst" aria-hidden="true">●</span><span className="sr-only">eingeteilt</span></>}
@@ -174,11 +181,11 @@ export function Einsatzmatrix({
                         {c.neu && <><span className="einsatz__neu" aria-hidden="true" /><span className="sr-only">neu</span></>}
                       </>
                     );
-                    const grund = `${s.heute ? 'einsatz__zelle--heute' : ''}${s.geschlossen || s.feiertag ? ' einsatz__zelle--zu' : ''}`.trim();
+                    const spalteIch = ich ? ' einsatz__zelle--ich' : '';
                     if (!b || !bearbeitbar(karte)) {
                       if (!b && tagOeffnen && zelleKlickbar?.(s.datum, z.person_id)) {
                         return (
-                          <td key={s.datum} className={`einsatz__schalterzelle ${grund}`.trim()}>
+                          <td key={z.person_id} className={`einsatz__schalterzelle ${grund}${spalteIch}`.trim()}>
                             <button type="button" className="einsatz__schalter" onClick={() => tagOeffnen(s.datum)}
                               aria-label={`${ich ? 'Mein Tag' : z.name}: ${wochentagLang(s.datum)}, ${formatKurz(s.datum)}${c.wunsch ? ' – Wunsch beantworten' : ''}`}>
                               {inhalt}
@@ -186,7 +193,7 @@ export function Einsatzmatrix({
                           </td>
                         );
                       }
-                      return <td key={s.datum} className={grund || undefined}>{inhalt}</td>;
+                      return <td key={z.person_id} className={`${grund}${spalteIch}`.trim() || undefined}>{inhalt}</td>;
                     }
 
                     const vorherDrin = eingeteilt(b.gespeichert, new Map(), s.datum, z.person_id);
@@ -194,7 +201,7 @@ export function Einsatzmatrix({
                     const weg = !c.dienst && vorherDrin;
                     const konflikt = konfliktAm(s.datum, z.person_id, abwesenheiten, feiertage, treffId);
                     return (
-                      <td key={s.datum} className={`einsatz__schalterzelle${s.heute ? ' einsatz__zelle--heute' : ''}${neu ? ' einsatz__zelle--neu' : ''}${weg ? ' einsatz__zelle--weg' : ''}`}>
+                      <td key={z.person_id} className={`einsatz__schalterzelle${s.heute ? ' einsatz__zelle--heute' : ''}${neu ? ' einsatz__zelle--neu' : ''}${weg ? ' einsatz__zelle--weg' : ''}${spalteIch}`}>
                         <button type="button" className="einsatz__schalter" data-zelle="" data-datum={s.datum} data-person={z.person_id} aria-pressed={c.dienst}
                           aria-label={`${z.name}, ${s.wochentag} ${s.tag}.${konflikt ? ` (${konflikt})` : ''}${neu ? ', neu' : ''}${weg ? ', wird herausgenommen' : ''}`}
                           onPointerDown={(ev) => {
@@ -216,26 +223,38 @@ export function Einsatzmatrix({
                       </td>
                     );
                   })}
-                  <td className="einsatz__summe">{z.tage}</td>
-                  {mitStunden && (
-                    <td className={`einsatz__summe${zuViel ? ' einsatz__zuviel' : ''}`} title={max !== null ? `höchstens ${stundenText(max)} im Monat` : undefined}>
-                      {stundenText(std)}
-                      {max !== null && <span className="einsatz__max"> / {stundenText(max)}</span>}
-                      {b && std !== vorher && <span className="einsatz__delta"> ({std > vorher ? '+' : '−'}{stundenText(Math.abs(Math.round((std - vorher) * 100) / 100))})</span>}
-                      {zuViel && <span className="sr-only"> – mehr als die höchstens {stundenText(max!)}</span>}
-                    </td>
-                  )}
+                  <td className={`einsatz__summe${s.unbesetzt ? ' einsatz__leer' : s.unterbesetzt ? ' einsatz__knapp' : ''}`}>{s.besetzung}</td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
             <tr>
-              <th scope="row" className="einsatz__person">Besetzung</th>
-              {spalten.map((s) => <td key={s.datum} className={s.unbesetzt ? 'einsatz__leer' : s.unterbesetzt ? 'einsatz__knapp' : undefined}>{s.besetzung}</td>)}
+              <th scope="row" className="einsatz__ecke">Tage</th>
+              {zeilen.map((z) => <td key={z.person_id} className="einsatz__summe" data-person={z.person_id}>{z.tage}</td>)}
               <td className="einsatz__summe" />
-              {mitStunden && <td className="einsatz__summe" />}
             </tr>
+            {mitStunden && (
+              <tr>
+                <th scope="row" className="einsatz__ecke">Std.</th>
+                {zeilen.map((z) => {
+                  const std = stundenVon(karten, z.person_id);
+                  const vorher = b ? stundenVon(b.gespeichert, z.person_id) : std;
+                  const max = stunden?.mitHoechst || b ? maxStunden[z.person_id] ?? null : null;
+                  const zuViel = max !== null && std > max;
+                  return (
+                    <td key={z.person_id} data-person={z.person_id} className={`einsatz__summe einsatz__stunden${zuViel ? ' einsatz__zuviel' : ''}`}
+                      title={max !== null ? `höchstens ${stundenText(max)} im Monat` : undefined}>
+                      {stundenText(std)}
+                      {max !== null && <span className="einsatz__max"> / {stundenText(max)}</span>}
+                      {b && std !== vorher && <span className="einsatz__delta"> ({std > vorher ? '+' : '−'}{stundenText(Math.abs(Math.round((std - vorher) * 100) / 100))})</span>}
+                      {zuViel && <span className="sr-only"> – mehr als die höchstens {stundenText(max!)}</span>}
+                    </td>
+                  );
+                })}
+                <td className="einsatz__summe" />
+              </tr>
+            )}
           </tfoot>
         </table>
       </div>

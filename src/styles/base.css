@@ -395,3 +395,11 @@ a.kachel:hover, .kachel--auswahl:hover { border-color: var(--accent); }
 .teamprotokoll__bearbeiten > * { justify-self: stretch; }
 .teamprotokoll__bearbeiten > .btn { justify-self: start; }
 .teamprotokoll__abschnitt-form { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+
+/* Ganze Listenzeile klickbar: der Titel-Knopf wird über die ganze Zeile gezogen (bleibt für Tastatur und Hilfsmittel ein Knopf). */
+.list__item--klickbar { position: relative; cursor: pointer; border-radius: var(--radius-sm); }
+.list__item--klickbar:hover { background: var(--accent-bg); }
+.list__item--klickbar .linklike::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.list__item--klickbar .linklike:focus-visible { box-shadow: none; }
+.list__item--klickbar:has(.linklike:focus-visible) { box-shadow: var(--focus-ring); }
+.list__item--klickbar .streck::after { content: ''; position: absolute; inset: 0; }

@@ -87,3 +87,48 @@
 .tag__liste { margin: 0 0 var(--space-2); padding-left: 1.2rem; }
 .tag__ich { padding: var(--space-3); border-radius: var(--radius); background: var(--accent-bg); }
 .tag__sonder { padding-left: var(--space-3); border-left: 3px solid var(--orange); }
+
+/* Ausrichtung (2026-10-29): Tage links in den Zeilen, Mitarbeitende oben in den Spalten.
+   Die Tagesspalte bleibt beim seitlichen Wischen stehen, die Namenszeile beim Scrollen nach unten (Monat mit 31 Tagen). */
+.einsatz-wrap { max-height: min(75vh, 46rem); overflow: auto; }
+.einsatz thead th { position: sticky; top: 0; z-index: 2; vertical-align: bottom; }
+.einsatz__ecke { position: sticky; left: 0; z-index: 1; background: var(--surface-2); text-align: left !important; font-weight: 600; }
+.einsatz thead .einsatz__ecke { z-index: 3; }
+.einsatz tbody .einsatz__tag {
+  position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; white-space: nowrap; min-width: 4.5rem;
+  border-right: 1px solid var(--border-strong); font-weight: 600;
+}
+.einsatz tbody .einsatz__tag span { display: inline; }
+.einsatz tbody .einsatz__tag .einsatz__wt { display: inline-block; min-width: 1.8em; }
+.einsatz tbody .einsatz__tag .einsatz__zahl { font-size: inherit; }
+.einsatz tbody .einsatz__tagknopf { display: flex; align-items: center; gap: 2px; min-height: 2.25rem; text-align: left; width: 100%; padding: 2px 4px; }
+.einsatz tbody .einsatz__tag--heute { box-shadow: inset 3px 0 0 var(--accent); }
+.einsatz tbody .einsatz__tag--leer { box-shadow: inset 3px 0 0 var(--danger); }
+.einsatz tbody .einsatz__tag--knapp { box-shadow: inset 3px 0 0 var(--warning); }
+.einsatz tbody .einsatz__tag--zu { background: var(--surface-2); }
+.einsatz__grund { display: block !important; font-weight: 400; font-size: 0.75rem; color: var(--text-muted); max-width: 9rem; overflow: hidden; text-overflow: ellipsis; }
+.einsatz__zeile--heute td { background: var(--accent-bg); }
+.einsatz__zeile--wochenanfang th, .einsatz__zeile--wochenanfang td { border-top: 2px solid var(--border-strong); }
+.einsatz__kopf { min-width: 4.25rem; max-width: 7rem; white-space: normal !important; }
+.einsatz__kopf .einsatz__vorname, .einsatz__kopf .einsatz__nachname { display: block; overflow: hidden; text-overflow: ellipsis; }
+.einsatz__kopf .einsatz__nachname { font-weight: 400; }
+.einsatz__kopf .einsatz__rolle { display: block; font-size: 0.75rem; }
+.einsatz__kopf--ich { box-shadow: inset 0 -3px 0 var(--accent); }
+.einsatz__zelle--ich { background: var(--accent-bg); }
+.einsatz__kopf .einsatz__zeilenknopf { text-align: center; }
+.einsatz tfoot th, .einsatz tfoot td { border-top: 1px solid var(--border-strong); }
+.einsatz__stunden { white-space: normal !important; }
+.einsatz tbody td.einsatz__summe { border-left: 1px solid var(--border); }
+/* Kompakte Tageszeilen (ein Monat soll ohne viel Scrollen lesbar sein) */
+.einsatz tbody th, .einsatz tbody td { padding-top: 2px; padding-bottom: 2px; }
+.einsatz tbody .einsatz__tagknopf { min-height: 1.9rem; }
+.einsatz tbody .einsatz__schalter { min-height: 1.9rem; }
+/* Schließgrund unter dem Tag: umbrechen statt die Tagesspalte zu verbreitern */
+.einsatz tbody .einsatz__tag { width: 1%; }
+.einsatz__grund { white-space: normal; max-width: 6.5rem; line-height: 1.15; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .einsatz tbody .einsatz__tag { min-width: 3.6rem; }
+  .einsatz__grund { max-width: 4.5rem; font-size: 0.7rem; }
+  .einsatz__kopf { min-width: 3.4rem; }
+}
+.einsatz__grund { overflow-wrap: normal; hyphens: auto; }

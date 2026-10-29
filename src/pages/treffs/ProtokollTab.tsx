@@ -150,9 +150,9 @@ export function ProtokollTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
           <strong>Es fehlen Protokolle</strong> für diese Öffnungstage der letzten zwei Wochen:
           <ul aria-label="Fehlende Protokolle" className="list" style={{ marginTop: 'var(--space-2)' }}>
             {offeneTage.filter((d) => d !== heute).map((d) => (
-              <li key={d} className="list__item">
+              <li key={d} className="list__item list__item--klickbar">
                 <span>{wochentagLang(d)}, {formatDatum(d)}</span>
-                <Button klein onClick={() => setOffen({ datum: d, vorhanden: null })}>Nachtragen</Button>
+                <Button klein className="streck" onClick={() => setOffen({ datum: d, vorhanden: null })}>Nachtragen</Button>
               </li>
             ))}
           </ul>
@@ -165,7 +165,7 @@ export function ProtokollTab({ treff: t, rolle }: { treff: TreffDetailDaten; rol
         {!protokolle.laedt && liste.length === 0 && <EmptyState icon="📒" titel="Noch keine Protokolle">Schreibe das erste Protokoll mit „Protokoll für heute schreiben“.</EmptyState>}
         <ul className="list" aria-label="Protokolle">
           {liste.map((p) => (
-            <li key={p.id} className="list__item">
+            <li key={p.id} className="list__item list__item--klickbar">
               <div className="list__main" style={{ flex: 1 }}>
                 <button type="button" className="list__title linklike" onClick={() => setOffen({ datum: p.datum, vorhanden: p })}>
                   {formatKurz(p.datum)} {p.datum.slice(0, 4)}

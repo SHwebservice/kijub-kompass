@@ -134,7 +134,7 @@ export function MatrixLeiste(p: Props) {
     <div className="einsatz__leiste">
       <p className="field__hint">
         Klicke Zellen an, um einzuteilen oder herauszunehmen; mit der Maus kannst du über mehrere Tage ziehen. Ein Klick auf den Namen füllt
-        oder leert die ganze Zeile. Die Werkzeuge darunter füllen denselben Entwurf. Erst „Speichern“ übernimmt alles.
+        oder leert die ganze Spalte. Die Werkzeuge darunter füllen denselben Entwurf. Erst „Speichern“ übernimmt alles.
       </p>
       {fehler && <Alert ton="error">{fehler}</Alert>}
       <div className="row">
