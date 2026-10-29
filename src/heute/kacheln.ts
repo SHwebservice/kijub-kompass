@@ -98,7 +98,7 @@ export function baueKacheln(k: KachelKontext): KachelGruppe[] {
     treffs.push(mitZielen('dienstplan', 'Dienstplan', '🗓️', '/treffs', k.treffs, 'dienstplan'));
     // Offene Nachweise: die Treffkoordination sieht sie im Überblick oben, die Treffleitung nur hier
     if (k.kategorie === 'TZK' || k.treffleitung || k.treffkoordination) treffs.push(mitZielen('nachweis', 'Stundennachweis', '🧾', '/treffs', k.treffs, 'nachweis', k.treffleitung && !k.treffkoordination ? z.nachweise : 0));
-    if (k.treffleitung || k.treffkoordination) treffs.push(mitZielen('abwesenheit', 'Abwesenheit & Feiertage', '🏖️', '/treffs', k.treffs, 'verwaltung'));
+    if (k.treffleitung || k.treffkoordination) treffs.push(mitZielen('abwesenheit', 'Abwesenheiten', '🏖️', '/treffs', k.treffs, 'dienstplan?ansicht=monat&zeige=abwesenheiten'));
   }
   if (treffs.length) gruppen.push({ id: 'treffs', titel: 'Treffs', kacheln: treffs });
 

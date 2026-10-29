@@ -12,7 +12,7 @@ Rollen: **Koordination**, **Freizeitleitung**, **TeamerIn**, **Treffleitung**, *
 | Kacheln Lebensmittel, Vorbereitung | ja | ja | – | – | – | – |
 | Kacheln Treffs (Tagesprotokoll, Notizen mit Zahl offener, Dienstplan) | alle | – | – | eigene | eigene | – |
 | Kachel Nachweis | ohne Zahl (Zahl im Kachelraster) | – | – | Zahl eingereichter | nur TZK, ohne Zahl | – |
-| Kachel Abwesenheit & Feiertage | ja | – | – | ja | – | – |
+| Kachel Abwesenheiten (öffnet den Dienstplan mit der Übersicht; seit 2026-10-29) | ja | – | – | ja | – | – |
 | Karte „Als Nächstes“ (nächste eigene kommende Freizeit, nächste 3 Dienste, Link „Meine Dienste“) | wenn eingeteilt | ja | ja | ja | ja | – |
 | Karte „Heute“ (Tagesprogramm, Dienste) | ja | ja | ja | ja | ja | – |
 | „Das wartet auf dich“ (Hinweise/Absprachen bestätigen) | ja | ja | Hinweise | ja | ja | – |

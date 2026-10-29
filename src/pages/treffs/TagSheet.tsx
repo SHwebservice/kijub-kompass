@@ -37,7 +37,7 @@ interface Props {
   /** Sonderdienst bearbeiten (Dienst) oder an diesem Tag anlegen (null); schließt das Tagesfenster. */
   sonderdienst: (dienst: Dienst | null) => void;
   /** Schließzeit ab diesem Tag eintragen (Treffleitung, Koordination); schließt das Tagesfenster. */
-  schliesszeit?: () => void;
+  schliesszeit?: (feiertag?: boolean) => void;
   /** Nach einer Änderung an Diensten oder Wünschen. */
   geaendert: () => void;
   /** Alle Tage des angezeigten Zeitraums (für die Stunden bei „Wer ist frei?“). */
@@ -267,7 +267,8 @@ export function TagSheet({ treffId, rolle, karte: k, team, abwesenheiten, feiert
 
       <div className="row">
         {verwaltung && <Button klein onClick={() => sonderdienst(null)}>+ Sonderdienst an diesem Tag</Button>}
-        {verwaltung && schliesszeit && !k.geschlossen && <Button klein variante="ghost" onClick={schliesszeit}>Treff an diesem Tag schließen …</Button>}
+        {verwaltung && schliesszeit && !k.geschlossen && <Button klein variante="ghost" onClick={() => schliesszeit()}>Treff an diesem Tag schließen …</Button>}
+        {verwaltung && schliesszeit && !feiertag && <Button klein variante="ghost" onClick={() => schliesszeit(true)}>Als Feiertag eintragen …</Button>}
       </div>
     </Sheet>
   );

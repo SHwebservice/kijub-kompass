@@ -70,10 +70,10 @@ describe('Schnellzugriff: Treffs', () => {
     expect(kachel(k, 'protokoll')!.badge).toBeUndefined();
     expect(kachel(k, 'dienstplan')!.badge).toBeUndefined();
   });
-  it('Treffleitung: Nachweis mit Zahl der eingereichten, Abwesenheit & Feiertage', () => {
+  it('Treffleitung: Nachweis mit Zahl der eingereichten, Abwesenheiten (im Dienstplan)', () => {
     const k = ctx({ treffTeam: true, treffleitung: true, treffs: tr, zaehler: { ...KEINE_ZAEHLER, nachweise: 2 } });
     expect(kachel(k, 'nachweis')).toMatchObject({ pfad: '/treffs/t1/nachweis', badge: 2 });
-    expect(kachel(k, 'abwesenheit')).toMatchObject({ pfad: '/treffs/t1/verwaltung' });
+    expect(kachel(k, 'abwesenheit')).toMatchObject({ label: 'Abwesenheiten', pfad: '/treffs/t1/dienstplan?ansicht=monat&zeige=abwesenheiten' });
   });
   it('Treffkoordination: Nachweis ohne Zahl (die steht im Überblick oben)', () => {
     const k = ctx({ treffkoordination: true, treffleitung: true, treffs: tr, zaehler: { ...KEINE_ZAEHLER, nachweise: 2 } });

@@ -112,13 +112,13 @@ describe('Startseite: Schnellzugriff', () => {
     for (const weg of [/Monatsplan/, /Dienstwünsche/, /Absprachen/, /Treffmappe/, /Alle Treffs/]) expect(screen.queryByRole('link', { name: weg })).not.toBeInTheDocument();
   });
 
-  it('Treffleitung: Abwesenheit & Feiertage, Nachweise mit Zahl eingereichter; Dienstwünsche stehen im Feed', async () => {
+  it('Treffleitung: Abwesenheiten, Nachweise mit Zahl eingereichter; Dienstwünsche stehen im Feed', async () => {
     stand.wuensche = [{ person_id: 'b', datum: inTagen(2), treff_id: 't1' }] as never;
     stand.nachweise = 3;
     zeige(treffleitung);
     const treffs = await screen.findByRole('list', { name: 'Treffs' });
     expect(await within(treffs).findByRole('link', { name: /Stundennachweis\s*Offen:\s*3/ })).toHaveAttribute('href', '/treffs/t1/nachweis');
-    expect(within(treffs).getByRole('link', { name: 'Abwesenheit & Feiertage' })).toHaveAttribute('href', '/treffs/t1/verwaltung');
+    expect(within(treffs).getByRole('link', { name: 'Abwesenheiten' })).toHaveAttribute('href', '/treffs/t1/dienstplan?ansicht=monat&zeige=abwesenheiten');
     expect(within(treffs).queryByRole('link', { name: /Dienstwünsche|Monatsplan/ })).not.toBeInTheDocument();
     expect(await screen.findByRole('list', { name: 'Zu erledigen' })).toHaveTextContent('Kindertreff');
   });
@@ -142,7 +142,7 @@ describe('Startseite: Schnellzugriff', () => {
     zeige({ ich: { id: 'ich', kategorie: 'Hauptamtliche*r' }, freizeiten: [{ freizeit_id: 'f1', rolle: 'leitung' }], treffs: [{ treff_id: 't1', rolle: 'treffleitung' }] });
     await screen.findByRole('navigation', { name: 'Schnellzugriff' });
     expect(kachelLink('Freizeiten', 'Lebensmittel')).toBeInTheDocument();
-    expect(await within(screen.getByRole('list', { name: 'Treffs' })).findByRole('link', { name: 'Abwesenheit & Feiertage' })).toBeInTheDocument();
+    expect(await within(screen.getByRole('list', { name: 'Treffs' })).findByRole('link', { name: 'Abwesenheiten' })).toBeInTheDocument();
   });
 });
 

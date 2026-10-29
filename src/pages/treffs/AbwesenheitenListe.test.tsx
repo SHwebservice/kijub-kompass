@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as api from '../../treffs/api';
-import { VerwaltungTab } from './VerwaltungTab';
+import { AbwesenheitenListe } from './AbwesenheitenListe';
 import { renderMitAuth, type Szene } from '../../test-utils';
 import { treff, treffMitglied } from '../../test-daten';
 import { addTage, type Dienst } from '../../treffs/dienstplan';
@@ -25,7 +25,6 @@ const morgen = addTage(heute, 1);
 const dienst = (o: Partial<Dienst> & { id: string; datum: string }): Dienst => ({ von: '15:00', bis: '19:00', ist_sonder: false, bezeichnung: null, personen: [], wuensche: [], ...o });
 
 const leitung: Szene = { ich: { id: 'lea', kategorie: 'Hauptamtliche*r' }, treffs: [{ treff_id: 't1', rolle: 'treffleitung' }] };
-const koord: Szene = { ich: { ist_koordination: true, kategorie: 'Hauptamtliche*r' } };
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -40,8 +39,8 @@ beforeEach(() => {
   }
 });
 
-const zeige = async (szene: Szene, rolle: 'treffleitung' | 'koordination' = 'treffleitung') => {
-  renderMitAuth(<VerwaltungTab treff={nord} rolle={rolle} />, szene);
+const zeige = async (szene: Szene) => {
+  renderMitAuth(<AbwesenheitenListe treffId={nord.id} team={team} heute={heute} />, szene);
   await screen.findByRole('button', { name: '+ Abwesenheit eintragen' });
 };
 const neu = async () => {
@@ -178,50 +177,5 @@ describe('Abwesenheiten: Übersicht und Ändern', () => {
     expect(screen.queryByRole('region', { name: 'Vergangene Abwesenheiten von Ben Baum' })).not.toBeInTheDocument();
     await userEvent.click(knopf);
     expect(screen.getByRole('region', { name: 'Vergangene Abwesenheiten von Ben Baum' })).toBeInTheDocument();
-  });
-});
-
-describe('Feiertage', () => {
-  it('Treffleitung trägt Feiertage nur für den eigenen Treff ein; Koordination auch für alle', async () => {
-    await zeige(leitung);
-    expect(screen.queryByLabelText('Gilt für alle Treffs')).not.toBeInTheDocument();
-    await userEvent.type(screen.getByLabelText('Datum'), morgen);
-    await userEvent.type(screen.getByLabelText('Bezeichnung'), 'Stadtfest');
-    await userEvent.click(screen.getByRole('button', { name: 'Feiertag eintragen' }));
-    expect(api.speichereFeiertag).toHaveBeenCalledWith('t1', morgen, 'Stadtfest');
-  });
-
-  it('Koordination: Feiertag für alle Treffs', async () => {
-    await zeige(koord, 'koordination');
-    await userEvent.type(screen.getByLabelText('Datum'), morgen);
-    await userEvent.type(screen.getByLabelText('Bezeichnung'), 'Neujahr');
-    await userEvent.click(screen.getByLabelText('Gilt für alle Treffs'));
-    await userEvent.click(screen.getByRole('button', { name: 'Feiertag eintragen' }));
-    expect(api.speichereFeiertag).toHaveBeenCalledWith(null, morgen, 'Neujahr');
-  });
-
-  it('Treffleitung kann Feiertage „für alle“ sehen, aber nicht löschen', async () => {
-    vi.mocked(api.listeFeiertage).mockResolvedValue([
-      { id: 'a', treff_id: null, datum: '2030-01-01', bezeichnung: 'Neujahr' },
-      { id: 'b', treff_id: 't1', datum: '2030-05-01', bezeichnung: 'Eigener' },
-    ]);
-    await zeige(leitung);
-    expect(await screen.findByText('Neujahr')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Feiertag Neujahr löschen' })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Feiertag Eigener löschen' }));
-    expect(api.loescheFeiertag).toHaveBeenCalledWith('b');
-  });
-
-  it('Schließzeiten stehen nicht hier, sondern im Dienstplan (Hinweis mit Link)', async () => {
-    await zeige(leitung);
-    expect(screen.queryByLabelText('Geschlossen von')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Dienstplan' }).map((l) => l.getAttribute('href'))).toContain('/treffs/t1/dienstplan?ansicht=monat');
-  });
-
-  it('verlangt Datum und Bezeichnung für Feiertage', async () => {
-    await zeige(leitung);
-    await userEvent.click(screen.getByRole('button', { name: 'Feiertag eintragen' }));
-    expect(screen.getByText('Bitte Datum und Bezeichnung angeben.')).toBeInTheDocument();
-    expect(api.speichereFeiertag).not.toHaveBeenCalled();
   });
 });

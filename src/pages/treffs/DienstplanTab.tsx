@@ -33,7 +33,7 @@ import { Sheet } from '../../components/Sheet';
 import { useLetzterBesuchDienste } from '../dienste/gesehen';
 
 type Ansicht = 'woche' | 'monat';
-type Ziel = { art: 'tag'; datum: string } | { art: 'sonder'; dienst: Dienst | null; datum: string } | { art: 'schliess'; datum?: string }
+type Ziel = { art: 'tag'; datum: string } | { art: 'sonder'; dienst: Dienst | null; datum: string } | { art: 'schliess'; datum?: string; feiertag?: boolean }
   | { art: 'abwesenheit'; person?: string; datum?: string; block?: Block | null; bearbeiten?: boolean } | { art: 'abwesenheiten' };
 
 const datumZeit = (iso: string) => `${formatDatum(iso.slice(0, 10))} ${iso.slice(11, 16)}`;
@@ -71,7 +71,8 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
     dienste.neuLaden(); feiertage.neuLaden(); schliesszeiten.neuLaden(); kommentare.neuLaden(); absprachen.neuLaden(); team.neuLaden(); veroeffentlicht.neuLaden();
   });
 
-  const [ziel, setZiel] = useState<Ziel | null>(null);
+  // ?zeige=abwesenheiten (z. B. von der Startseite) öffnet gleich die Übersicht der Abwesenheiten
+  const [ziel, setZiel] = useState<Ziel | null>(() => (params.get('zeige') === 'abwesenheiten' && darfTreffVerwalten(rolle) ? { art: 'abwesenheiten' } : null));
   const schliessen = useCallback(() => setZiel(null), [setZiel]);
   const [bearbeiten, setBearbeiten] = useState(false);
   const [entwurf, setEntwurf] = useState<Entwurf>(LEERER_ENTWURF);
@@ -258,7 +259,7 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
           absprachen={(absprachen.daten ?? []).filter((n) => n.datum === tagKarte.datum)} ichId={ich.id} heute={heute} veroeffentlicht={fest}
           karten={karten} mindestbesetzung={mindest}
           abwesenheit={(person, aendern) => setZiel({ art: 'abwesenheit', person, datum: tagKarte.datum, bearbeiten: aendern })}
-          sonderdienst={(d) => setZiel({ art: 'sonder', dienst: d, datum: tagKarte.datum })} schliesszeit={() => setZiel({ art: 'schliess', datum: tagKarte.datum })} geaendert={neuLaden}
+          sonderdienst={(d) => setZiel({ art: 'sonder', dienst: d, datum: tagKarte.datum })} schliesszeit={(feiertag) => setZiel({ art: 'schliess', datum: tagKarte.datum, feiertag })} geaendert={neuLaden}
           verhinderungGeaendert={() => verhinderungen.neuLaden()} schliessen={schliessen} />
       )}
       {ziel?.art === 'sonder' && (
@@ -275,7 +276,8 @@ export function DienstplanTab({ treff: t, rolle }: { treff: TreffDetailDaten; ro
         </Sheet>
       )}
       {ziel?.art === 'schliess' && (
-        <SchliesszeitenSheet treffId={t.id} startDatum={ziel.datum} schliessen={schliessen} geaendert={() => { schliesszeiten.neuLaden(); dienste.neuLaden(); }} />
+        <SchliesszeitenSheet treffId={t.id} rolle={rolle} startDatum={ziel.datum} feiertag={ziel.feiertag} schliessen={schliessen}
+          geaendert={() => { schliesszeiten.neuLaden(); feiertage.neuLaden(); dienste.neuLaden(); }} />
       )}
     </div>
   );

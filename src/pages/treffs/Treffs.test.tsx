@@ -104,10 +104,19 @@ describe('Treff-Detail: Reiter je Rolle', () => {
     expect(tabNamen()).toEqual([]);
   });
 
-  it('Treffleitung sieht zusätzlich „Abwesenheit & Feiertage“', async () => {
+  it('Treffleitung sieht dieselben Reiter (Abwesenheiten, Schließzeiten und Feiertage stehen im Dienstplan)', async () => {
     zeigeDetail(leitung);
     await screen.findByRole('heading', { name: 'Treff Nord' });
-    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Teamprotokolle', 'Abwesenheit & Feiertage']);
+    expect(tabNamen()).toEqual(['Übersicht', 'Tagesprotokoll', 'Notizen', 'Dienstplan', 'Stundennachweis', 'Teamprotokolle']);
+  });
+
+  it('alter Link auf „Abwesenheit & Feiertage“ führt in den Dienstplan mit der Übersicht der Abwesenheiten', async () => {
+    for (const fn of [api.listeDienste, api.listeFeiertage, api.listeAbwesenheiten, api.listeSchliesszeiten, api.listeTreffAbsprachen, api.listeDienstplanKommentare,
+      api.listeVerhinderungen, api.listeVeroeffentlicht] as const) vi.mocked(fn as () => Promise<unknown[]>).mockResolvedValue([]);
+    vi.mocked(api.holeTreffTeam).mockResolvedValue([]);
+    zeigeDetail(leitung, '/treffs/t1/verwaltung');
+    expect(await screen.findByRole('dialog', { name: 'Abwesenheiten' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Monat' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('Koordination sieht „Bearbeiten“', async () => {

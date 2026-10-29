@@ -478,8 +478,8 @@ describe('Dienstplan: Schließzeiten direkt eintragen', () => {
   it('„Schließzeiten …“ über der Tabelle: eintragen („bis“ mit „von“ vorbelegt), Dienstplan wird neu geladen', async () => {
     vi.mocked(api.speichereSchliesszeit).mockResolvedValue(undefined);
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(screen.getByRole('button', { name: 'Schließzeiten …' }));
-    const fenster = await screen.findByRole('dialog', { name: 'Schließzeiten' });
+    await userEvent.click(screen.getByRole('button', { name: 'Schließzeiten & Feiertage …' }));
+    const fenster = await screen.findByRole('dialog', { name: 'Schließzeiten & Feiertage' });
     await userEvent.type(within(fenster).getByLabelText('Geschlossen von'), mi);
     expect(within(fenster).getByLabelText('Geschlossen bis')).toHaveValue(mi);
     await userEvent.type(within(fenster).getByLabelText('Grund (optional)'), 'Fortbildung');
@@ -494,8 +494,8 @@ describe('Dienstplan: Schließzeiten direkt eintragen', () => {
     vi.mocked(api.listeSchliesszeiten).mockResolvedValue([{ id: 's1', treff_id: 't1', von: '2030-07-01', bis: '2030-07-21', grund: 'Sommerpause' }]);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     await zeige(leitung, 'treffleitung');
-    await userEvent.click(screen.getByRole('button', { name: 'Schließzeiten …' }));
-    const fenster = await screen.findByRole('dialog', { name: 'Schließzeiten' });
+    await userEvent.click(screen.getByRole('button', { name: 'Schließzeiten & Feiertage …' }));
+    const fenster = await screen.findByRole('dialog', { name: 'Schließzeiten & Feiertage' });
     expect(await within(fenster).findByText('Sommerpause')).toBeInTheDocument();
     await userEvent.type(within(fenster).getByLabelText('Geschlossen von'), sa);
     await userEvent.clear(within(fenster).getByLabelText('Geschlossen bis'));
@@ -510,14 +510,14 @@ describe('Dienstplan: Schließzeiten direkt eintragen', () => {
   it('aus dem Tagesfenster: „Treff an diesem Tag schließen“ belegt den Tag vor', async () => {
     await zeige(leitung, 'treffleitung');
     await userEvent.click(within(await tag(mi)).getByRole('button', { name: 'Treff an diesem Tag schließen …' }));
-    const fenster = await screen.findByRole('dialog', { name: 'Schließzeiten' });
+    const fenster = await screen.findByRole('dialog', { name: 'Schließzeiten & Feiertage' });
     expect(within(fenster).getByLabelText('Geschlossen von')).toHaveValue(mi);
     expect(within(fenster).getByLabelText('Geschlossen bis')).toHaveValue(mi);
   });
 
   it('BetreuerInnen sehen keine Schließzeiten-Knöpfe', async () => {
     await zeige(betreuerin);
-    expect(screen.queryByRole('button', { name: 'Schließzeiten …' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Schließzeiten & Feiertage …' })).not.toBeInTheDocument();
     expect(within(await tag(mi)).queryByRole('button', { name: /Treff an diesem Tag schließen/ })).not.toBeInTheDocument();
   });
 });
@@ -597,5 +597,66 @@ describe('Dienstplan: Abwesenheiten und Ersatz', () => {
     expect(screen.queryByRole('button', { name: /Abwesenheit eintragen/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Abwesenheiten …' })).not.toBeInTheDocument();
     expect(within(await tag(mi)).queryByRole('region', { name: 'Wer ist frei?' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Dienstplan: Feiertage (früher Reiter „Abwesenheit & Feiertage“)', () => {
+  const oeffne = async (szene: Szene, rolle: 'treffleitung' | 'koordination') => {
+    await zeige(szene, rolle);
+    await userEvent.click(screen.getByRole('button', { name: 'Schließzeiten & Feiertage …' }));
+    return screen.findByRole('dialog', { name: 'Schließzeiten & Feiertage' });
+  };
+  beforeEach(() => { vi.mocked(api.speichereFeiertag).mockResolvedValue(undefined); vi.mocked(api.loescheFeiertag).mockResolvedValue(undefined); });
+
+  it('Treffleitung trägt Feiertage nur für den eigenen Treff ein', async () => {
+    const f = await oeffne(leitung, 'treffleitung');
+    expect(within(f).queryByLabelText('Gilt für alle Treffs')).not.toBeInTheDocument();
+    await userEvent.type(within(f).getByLabelText('Datum'), mi);
+    await userEvent.type(within(f).getByLabelText('Bezeichnung'), 'Stadtfest');
+    await userEvent.click(within(f).getByRole('button', { name: 'Feiertag eintragen' }));
+    expect(api.speichereFeiertag).toHaveBeenCalledWith('t1', mi, 'Stadtfest');
+  });
+
+  it('Koordination: Feiertag für alle Treffs', async () => {
+    const f = await oeffne(leitung, 'koordination');
+    await userEvent.type(within(f).getByLabelText('Datum'), mi);
+    await userEvent.type(within(f).getByLabelText('Bezeichnung'), 'Neujahr');
+    await userEvent.click(within(f).getByLabelText('Gilt für alle Treffs'));
+    await userEvent.click(within(f).getByRole('button', { name: 'Feiertag eintragen' }));
+    expect(api.speichereFeiertag).toHaveBeenCalledWith(null, mi, 'Neujahr');
+  });
+
+  it('Treffleitung sieht Feiertage „für alle“, löscht aber nur eigene (nach Rückfrage)', async () => {
+    vi.mocked(api.listeFeiertage).mockResolvedValue([
+      { id: 'a', treff_id: null, datum: '2030-01-01', bezeichnung: 'Neujahr' },
+      { id: 'b', treff_id: 't1', datum: '2030-05-01', bezeichnung: 'Eigener' },
+    ]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const f = await oeffne(leitung, 'treffleitung');
+    const liste = within(f).getByRole('list', { name: 'Feiertage' });
+    expect(await within(liste).findByText('Neujahr')).toBeInTheDocument();
+    expect(within(liste).queryByRole('button', { name: 'Feiertag Neujahr löschen' })).not.toBeInTheDocument();
+    await userEvent.click(within(liste).getByRole('button', { name: 'Feiertag Eigener löschen' }));
+    expect(api.loescheFeiertag).toHaveBeenCalledWith('b');
+  });
+
+  it('verlangt Datum und Bezeichnung', async () => {
+    const f = await oeffne(leitung, 'treffleitung');
+    await userEvent.click(within(f).getByRole('button', { name: 'Feiertag eintragen' }));
+    expect(within(f).getByText('Bitte Datum und Bezeichnung angeben.')).toBeInTheDocument();
+    expect(api.speichereFeiertag).not.toHaveBeenCalled();
+  });
+
+  it('aus dem Tagesfenster: „Als Feiertag eintragen …“ belegt den Tag vor', async () => {
+    await zeige(leitung, 'treffleitung');
+    await userEvent.click(within(await tag(mi)).getByRole('button', { name: 'Als Feiertag eintragen …' }));
+    const f = await screen.findByRole('dialog', { name: 'Schließzeiten & Feiertage' });
+    expect(within(f).getByLabelText('Datum')).toHaveValue(mi);
+    expect(within(f).getByLabelText('Geschlossen von')).toHaveValue('');
+  });
+
+  it('?zeige=abwesenheiten (Kachel der Startseite, alter Reiter) öffnet gleich die Übersicht – nur für die Verwaltung', async () => {
+    renderMitAuth(<DienstplanTab treff={nord} rolle="treffleitung" />, { ...leitung, pfad: '/treffs/t1/dienstplan?ansicht=monat&zeige=abwesenheiten' });
+    expect(await screen.findByRole('dialog', { name: 'Abwesenheiten' })).toBeInTheDocument();
   });
 });

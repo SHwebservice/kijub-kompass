@@ -116,7 +116,7 @@ export function MatrixLeiste(p: Props) {
           {ansicht === 'monat' && <Button klein variante="primary" onClick={() => { setErfolg(null); setBearbeiten(true); }}>In der Tabelle einteilen</Button>}
           <Button klein onClick={p.neuerSonderdienst}>+ Sonderdienst</Button>
           {p.abwesenheitenOeffnen && <Button klein onClick={p.abwesenheitenOeffnen}>Abwesenheiten …</Button>}
-          <Button klein onClick={p.schliesszeitenOeffnen}>Schließzeiten …</Button>
+          <Button klein onClick={p.schliesszeitenOeffnen}>Schließzeiten & Feiertage …</Button>
           <span className="row einsatz__mindest">
             <label htmlFor={`mindest-${treffId}`}>Mindestens</label>
             <select id={`mindest-${treffId}`} className="input" style={{ width: 'auto' }} value={p.mindestbesetzung} onChange={(e) => void mindestAendern(Number(e.target.value))}>

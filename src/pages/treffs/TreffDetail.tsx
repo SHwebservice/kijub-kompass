@@ -6,7 +6,6 @@ import { einzigerTreff, rolleInTreff, type RolleInTreff } from '../../lib/rollen
 import { Alert, Badge, EmptyState, Spinner } from '../../components/ui';
 import { TreffUebersicht } from './TreffUebersicht';
 import { DienstplanTab } from './DienstplanTab';
-import { VerwaltungTab } from './VerwaltungTab';
 import { NachweisTab } from './NachweisTab';
 import { ProtokollTab } from './ProtokollTab';
 import { NotizenTab } from './NotizenTab';
@@ -22,7 +21,6 @@ export const TREFF_TABS: TabDef[] = [
   { pfad: 'dienstplan', label: 'Dienstplan', sichtbar: (r) => r !== 'gast' },
   { pfad: 'nachweis', label: 'Stundennachweis', sichtbar: (r) => r !== 'gast' },
   { pfad: 'teamprotokolle', label: 'Teamprotokolle', sichtbar: (r) => r !== 'gast' },
-  { pfad: 'verwaltung', label: 'Abwesenheit & Feiertage', sichtbar: (r) => r === 'treffleitung' || r === 'koordination' },
 ];
 
 export function TreffDetail() {
@@ -75,7 +73,8 @@ export function TreffDetail() {
         {tabs.some((x) => x.pfad === 'teamprotokolle') && <Route path="teamprotokolle" element={<TeamprotokolleTab treff={d} rolle={rolle} />} />}
         {/* Das Team verwaltet die Koordination unter „Bearbeiten“; alte Links auf den früheren Reiter führen dorthin. */}
         <Route path="team" element={<Navigate to={rolle === 'koordination' ? `/treffs/${id}/bearbeiten` : `/treffs/${id}`} replace />} />
-        {tabs.some((x) => x.pfad === 'verwaltung') && <Route path="verwaltung" element={<VerwaltungTab treff={d} rolle={rolle} />} />}
+        {/* Der frühere Reiter „Abwesenheit & Feiertage“ ist im Dienstplan aufgegangen (Abwesenheiten, Schließzeiten & Feiertage) */}
+        {tabs.some((x) => x.pfad === 'dienstplan') && <Route path="verwaltung" element={<Navigate to={`/treffs/${id}/dienstplan?ansicht=monat&zeige=abwesenheiten`} replace />} />}
         <Route path="*" element={<Navigate to={`/treffs/${id}`} replace />} />
       </Routes>
     </>

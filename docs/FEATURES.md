@@ -555,3 +555,12 @@ Die 77 Programmpunkte des alten KiJuB Kompass wurden einmalig übernommen: direk
 - **Ändern statt löschen und neu anlegen:** Jeder Eintrag (in der Übersicht, im Tagesfenster auf das Schild der Abwesenden tippen, in der Tabelle auf die Zelle) öffnet das Fenster mit dem ganzen Zeitraum – verlängern, verkürzen (die Tage außerhalb werden gelöscht), Art oder Notiz ändern oder löschen.
 - **Übersicht je Person** (im Dienstplan und im Reiter „Abwesenheit & Feiertage“): laufende („läuft“) und kommende Abwesenheiten je Person, vergangene (60 Tage) eingeklappt; ganze Zeilen sind antippbar.
 - Technik: Logik in `src/treffs/abwesenheit.ts` (mit Tests), Oberfläche `AbwesenheitSheet.tsx`, `AbwesenheitenListe.tsx`; 0041 umhüllt `fn_push_vorbereiten` wie 0037 (Art `ersatz_gesucht`, Empfänger bestimmt die Datenbank).
+
+## Reiter „Abwesenheit & Feiertage“ entfällt (2026-10-29)
+
+- Alles daraus steht jetzt im **Dienstplan**:
+  - **Abwesenheiten:** „Abwesenheiten …“ über der Tabelle, Namen oben, Tagesfenster (siehe oben).
+  - **Schließzeiten und Feiertage:** in einem Fenster „**Schließzeiten & Feiertage …**“ über der Tabelle. Die Treffkoordination kann Feiertage weiter für **alle Treffs** eintragen; die Treffleitung sieht diese, löscht aber nur die eigenen. Löschen fragt nach.
+  - Im Tagesfenster gibt es neben „Treff an diesem Tag schließen …“ jetzt „**Als Feiertag eintragen …**“ (Datum vorbelegt).
+- Der Treff hat einen Reiter weniger. Alte Links auf `/treffs/…/verwaltung` und die Startseiten-Kachel (jetzt „**Abwesenheiten**“) öffnen den Dienstplan im Monat mit der Übersicht der Abwesenheiten (`?zeige=abwesenheiten`).
+- Keine Datenbankänderung.
