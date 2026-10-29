@@ -1,12 +1,32 @@
+# Abhängigkeiten und erzeugte Dateien
 node_modules
 dist
-.env
-.env.local
-*.log
 .vite
 coverage
-supabase/.temp
-supabase/.branches
+*.log
+*.tsbuildinfo
 graphify-out
+
+# Zugangsdaten – nie ins Repository (.env.example ist die Vorlage und bleibt)
+.env
+.env.local
 .env.push
 .env.sicherung
+.env.*
+!.env.example
+
+# Supabase und Cloudflare: lokale Arbeitsdateien der Werkzeuge
+supabase/.temp
+supabase/.branches
+.wrangler
+
+# Lokale Einstellungen von Werkzeugen und Editoren
+.claude/
+.vscode/
+.idea/
+*.swp
+
+# Systemdateien (Windows, OneDrive, macOS)
+Thumbs.db
+desktop.ini
+.DS_Store
